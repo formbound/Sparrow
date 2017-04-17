@@ -1,8 +1,12 @@
+import HTTP
+
 open class Routes {
     public let staticFilesPath: String
     public var routes: [Route] = []
 
-    public lazy var fallback: Responder = FileResponder(path: self.staticFilesPath)
+    public lazy var fallback: Responder = BasicResponder { request in
+        return Response(status: .notFound)
+    }
 
     public init(staticFilesPath: String) {
         self.staticFilesPath = staticFilesPath
@@ -87,66 +91,6 @@ extension Routes {
         respond: @escaping (Request, A, B, C, D) throws -> Response) {
         add(method: .get, path: path, middleware: middleware, respond: respond)
     }
-
-    public func get<
-        T: MapInitializable
-        >(
-        _ path: String = "",
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, T) throws -> Response) {
-        add(method: .get, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func get<
-        A: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, T) throws -> Response) {
-        add(method: .get, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func get<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, T) throws -> Response) {
-        add(method: .get, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func get<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, T) throws -> Response) {
-        add(method: .get, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func get<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        D: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, D, T) throws -> Response) {
-        add(method: .get, path: path, middleware: middleware, respond: respond)
-    }
 }
 
 extension Routes {
@@ -203,66 +147,6 @@ extension Routes {
         _ path: String,
         middleware: [Middleware] = [],
         respond: @escaping (Request, A, B, C, D) throws -> Response) {
-        add(method: .head, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func head<
-        T: MapInitializable
-        >(
-        _ path: String = "",
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, T) throws -> Response) {
-        add(method: .head, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func head<
-        A: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, T) throws -> Response) {
-        add(method: .head, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func head<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, T) throws -> Response) {
-        add(method: .head, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func head<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, T) throws -> Response) {
-        add(method: .head, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func head<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        D: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, D, T) throws -> Response) {
         add(method: .head, path: path, middleware: middleware, respond: respond)
     }
 }
@@ -323,66 +207,6 @@ extension Routes {
         respond: @escaping (Request, A, B, C, D) throws -> Response) {
         add(method: .post, path: path, middleware: middleware, respond: respond)
     }
-
-    public func post<
-        T: MapInitializable
-        >(
-        _ path: String = "",
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, T) throws -> Response) {
-        add(method: .post, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func post<
-        A: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, T) throws -> Response) {
-        add(method: .post, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func post<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, T) throws -> Response) {
-        add(method: .post, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func post<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, T) throws -> Response) {
-        add(method: .post, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func post<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        D: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, D, T) throws -> Response) {
-        add(method: .post, path: path, middleware: middleware, respond: respond)
-    }
 }
 
 extension Routes {
@@ -439,66 +263,6 @@ extension Routes {
         _ path: String,
         middleware: [Middleware] = [],
         respond: @escaping (Request, A, B, C, D) throws -> Response) {
-        add(method: .put, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func put<
-        T: MapInitializable
-        >(
-        _ path: String = "",
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, T) throws -> Response) {
-        add(method: .put, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func put<
-        A: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, T) throws -> Response) {
-        add(method: .put, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func put<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, T) throws -> Response) {
-        add(method: .put, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func put<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, T) throws -> Response) {
-        add(method: .put, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func put<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        D: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, D, T) throws -> Response) {
         add(method: .put, path: path, middleware: middleware, respond: respond)
     }
 }
@@ -559,66 +323,6 @@ extension Routes {
         respond: @escaping (Request, A, B, C, D) throws -> Response) {
         add(method: .patch, path: path, middleware: middleware, respond: respond)
     }
-
-    public func patch<
-        T: MapInitializable
-        >(
-        _ path: String = "",
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, T) throws -> Response) {
-        add(method: .patch, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func patch<
-        A: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, T) throws -> Response) {
-        add(method: .patch, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func patch<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, T) throws -> Response) {
-        add(method: .patch, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func patch<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, T) throws -> Response) {
-        add(method: .patch, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func patch<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        D: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, D, T) throws -> Response) {
-        add(method: .patch, path: path, middleware: middleware, respond: respond)
-    }
 }
 
 extension Routes {
@@ -677,66 +381,6 @@ extension Routes {
         respond: @escaping (Request, A, B, C, D) throws -> Response) {
         add(method: .delete, path: path, middleware: middleware, respond: respond)
     }
-
-    public func delete<
-        T: MapInitializable
-        >(
-        _ path: String = "",
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, T) throws -> Response) {
-        add(method: .delete, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func delete<
-        A: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, T) throws -> Response) {
-        add(method: .delete, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func delete<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, T) throws -> Response) {
-        add(method: .delete, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func delete<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, T) throws -> Response) {
-        add(method: .delete, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func delete<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        D: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, D, T) throws -> Response) {
-        add(method: .delete, path: path, middleware: middleware, respond: respond)
-    }
 }
 
 extension Routes {
@@ -793,66 +437,6 @@ extension Routes {
         _ path: String,
         middleware: [Middleware] = [],
         respond: @escaping (Request, A, B, C, D) throws -> Response) {
-        add(method: .options, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func options<
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, T) throws -> Response) {
-        add(method: .options, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func options<
-        A: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, T) throws -> Response) {
-        add(method: .options, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func options<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, T) throws -> Response) {
-        add(method: .options, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func options<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, T) throws -> Response) {
-        add(method: .options, path: path, middleware: middleware, respond: respond)
-    }
-
-    public func options<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        D: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        _ path: String,
-        middleware: [Middleware] = [],
-        content: T.Type = T.self,
-        respond: @escaping (Request, A, B, C, D, T) throws -> Response) {
         add(method: .options, path: path, middleware: middleware, respond: respond)
     }
 }
@@ -968,146 +552,6 @@ extension Routes {
         }
 
         add(method: method, path: path, middleware: middleware, responder: responder)
-    }
-
-    public func add<
-        T: MapInitializable
-        >(
-        method: Request.Method,
-        path: String = "",
-        middleware: [Middleware] = [],
-        respond: @escaping (_ request: Request, _ content: T) throws -> Response) {
-        let contentMapper = ContentMapperMiddleware(mappingTo: T.self)
-        let responder = BasicResponder { request in
-            guard let content = request.storage[T.contentMapperKey] as? T else {
-                throw HTTPError.badRequest
-            }
-            return try respond(request, content)
-        }
-        add(method: method, path: path, middleware: [contentMapper] + middleware, responder: responder)
-    }
-
-    public func add<
-        A: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        method: Request.Method,
-        path: String,
-        middleware: [Middleware] = [],
-        respond: @escaping (Request, A, T) throws -> Response) {
-        let keys = parseParameterKeys(path: path, count: 1)
-        let contentMapper = ContentMapperMiddleware(mappingTo: T.self)
-        let responder = BasicResponder { request in
-            let parameters = try self.parseParameters(
-                keys: keys,
-                pathParameters: request.pathParameters
-            )
-
-            let a = try A(pathParameter: parameters[0])
-
-            guard let content = request.storage[T.contentMapperKey] as? T else {
-                throw HTTPError.badRequest
-            }
-
-            return try respond(request, a, content)
-        }
-
-        add(method: method, path: path, middleware: [contentMapper] + middleware, responder: responder)
-    }
-
-    public func add<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        method: Request.Method,
-        path: String,
-        middleware: [Middleware] = [],
-        respond: @escaping (Request, A, B, T) throws -> Response) {
-        let keys = parseParameterKeys(path: path, count: 2)
-        let contentMapper = ContentMapperMiddleware(mappingTo: T.self)
-        let responder = BasicResponder { request in
-            let parameters = try self.parseParameters(
-                keys: keys,
-                pathParameters: request.pathParameters
-            )
-
-            let a = try A(pathParameter: parameters[0])
-            let b = try B(pathParameter: parameters[1])
-            guard let content = request.storage[T.contentMapperKey] as? T else {
-                throw HTTPError.badRequest
-            }
-
-            return try respond(request, a, b, content)
-        }
-
-        add(method: method, path: path, middleware: [contentMapper] + middleware, responder: responder)
-    }
-
-    public func add<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        method: Request.Method,
-        path: String,
-        middleware: [Middleware] = [],
-        respond: @escaping (Request, A, B, C, T) throws -> Response) {
-        let keys = parseParameterKeys(path: path, count: 3)
-        let contentMapper = ContentMapperMiddleware(mappingTo: T.self)
-        let responder = BasicResponder { request in
-            let parameters = try self.parseParameters(
-                keys: keys,
-                pathParameters: request.pathParameters
-            )
-
-            let a = try A(pathParameter: parameters[0])
-            let b = try B(pathParameter: parameters[1])
-            let c = try C(pathParameter: parameters[2])
-
-            guard let content = request.storage[T.contentMapperKey] as? T else {
-                throw HTTPError.badRequest
-            }
-
-            return try respond(request, a, b, c, content)
-        }
-
-        add(method: method, path: path, middleware: [contentMapper] + middleware, responder: responder)
-    }
-
-    public func add<
-        A: PathParameterConvertible,
-        B: PathParameterConvertible,
-        C: PathParameterConvertible,
-        D: PathParameterConvertible,
-        T: MapInitializable
-        >(
-        method: Request.Method,
-        path: String,
-        middleware: [Middleware] = [],
-        respond: @escaping (Request, A, B, C, D, T) throws -> Response) {
-        let keys = parseParameterKeys(path: path, count: 4)
-        let contentMapper = ContentMapperMiddleware(mappingTo: T.self)
-        let responder = BasicResponder { request in
-            let parameters = try self.parseParameters(
-                keys: keys,
-                pathParameters: request.pathParameters
-            )
-
-            let a = try A(pathParameter: parameters[0])
-            let b = try B(pathParameter: parameters[1])
-            let c = try C(pathParameter: parameters[2])
-            let d = try D(pathParameter: parameters[3])
-
-            guard let content = request.storage[T.contentMapperKey] as? T else {
-                throw HTTPError.badRequest
-            }
-
-            return try respond(request, a, b, c, d, content)
-        }
-
-        add(method: method, path: path, middleware: [contentMapper] + middleware, responder: responder)
     }
 
     private func parseParameters(keys: [String], pathParameters: [String: String]) throws -> [String] {

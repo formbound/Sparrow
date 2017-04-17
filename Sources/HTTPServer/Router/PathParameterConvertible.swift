@@ -1,3 +1,5 @@
+import HTTP
+
 public protocol PathParameterConvertible {
     init(pathParameter: String) throws
     var pathParameter: String { get }

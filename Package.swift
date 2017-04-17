@@ -18,14 +18,14 @@ let package = Package(
             ]
         ),
 
-        Target(name: "POSIX"),
         Target(name: "Core"),
+        Target(name: "POSIX", dependencies: ["Core"]),
         Target(name: "OpenSSL", dependencies: ["Core"]),
         Target(name: "HTTP", dependencies: ["Core"]),
         Target(name: "IP", dependencies: ["Core", "POSIX"]),
         Target(name: "TCP", dependencies: ["IP", "OpenSSL", "POSIX"]),
-        Target(name: "HTTPServer", dependencies: ["TCP"]),
-        Target(name: "HTTPClient", dependencies: ["TCP"]),
+        Target(name: "HTTPServer", dependencies: ["TCP", "HTTP"]),
+        Target(name: "HTTPClient", dependencies: ["TCP", "HTTP"]),
         ],
     dependencies: [
         .Package(url: "https://github.com/formbound/Venice.git", majorVersion: 0),

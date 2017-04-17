@@ -1,3 +1,5 @@
+import HTTP
+
 public struct TrieRouteMatcher {
     private var routesTrie = Trie<String, Route>()
     public let routes: [Route]
@@ -27,7 +29,7 @@ public struct TrieRouteMatcher {
     }
 
     public func match(_ request: Request) -> Route? {
-        let components = request.path!.pathComponents
+        let components = request.url.pathComponents
         var parameters: [String: String] = [:]
 
         let matched = searchForRoute(
@@ -125,6 +127,7 @@ public struct TrieRouteMatcher {
     }
 }
 
+// TODO: Should probably be moved
 extension String {
     fileprivate var pathComponents: [String] {
         let components = unicodeScalars.split(separator: "/").map(String.init)

@@ -1,3 +1,5 @@
+import HTTP
+
 public struct PathParameterMiddleware : Middleware {
     let pathParameters: [String: String]
 

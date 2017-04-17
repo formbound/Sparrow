@@ -1,3 +1,9 @@
+import Core
+import HTTP
+import TCP
+import Venice
+import POSIX
+
 public struct Server {
     public let tcpHost: Host
     public let middleware: [Middleware]
@@ -7,6 +13,8 @@ public struct Server {
     public let host: String
     public let port: Int
     public let bufferSize: Int
+
+    fileprivate let coroutineGroup = CoroutineGroup()
 
     public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, middleware: [Middleware] = [], responder: ResponderRepresentable, failure: @escaping (Error) -> Void =  Server.log(error:)) throws {
         self.tcpHost = try TCPHost(
@@ -42,7 +50,7 @@ public struct Server {
     }
 }
 
-func retry(times: Int, waiting duration: Double, work: (Void) throws -> Void) throws {
+func retry(times: Int, waiting duration: Venice.TimeInterval, work: (Void) throws -> Void) throws {
     var failCount = 0
     var lastError: Error!
     while failCount < times {
@@ -53,7 +61,7 @@ func retry(times: Int, waiting duration: Double, work: (Void) throws -> Void) th
             lastError = error
             print("Error: \(error)")
             print("Retrying in \(duration) seconds.")
-            nap(for: duration)
+
             print("Retrying.")
         }
     }
@@ -66,13 +74,26 @@ extension Server {
         try retry(times: 10, waiting: 5.seconds) {
             while true {
                 let stream = try tcpHost.accept(deadline: .never)
-                co { do { try self.process(stream: stream) } catch { self.failure(error) } }
+
+                try coroutineGroup.addCoroutine { // TODO: Evaluate whether coroutine group is good here
+                    do {
+                        try self.process(stream: stream)
+                    } catch {
+                        self.failure(error)
+                    }
+                }
             }
         }
     }
 
-    public func startInBackground() {
-        co { do { try self.start() } catch { self.failure(error) } }
+    public func startInBackground() throws {
+        try coroutineGroup.addCoroutine {
+            do {
+                try self.start()
+            } catch {
+                self.failure(error)
+            }
+        }
     }
 
     public func process(stream: Stream) throws {

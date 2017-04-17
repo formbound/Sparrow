@@ -1,3 +1,5 @@
+import HTTP
+
 public final class Route : Responder {
     public let path: String
     public let middleware: [Middleware]

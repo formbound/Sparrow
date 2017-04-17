@@ -79,7 +79,7 @@ public final class TCPHost : Host {
                 let (acceptSocket, address) = try POSIX.accept(socket: socket)
                 try TCP.tune(socket: acceptSocket)
                 let ip = IP(address: address)
-                return TCPConnection(socket: acceptSocket, ip: ip)
+                return TCPStream(socket: acceptSocket, ip: ip)
             } catch {
                 switch error {
                 case SystemError.resourceTemporarilyUnavailable, SystemError.operationWouldBlock:
@@ -99,7 +99,7 @@ public final class TCPHost : Host {
 }
 
 func close(socket: FileDescriptor) throws {
-    Venice.clean(fileDescriptor: socket)
+    Venice.clean(socket)
     try POSIX.close(fileDescriptor: socket)
 }
 

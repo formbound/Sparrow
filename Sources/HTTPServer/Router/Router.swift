@@ -1,3 +1,5 @@
+import HTTP
+
 public protocol Router : RouterRepresentable {
     var staticFilesPath: String { get }
     var middleware: [Middleware] { get }

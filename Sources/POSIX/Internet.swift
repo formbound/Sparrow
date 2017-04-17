@@ -195,7 +195,7 @@ fileprivate func inet_pton(_ addressFamily: AddressFamily, _ source: String, _ d
     case 0:
         throw SystemError.invalidArgument
     case -1:
-        throw SystemError.lastOperationError
+        throw SystemError.lastOperationError ?? SystemError.other(errorNumber: result)
     default:
         break
     }

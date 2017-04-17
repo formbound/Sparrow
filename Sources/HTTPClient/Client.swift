@@ -1,7 +1,14 @@
+import HTTP
+import Core
+import Foundation
+import Venice
+import TCP
+
 public enum HTTPClientError : Error {
     case invalidURIScheme
     case uriHostRequired
     case brokenConnection
+    case invalidUrl
 }
 
 public final class Client : Responder {
@@ -11,8 +18,8 @@ public final class Client : Responder {
     public let port: Int
 
     public let keepAlive: Bool
-    public let connectionTimeout: Double
-    public let requestTimeout: Double
+    public let connectionTimeout: Venice.TimeInterval
+    public let requestTimeout: Venice.TimeInterval
     public let bufferSize: Int
 
     public let certificatePath: String?
@@ -22,11 +29,11 @@ public final class Client : Responder {
 
     let addUserAgent: Bool
 
-    var stream: Stream?
+    var stream: Core.Stream?
     var serializer: RequestSerializer?
     var parser: MessageParser?
 
-    public init(url: URL, bufferSize: Int = 4096, connectionTimeout: Double = 3.minutes, requestTimeout: Double = 30.seconds, certificatePath: String? = nil, privateKeyPath: String? = nil, certificateChainPath: String? = nil, verifyBundlePath: String? = nil, keepAlive: Bool = true, addUserAgent: Bool = true) throws {
+    public init(url: URL, bufferSize: Int = 4096, connectionTimeout: Venice.TimeInterval = 3.minutes, requestTimeout: Deadline = 30.seconds, certificatePath: String? = nil, privateKeyPath: String? = nil, certificateChainPath: String? = nil, verifyBundlePath: String? = nil, keepAlive: Bool = true, addUserAgent: Bool = true) throws {
         self.secure = try isSecure(url: url)
 
         let (host, port) = try getHostPort(url: url)
@@ -48,9 +55,9 @@ public final class Client : Responder {
         self.keepAlive = keepAlive
     }
 
-    public convenience init(url: String, bufferSize: Int = 4096, connectionTimeout: Double = 3.minutes, requestTimeout: Double = 30.seconds, certificatePath: String? = nil, privateKeyPath: String? = nil, verifyBundlePath: String? = nil, keepAlive: Bool = true, addUserAgent: Bool = true) throws {
+    public convenience init(url: String, bufferSize: Int = 4096, connectionTimeout: Venice.TimeInterval = 3.minutes, requestTimeout: Venice.TimeInterval = 30.seconds, certificatePath: String? = nil, privateKeyPath: String? = nil, verifyBundlePath: String? = nil, keepAlive: Bool = true, addUserAgent: Bool = true) throws {
         guard let url = URL(string: url) else {
-            throw URLError.invalidURL
+            throw HTTPClientError.invalidUrl
         }
 
         try self.init(
@@ -163,12 +170,12 @@ extension Client {
         }
     }
 
-    private func getStream() throws -> Stream {
+    private func getStream() throws -> Core.Stream {
         if let stream = self.stream {
             return stream
         }
 
-        let stream: Stream
+        let stream: Core.Stream
 
         if secure {
             stream = try TCPTLSStream(
@@ -193,7 +200,7 @@ extension Client {
         return stream
     }
 
-    private func getSerializer(stream: Stream) -> RequestSerializer {
+    private func getSerializer(stream: Core.Stream) -> RequestSerializer {
         if let serializer = serializer {
             return serializer
         }
@@ -240,7 +247,7 @@ extension Client {
 
     private func request(method: Request.Method, url: String, headers: Headers = [:], body: BufferRepresentable = Buffer(), middleware: [Middleware] = []) throws -> Response {
         guard let url = URL(string: url) else {
-            throw URLError.invalidURL
+            throw HTTPClientError.invalidUrl
         }
         let req = Request(method: method, url: url, headers: headers, body: body.buffer)
         return try request(req, middleware: middleware)
@@ -278,7 +285,7 @@ extension Client {
 
     fileprivate static func request(method: Request.Method, url: String, headers: Headers = [:], body: BufferRepresentable, middleware: [Middleware] = []) throws -> Response {
         guard let clientUrl = URL(string: url) else {
-            throw URLError.invalidURL
+            throw HTTPClientError.invalidUrl
         }
 
         let client = try getCachedClient(url: clientUrl)
@@ -300,29 +307,6 @@ extension Client {
         return client
     }
 }
-
-public class TypedResponse<T : MapInitializable> {
-    public let response: Response
-    public let content: T
-
-    public init(response: Response) throws {
-        guard let content = response.content else {
-            throw MapError.incompatibleType
-        }
-        self.response = response
-        self.content = try T(map: content)
-    }
-}
-
-//extension Client {
-//    public static func get<T : MapInitializable>(_ url: String, headers: Headers = [:], body: BufferRepresentable = Buffer(), middleware: [Middleware] = []) throws -> TypedResponse<T> {
-//        let contentNegotiation = ContentNegotiationMiddleware(mediaTypes: [JSON.self], mode: .client)
-//        var chain: [Middleware] = [contentNegotiation]
-//        chain += middleware
-//        let response = try request(method: .get, url: url, headers: headers, body: body, middleware: chain)
-//        return try TypedResponse(response: response)
-//    }
-//}
 
 fileprivate func isSecure(url: URL) throws -> Bool {
     let scheme = url.scheme ?? "http"

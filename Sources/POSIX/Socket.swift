@@ -4,6 +4,8 @@
     import Darwin.C
 #endif
 
+import Core
+
 
 #if os(Linux)
     public enum SocketType : RawRepresentable {
@@ -49,7 +51,7 @@
 public func socket(family: AddressFamily, type: SocketType, `protocol`: Int32) throws -> FileDescriptor {
     let fileDescriptor = socket(family.rawValue, Int32(type.rawValue), `protocol`)
     switch fileDescriptor {
-    case -1: throw SystemError.lastOperationError
+    case -1: throw SystemError.lastOperationError ?? SystemError.unknown
     default: return fileDescriptor
     }
 }
@@ -61,7 +63,7 @@ public func bind(socket: FileDescriptor, address: Address) throws {
     }
 
     guard result == 0 else {
-        throw SystemError.lastOperationError
+        throw SystemError.lastOperationError ?? SystemError.unknown
     }
 }
 
@@ -69,7 +71,7 @@ public func listen(socket: FileDescriptor, backlog: Int) throws {
     let result = listen(socket, Int32(backlog))
 
     guard result == 0 else {
-        throw SystemError.lastOperationError
+        throw SystemError.lastOperationError ?? SystemError.unknown
     }
 }
 
@@ -79,7 +81,7 @@ public func accept(socket: FileDescriptor) throws -> (FileDescriptor, Address) {
     let acceptSocket = address.withAddressPointer(body: { accept(socket, $0, &length) })
 
     guard acceptSocket >= 0 else {
-        throw SystemError.lastOperationError
+        throw SystemError.lastOperationError ?? SystemError.unknown
     }
 
     return (acceptSocket, address)
@@ -91,7 +93,7 @@ public func connect(socket: FileDescriptor, address: Address) throws {
     let result = address.withAddressPointer(body: { connect(socket, $0, length) })
 
     guard result == 0 else {
-        throw SystemError.lastOperationError
+        throw SystemError.lastOperationError ?? SystemError.unknown
     }
 }
 
@@ -114,7 +116,7 @@ public func send(socket: FileDescriptor, buffer: UnsafeRawPointer, count: Int, f
     let result = send(socket, buffer, count, flags.rawValue)
 
     guard result != -1 else {
-        throw SystemError.lastOperationError
+        throw SystemError.lastOperationError ?? SystemError.unknown
     }
 
     return result
@@ -135,14 +137,14 @@ public struct ReceiveFlags : OptionSet {
 #endif
 }
 
-public func receive(socket: FileDescriptor, buffer: UnsafeMutableRawPointer, count: Int, flags: ReceiveFlags = .none) throws -> Int {
-    let result = recv(socket, buffer, count, flags.rawValue)
+public func receive(socket: FileDescriptor, buffer: UnsafeMutableBufferPointer<Byte>, count: Int, flags: ReceiveFlags = .none) throws -> UnsafeBufferPointer<Byte> {
+    let result = recv(socket, buffer.baseAddress!, count, flags.rawValue)
 
     guard result != -1 else {
-        throw SystemError.lastOperationError
+        throw SystemError.lastOperationError ?? SystemError.unknown
     }
 
-    return result
+    return UnsafeBufferPointer(start: buffer.baseAddress!, count: count)
 }
 
 public func getAddress(socket: FileDescriptor) throws -> Address {
@@ -151,7 +153,7 @@ public func getAddress(socket: FileDescriptor) throws -> Address {
         let result = getsockname(socket, $0, &length)
 
         guard result == 0 else {
-            throw SystemError.lastOperationError
+            throw SystemError.lastOperationError ?? SystemError.unknown
         }
     }
 }
@@ -163,7 +165,7 @@ public func checkError(socket: FileDescriptor) throws {
     let result = getsockopt(socket, SOL_SOCKET, SO_ERROR, &error, &errorSize)
 
     guard result == 0 else {
-        throw SystemError.lastOperationError
+        throw SystemError.lastOperationError ?? SystemError.unknown
     }
 
     guard error == 0 else {
@@ -176,7 +178,7 @@ public func setReusePort(socket: FileDescriptor) throws {
     let result = setsockopt(socket, SOL_SOCKET, SO_REUSEPORT, &option, socklen_t(MemoryLayout<Int32>.size))
 
     if result != 0 {
-        throw SystemError.lastOperationError
+        throw SystemError.lastOperationError ?? SystemError.unknown
     }
 }
 
@@ -185,7 +187,7 @@ public func setReuseAddress(socket: FileDescriptor) throws {
     let result = setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, &option, socklen_t(MemoryLayout<Int32>.size))
 
     if result != 0 {
-        throw SystemError.lastOperationError
+        throw SystemError.lastOperationError ?? SystemError.unknown
     }
 }
 
@@ -195,7 +197,7 @@ public func setReuseAddress(socket: FileDescriptor) throws {
         let result = setsockopt(socket, SOL_SOCKET, SO_NOSIGPIPE, &option, socklen_t(MemoryLayout<Int32>.size))
 
         if result != 0 {
-            throw SystemError.lastOperationError
+            throw SystemError.lastOperationError ?? SystemError.unknown
         }
     }
 #endif

@@ -1,3 +1,5 @@
+import HTTP
+
 public struct BasicRouter {
     public let middleware: [Middleware]
     public let routes: [Route]

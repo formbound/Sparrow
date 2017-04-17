@@ -1,9 +1,10 @@
 import Core
-import POSIX
-import IP
 import Venice
+import IP
+import POSIX
 
-public final class TCPConnection : Connection {
+public final class TCPStream : Stream {
+
     private var socket: FileDescriptor?
 
     public private(set) var ip: IP
@@ -21,7 +22,7 @@ public final class TCPConnection : Connection {
         self.closed = true
     }
 
-    public func open(deadline: Deadline = 1.minute.fromNow()) throws {
+    public func open(deadline: Deadline) throws {
         let address = ip.address
 
         guard let socket = try? POSIX.socket(family: address.family, type: .stream, protocol: 0) else {
@@ -48,15 +49,15 @@ public final class TCPConnection : Connection {
         self.socket = socket
         self.closed = false
     }
-    
+
     public func write(_ buffer: UnsafeBufferPointer<UInt8>, deadline: Deadline) throws {
         guard !buffer.isEmpty else {
             return
         }
-        
+
         let socket = try getSocket()
         try ensureStillOpen()
-        
+
         loop: while true {
             var remaining: UnsafeBufferPointer<UInt8> = buffer
             do {
@@ -67,7 +68,7 @@ public final class TCPConnection : Connection {
                 guard bytesWritten < remaining.count else {
                     return
                 }
-                
+
                 let remainingCount = remaining.startIndex.advanced(by: bytesWritten).distance(to: remaining.endIndex)
                 remaining = UnsafeBufferPointer<UInt8>(start: remaining.baseAddress!.advanced(by: bytesWritten), count: remainingCount)
             } catch {
@@ -76,12 +77,12 @@ public final class TCPConnection : Connection {
                     do {
                         try poll(socket, event: .write, deadline: deadline)
                     } catch VeniceError.timeout {
-                        throw StreamError.timeout(buffer: Buffer())
+                        throw StreamError.timeout
                     }
                     continue loop
                 case SystemError.connectionResetByPeer, SystemError.brokenPipe:
                     close()
-                    throw StreamError.closedStream(buffer: Buffer())
+                    throw StreamError.closedStream
                 default:
                     throw error
                 }
@@ -89,21 +90,21 @@ public final class TCPConnection : Connection {
         }
     }
     
-    func read(into readBuffer: UnsafeMutableBufferPointer<Byte>, deadline: Deadline) throws -> UnsafeBufferPointer<Byte> {
-        guard !into.isEmpty else {
-            return 0
+    public func read(into readBuffer: UnsafeMutableBufferPointer<Byte>, deadline: Deadline) throws -> UnsafeBufferPointer<Byte> {
+        guard !readBuffer.isEmpty else {
+            return UnsafeBufferPointer()
         }
-        
+
         let socket = try getSocket()
         try ensureStillOpen()
-        
+
         loop: while true {
             do {
-                
-                let bytesRead = try POSIX.receive(socket: socket, buffer: into.baseAddress!, count: into.count)
-                guard bytesRead != 0 else {
+
+                let bytesRead = try POSIX.receive(socket: socket, buffer: readBuffer, count: readBuffer.count)
+                guard !bytesRead.isEmpty else {
                     close()
-                    throw StreamError.closedStream(buffer: Buffer())
+                    throw StreamError.closedStream
                 }
                 return bytesRead
             } catch {
@@ -112,7 +113,7 @@ public final class TCPConnection : Connection {
                     do {
                         try poll(socket, event: .read, deadline: deadline)
                     } catch VeniceError.timeout {
-                        throw StreamError.timeout(buffer: Buffer())
+                        throw StreamError.timeout
                     }
                     continue loop
                 default:
@@ -147,7 +148,7 @@ public final class TCPConnection : Connection {
 
     private func ensureStillOpen() throws {
         if closed {
-            throw StreamError.closedStream(buffer: Buffer())
+            throw StreamError.closedStream
         }
     }
 

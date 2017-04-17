@@ -5,7 +5,6 @@
 #endif
 
 public enum SystemError : Error {
-    case success
     case operationNotPermitted
     case noSuchFileOrDirectory
     case noSuchProcess
@@ -125,13 +124,16 @@ public enum SystemError : Error {
     case stateNotRecoverable
     case previousOwnerDied
 
+    case unknown
+
     case other(errorNumber: Int32)
 }
 
 extension SystemError {
     public init(errorNumber: Int32) {
         switch errorNumber {
-        case 0: self = .success
+        case 0: self = .unknown
+
         case EPERM: self = .operationNotPermitted
         case ENOENT: self = .noSuchFileOrDirectory
         case ESRCH: self = .noSuchProcess
@@ -258,7 +260,6 @@ extension SystemError {
 extension SystemError {
     public var errorNumber: Int32 {
         switch self {
-        case .success: return 0
         case .operationNotPermitted: return EPERM
         case .noSuchFileOrDirectory: return ENOENT
         case .noSuchProcess: return ESRCH
@@ -379,6 +380,7 @@ extension SystemError {
         case .previousOwnerDied: return EOWNERDEAD
 
         case .other(let errorNumber): return errorNumber
+        case .unknown: return 0 // TODO: davidask: This zero error is a bit of a hack. Evaluate 
         }
     }
 }
@@ -402,14 +404,13 @@ extension SystemError : CustomStringConvertible {
 }
 
 extension SystemError {
-    public static var lastOperationError: SystemError {
+    public static var lastOperationError: SystemError? {
         return SystemError(errorNumber: errno)
     }
 }
 
 public func ensureLastOperationSucceeded() throws {
-    let lastOperationError = SystemError.lastOperationError
-    guard lastOperationError == .success else {
-        throw lastOperationError
+    if let error = SystemError.lastOperationError {
+        throw error
     }
 }
