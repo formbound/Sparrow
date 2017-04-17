@@ -1,4 +1,5 @@
 import HTTP
+import Foundation
 
 public struct TrieRouteMatcher {
     private var routesTrie = Trie<String, Route>()
@@ -9,7 +10,8 @@ public struct TrieRouteMatcher {
 
         for route in routes {
             // insert path components into trie with route being the ending payload
-            routesTrie.insert(route.path.pathComponents, payload: route)
+            // TODO: pathComponents no longer available – simply separating by components works?
+            routesTrie.insert(route.path.components(separatedBy: "/"), payload: route)
         }
 
         // ensure parameter paths are processed later than static paths
@@ -124,13 +126,5 @@ public struct TrieRouteMatcher {
 
         // we went through all the possible paths and still found nothing. 404
         return nil
-    }
-}
-
-// TODO: Should probably be moved
-extension String {
-    fileprivate var pathComponents: [String] {
-        let components = unicodeScalars.split(separator: "/").map(String.init)
-        return (components.isEmpty ? [""] : components)
     }
 }
