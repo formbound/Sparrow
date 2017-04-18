@@ -1,4 +1,4 @@
-import HTTP
+@_exported import HTTP
 import Core
 import Foundation
 import Venice
@@ -11,7 +11,7 @@ public enum HTTPClientError : Error {
     case invalidUrl
 }
 
-public final class Client : Responder {
+public final class HTTPClient : Responder {
     fileprivate let secure: Bool
 
     public let host: String
@@ -74,7 +74,7 @@ public final class Client : Responder {
     }
 }
 
-extension Client {
+extension HTTPClient {
     public func request(_ request: Request, middleware: [Middleware] = []) throws -> Response {
         var request = request
         addHeaders(to: &request)
@@ -216,7 +216,7 @@ extension Client {
     }
 }
 
-extension Client {
+extension HTTPClient {
     public func get(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .get, url: url, headers: headers, body: body, middleware: middleware)
     }
@@ -282,7 +282,7 @@ extension Client {
     }
 }
 
-extension Client {
+extension HTTPClient {
     public static func get(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .get, url: url, headers: headers, body: body, middleware: middleware)
     }
@@ -350,12 +350,12 @@ extension Client {
         return try client.request(request, middleware: middleware)
     }
 
-    private static func getCachedClient(url: URL) throws -> Client {
+    private static func getCachedClient(url: URL) throws -> HTTPClient {
         let (host, port) = try getHostPort(url: url)
         let hash = host.hashValue ^ port.hashValue
 
         guard let client = cachedClients[hash] else {
-            let client = try Client(url: url)
+            let client = try HTTPClient(url: url)
             cachedClients[hash] = client
             return client
         }
@@ -392,4 +392,4 @@ fileprivate func getHostPort(url: URL) throws -> (String, Int) {
     return (host, port)
 }
 
-private var cachedClients: [Int: Client] = [:]
+private var cachedClients: [Int: HTTPClient] = [:]

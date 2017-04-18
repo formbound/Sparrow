@@ -1,10 +1,10 @@
 import Core
-import HTTP
+@_exported import HTTP
 import TCP
 import Venice
 import POSIX
 
-public struct Server {
+public struct HTTPServer {
     public let tcpHost: Host
     public let middleware: [Middleware]
     public let responder: Responder
@@ -16,7 +16,7 @@ public struct Server {
 
     fileprivate let coroutineGroup = CoroutineGroup()
 
-    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, middleware: [Middleware] = [], responder: ResponderRepresentable, failure: @escaping (Error) -> Void =  Server.log(error:)) throws {
+    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, middleware: [Middleware] = [], responder: ResponderRepresentable, failure: @escaping (Error) -> Void =  HTTPServer.log(error:)) throws {
         self.tcpHost = try TCPHost(
             host: host,
             port: port,
@@ -31,7 +31,7 @@ public struct Server {
         self.failure = failure
     }
 
-    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, certificatePath: String, privateKeyPath: String, certificateChainPath: String? = nil, middleware: [Middleware] = [], responder: ResponderRepresentable, failure: @escaping (Error) -> Void =  Server.log(error:)) throws {
+    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, certificatePath: String, privateKeyPath: String, certificateChainPath: String? = nil, middleware: [Middleware] = [], responder: ResponderRepresentable, failure: @escaping (Error) -> Void =  HTTPServer.log(error:)) throws {
         self.tcpHost = try TCPTLSHost(
             host: host,
             port: port,
@@ -68,7 +68,7 @@ func retry(times: Int, waiting duration: Venice.TimeInterval, work: (Void) throw
     throw lastError
 }
 
-extension Server {
+extension HTTPServer {
     public func start() throws {
         printHeader()
         try retry(times: 10, waiting: 5.seconds) {
@@ -130,7 +130,7 @@ extension Server {
                     break
                 }
                 
-                let (response, unrecoveredError) = Server.recover(error: error)
+                let (response, unrecoveredError) = HTTPServer.recover(error: error)
                 try serializer.serialize(response, deadline: .never)
 
                 if let error = unrecoveredError {

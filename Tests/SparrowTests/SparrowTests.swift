@@ -12,7 +12,7 @@ public class SparrowTests : XCTestCase {
             }
         }
 
-        let server = try Server(port: 8080, middleware: [log], responder: router)
+        let server = try HTTPServer(port: 8080, middleware: [log], responder: router)
         try server.start()
     }
 }
