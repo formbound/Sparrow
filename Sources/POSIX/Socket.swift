@@ -144,14 +144,14 @@ public struct ReceiveFlags : OptionSet {
 #endif
 }
 
-public func receive(socket: FileDescriptor, bytes: UnsafeMutableBufferPointer<Byte>, flags: ReceiveFlags = .none) throws -> UnsafeBufferPointer<Byte> {
-    let result = recv(socket, bytes.baseAddress!, bytes.count, flags.rawValue)
+public func receive(socket: FileDescriptor, buffer: UnsafeMutableBufferPointer<Byte>, flags: ReceiveFlags = .none) throws -> Int {
+    let result = recv(socket, buffer.baseAddress!, buffer.count, flags.rawValue)
 
     guard result != -1 else {
         throw SystemError.lastOperationError ?? SystemError.unknown
     }
 
-    return UnsafeBufferPointer(start: bytes.baseAddress!, count: bytes.count)
+    return result
 }
 
 public func getAddress(socket: FileDescriptor) throws -> Address {

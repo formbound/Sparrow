@@ -101,12 +101,12 @@ public final class TCPStream : Stream {
         loop: while true {
             do {
 
-                let bytesRead = try POSIX.receive(socket: socket, bytes: readBuffer)
-                guard !bytesRead.isEmpty else {
+                let bytesRead = try POSIX.receive(socket: socket, buffer: readBuffer)
+                guard bytesRead != 0 else {
                     close()
                     throw StreamError.closedStream
                 }
-                return bytesRead
+                return UnsafeBufferPointer(start: readBuffer.baseAddress!, count: bytesRead)
             } catch {
                 switch error {
                 case SystemError.resourceTemporarilyUnavailable, SystemError.operationWouldBlock:
