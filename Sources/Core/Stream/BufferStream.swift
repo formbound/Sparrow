@@ -1,15 +1,15 @@
 import Venice
 
 public final class BufferStream : Stream {
-    public private(set) var buffer: Buffer
+    public private(set) var bytes: [Byte]
     public private(set) var closed = false
 
-    public init(buffer: Buffer = Buffer()) {
-        self.buffer = buffer
+    public init(bytes: [Byte] = .empty) {
+        self.bytes = bytes
     }
 
-    public convenience init(buffer bufferRepresentable: BufferRepresentable) {
-        self.init(buffer: bufferRepresentable.buffer)
+    public convenience init(bytes dataRepresentable: DataRepresentable) {
+        self.init(bytes: dataRepresentable.bytes)
     }
 
     public func open(deadline: Deadline) throws {
@@ -25,15 +25,15 @@ public final class BufferStream : Stream {
             return UnsafeBufferPointer()
         }
 
-        let bytesRead = min(buffer.count, readBuffer.count)
-        buffer.copyBytes(to: readPointer, count: bytesRead)
-        buffer = Array(buffer.suffix(from: bytesRead))
+        let bytesRead = min(bytes.count, readBuffer.count)
+        bytes.copyBytes(to: readPointer, count: bytesRead)
+        bytes = Array(bytes.suffix(from: bytesRead))
 
         return UnsafeBufferPointer(start: readPointer, count: bytesRead)
     }
 
     public func write(_ writeBuffer: UnsafeBufferPointer<UInt8>, deadline: Deadline) {
-        buffer.append(writeBuffer)
+        bytes.append(writeBuffer)
     }
 
     public func flush(deadline: Deadline) throws {}

@@ -142,7 +142,7 @@ extension Server {
 
     private static func recover(error: Error) -> (Response, Error?) {
         guard let representable = error as? ResponseRepresentable else {
-            let body = Buffer(String(describing: error))
+            let body = [Byte](String(describing: error))
             return (Response(status: .internalServerError, body: body), error)
         }
         return (representable.response, nil)

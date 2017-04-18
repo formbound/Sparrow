@@ -65,11 +65,11 @@ public struct Hash {
 
 	// MARK: - Hash
 
-	public static func hash(_ function: Function, message: BufferRepresentable) throws -> Buffer {
+	public static func hash(_ function: Function, message: DataRepresentable) throws -> [Byte] {
 		initialize()
         
-        let messageBuffer = message.buffer
-        return try Buffer(count: function.digestLength) { bytesBuffer in
+        let messageBuffer = message.bytes
+        return try [Byte](count: function.digestLength) { bytesBuffer in
             _ = messageBuffer.withUnsafeBytes { (messageBytes: UnsafePointer<UInt8>) in
                 function.function(messageBytes, messageBuffer.count, bytesBuffer.baseAddress!)
             }
@@ -78,13 +78,13 @@ public struct Hash {
 
 	// MARK: - HMAC
 
-	public static func hmac(_ function: Function, key: BufferRepresentable, message: BufferRepresentable) throws -> Buffer {
+	public static func hmac(_ function: Function, key: DataRepresentable, message: DataRepresentable) throws -> [Byte] {
 		initialize()
         
-        let keyBuffer = key.buffer
-        let messageBuffer = message.buffer
+        let keyBuffer = key.bytes
+        let messageBuffer = message.bytes
         
-        return try Buffer(capacity: Int(EVP_MAX_MD_SIZE)) { bytesBuffer in
+        return try [Byte](capacity: Int(EVP_MAX_MD_SIZE)) { bytesBuffer in
             return keyBuffer.withUnsafeBytes { (keyBytes: UnsafePointer<UInt8>) -> Int in
                 return messageBuffer.withUnsafeBytes { (messageBytes: UnsafePointer<UInt8>) -> Int in
                     var outLength: UInt32 = 0
@@ -103,13 +103,13 @@ public struct Hash {
     
     // MARK: - PBKDF2
     
-    public static func pbkdf2(_ function: Function, password: BufferRepresentable, salt: BufferRepresentable, iterations: Int) throws -> Buffer {
+    public static func pbkdf2(_ function: Function, password: DataRepresentable, salt: DataRepresentable, iterations: Int) throws -> [Byte] {
         initialize()
         
-        let passwordBuffer = password.buffer
-        let saltBuffer = salt.buffer
+        let passwordBuffer = password.bytes
+        let saltBuffer = salt.bytes
         
-        return try Buffer(count: Int(function.digestLength)) { bufferPtr in
+        return try [Byte](count: Int(function.digestLength)) { bufferPtr in
             passwordBuffer.withUnsafeBytes { (passwordBufferPtr: UnsafePointer<Int8>) in
                 saltBuffer.withUnsafeBytes { (saltBufferPtr: UnsafePointer<UInt8>) in
                     _ = COpenSSL.PKCS5_PBKDF2_HMAC(passwordBufferPtr,
@@ -127,7 +127,7 @@ public struct Hash {
 
 	// MARK: - RSA
 
-	public static func rsa(_ function: Function, key: Key, message: BufferRepresentable) throws -> Buffer {
+	public static func rsa(_ function: Function, key: Key, message: DataRepresentable) throws -> [Byte] {
 		initialize()
 
 		let ctx = EVP_MD_CTX_create()
@@ -135,9 +135,9 @@ public struct Hash {
 			throw HashError.error(description: lastSSLErrorDescription)
 		}
         
-        let messageBuffer = message.buffer
+        let messageBuffer = message.bytes
 
-        return try Buffer(capacity: Int(EVP_PKEY_size(key.key))) { bytesBuffer in
+        return try [Byte](capacity: Int(EVP_PKEY_size(key.key))) { bytesBuffer in
             return messageBuffer.withUnsafeBytes { (messageBytes: UnsafePointer<UInt8>) -> Int in
                 EVP_DigestInit_ex(ctx, function.evp, nil)
                 EVP_DigestUpdate(ctx, UnsafeRawPointer(messageBytes), messageBuffer.count)

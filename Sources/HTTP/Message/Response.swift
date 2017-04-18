@@ -121,7 +121,7 @@ extension Response {
         }
     }
 
-    public init(status: Status = .ok, headers: Headers = [:], body: Buffer = []) {
+    public init(status: Status = .ok, headers: Headers = [:], body: [Byte] = []) {
         self.init(
             status: status,
             headers: headers,
@@ -129,8 +129,8 @@ extension Response {
         )
     }
 
-    public init(status: Status = .ok, headers: Headers = [:], body: BufferRepresentable) {
-        self.init(status: status, headers: headers, body: body.buffer)
+    public init(status: Status = .ok, headers: Headers = [:], body: DataRepresentable) {
+        self.init(status: status, headers: headers, body: body.bytes)
     }
 
     public init(status: Status = .ok, headers: Headers = [:], body: InputStream) {

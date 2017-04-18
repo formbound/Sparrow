@@ -30,9 +30,9 @@ public class IO {
 		}
 	}
 
-	public convenience init(buffer: BufferRepresentable) throws {
+	public convenience init(buffer: DataRepresentable) throws {
 		try self.init()
-        _ = try buffer.buffer.withUnsafeBufferPointer {
+        _ = try buffer.bytes.withUnsafeBufferPointer {
             try write($0)
         }
         

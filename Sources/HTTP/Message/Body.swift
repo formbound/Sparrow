@@ -2,7 +2,7 @@ import Core
 import Venice
 
 public enum Body {
-    case buffer(Buffer)
+    case buffer([Byte])
     case reader(InputStream)
     case writer((OutputStream) throws -> Void)
 }
@@ -44,7 +44,7 @@ extension Body {
 }
 
 extension Body {
-    public mutating func becomeBuffer(deadline: Deadline) throws -> Buffer {
+    public mutating func becomeBuffer(deadline: Deadline) throws -> [Byte] {
         switch self {
         case .buffer(let buffer):
             return buffer
@@ -55,7 +55,7 @@ extension Body {
         case .writer(let writer):
             let bufferStream = BufferStream()
             try writer(bufferStream)
-            let buffer = bufferStream.buffer
+            let buffer = bufferStream.bytes
             self = .buffer(buffer)
             return buffer
         }
@@ -66,7 +66,7 @@ extension Body {
         case .reader(let reader):
             return reader
         case .buffer(let buffer):
-            let bufferStream = BufferStream(buffer: buffer)
+            let bufferStream = BufferStream(bytes: buffer)
             self = .reader(bufferStream)
             return bufferStream
         case .writer(let writer):

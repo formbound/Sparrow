@@ -30,7 +30,7 @@ public final class MessageParser {
         var version: Version? = nil
         var url: URL? = nil
         var headers: [CaseInsensitiveString: String] = [:]
-        var body = Buffer()
+        var body: [Byte] = .empty
         
         var currentHeaderField: CaseInsensitiveString? = nil
         
@@ -84,7 +84,7 @@ public final class MessageParser {
         self.parser.data = Unmanaged.passUnretained(self).toOpaque()
     }
     
-    public func parse(_ buffer: Buffer) throws -> [Message] {
+    public func parse(_ buffer: [Byte]) throws -> [Message] {
 
         return try buffer.withUnsafeBytes {
             try self.parse(UnsafeBufferPointer(start: $0, count: buffer.count))
@@ -205,7 +205,7 @@ public final class MessageParser {
                 context.method = Request.Method(code: http_method(rawValue: parser.method))
                 context.version = Version(major: Int(parser.http_major), minor: Int(parser.http_minor))
             case .body:
-                context.body = Buffer(buffer)
+                context.body = [Byte](buffer)
             }
             
             buffer = []

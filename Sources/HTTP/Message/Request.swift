@@ -70,7 +70,7 @@ extension Request {
         }
     }
 
-    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: Buffer = []) {
+    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: [Byte] = []) {
         self.init(
             method: method,
             url: url,
@@ -79,12 +79,12 @@ extension Request {
         )
     }
 
-    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: BufferRepresentable) {
+    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: DataRepresentable) {
         self.init(
             method: method,
             url: url,
             headers: headers,
-            body: .buffer(body.buffer)
+            body: .buffer(body.bytes)
         )
     }
 
@@ -108,7 +108,7 @@ extension Request {
 }
 
 extension Request {
-    public init?(method: Method = .get, url: String, headers: Headers = [:], body: Buffer = []) {
+    public init?(method: Method = .get, url: String, headers: Headers = [:], body: [Byte] = []) {
         guard let url = URL(string: url) else {
             return nil
         }
@@ -121,8 +121,8 @@ extension Request {
         )
     }
 
-    public init?(method: Method = .get, url: String, headers: Headers = [:], body: BufferRepresentable) {
-        self.init(method: method, url: url, headers: headers, body: body.buffer)
+    public init?(method: Method = .get, url: String, headers: Headers = [:], body: DataRepresentable) {
+        self.init(method: method, url: url, headers: headers, body: body.bytes)
     }
 
     public init?(method: Method = .get, url: String, headers: Headers = [:], body: Core.InputStream) {

@@ -11,15 +11,15 @@ public protocol InputStream {
     func close()
 
     func read(into readBuffer: UnsafeMutableBufferPointer<Byte>, deadline: Deadline) throws -> UnsafeBufferPointer<Byte>
-    func read(upTo byteCount: Int, deadline: Deadline) throws -> Buffer
-    func read(exactly byteCount: Int, deadline: Deadline) throws -> Buffer
+    func read(upTo byteCount: Int, deadline: Deadline) throws -> [Byte]
+    func read(exactly byteCount: Int, deadline: Deadline) throws -> [Byte]
 }
 
 
 extension InputStream {
-    public func read(upTo byteCount: Int, deadline: Deadline) throws -> Buffer {
+    public func read(upTo byteCount: Int, deadline: Deadline) throws -> [Byte] {
         guard byteCount > 0 else {
-            return Buffer()
+            return .empty
         }
 
         var bytes = [Byte](repeating: 0, count: byteCount)
@@ -28,12 +28,12 @@ extension InputStream {
             try read(into: $0, deadline: deadline).count
         }
 
-        return Buffer(bytes[0..<bytesRead])
+        return [Byte](bytes[0..<bytesRead])
     }
 
-    public func read(exactly byteCount: Int, deadline: Deadline) throws -> Buffer {
+    public func read(exactly byteCount: Int, deadline: Deadline) throws -> [Byte] {
         guard byteCount > 0 else {
-            return Buffer()
+            return .empty
         }
 
         var bytes = [Byte](repeating: 0, count: byteCount)
@@ -51,12 +51,12 @@ extension InputStream {
             }
         }
 
-        return Buffer(bytes)
+        return [Byte](bytes)
     }
 
     /// Drains the `Stream` and returns the contents in a `Buffer`. At the end of this operation the stream will be closed.
-    public func drain(deadline: Deadline) throws -> Buffer {
-        var buffer = Buffer()
+    public func drain(deadline: Deadline) throws -> [Byte] {
+        var buffer: [Byte] = .empty
 
         while !self.closed, let chunk = try? self.read(upTo: 2048, deadline: deadline), chunk.count > 0 {
             buffer.append(contentsOf: chunk)
@@ -72,13 +72,13 @@ public protocol OutputStream {
     func close()
 
     func write(_ buffer: UnsafeBufferPointer<Byte>, deadline: Deadline) throws
-    func write(_ buffer: Buffer, deadline: Deadline) throws
-    func write(_ buffer: BufferRepresentable, deadline: Deadline) throws
+    func write(_ buffer: [Byte], deadline: Deadline) throws
+    func write(_ buffer: DataRepresentable, deadline: Deadline) throws
     func flush(deadline: Deadline) throws
 }
 
 extension OutputStream {
-    public func write(_ buffer: Buffer, deadline: Deadline) throws {
+    public func write(_ buffer: [Byte], deadline: Deadline) throws {
         guard !buffer.isEmpty else {
             return
         }
@@ -88,8 +88,8 @@ extension OutputStream {
         }
     }
 
-    public func write(_ converting: BufferRepresentable, deadline: Deadline) throws {
-        try write(converting.buffer, deadline: deadline)
+    public func write(_ converting: DataRepresentable, deadline: Deadline) throws {
+        try write(converting.bytes, deadline: deadline)
     }
 }
 

@@ -5,11 +5,10 @@
 #endif
 
 public typealias Byte = UInt8
-public typealias Buffer = [Byte]
 
 extension Array where Iterator.Element == Byte {
 
-    public static var empty: Buffer {
+    public static var empty: [Byte] {
         return []
     }
 
@@ -124,30 +123,30 @@ extension UnsafeMutableBufferPointer {
     }
 }
 
-public protocol BufferInitializable {
-    init(buffer: [Byte]) throws
+public protocol DataInitializable {
+    init(bytes: [Byte]) throws
 }
 
-public protocol BufferRepresentable {
-    var buffer: [Byte] { get }
+public protocol DataRepresentable {
+    var bytes: [Byte] { get }
 }
 
-public protocol BufferConvertible : BufferInitializable, BufferRepresentable {}
+public protocol DataConvertible : DataInitializable, DataRepresentable {}
 
 public enum BufferConversionError: Error {
     case invalidString
 }
 
-extension String : BufferConvertible {
-    public init(buffer: Buffer) throws {
-        guard let string = String(bytes: buffer, encoding: .utf8) else {
+extension String : DataConvertible {
+    public init(bytes: [Byte]) throws {
+        guard let string = String(bytes: bytes, encoding: .utf8) else {
             throw BufferConversionError.invalidString
         }
         self = string
     }
 
-    public var buffer: Buffer {
-        return Buffer(self)
+    public var bytes: [Byte] {
+        return [Byte](self)
     }
 }
 
