@@ -1,15 +1,10 @@
 import HTTP
 
 open class Routes {
-    public let staticFilesPath: String
     public var routes: [Route] = []
 
     public lazy var fallback: Responder = BasicResponder { request in
         return Response(status: .notFound)
-    }
-
-    public init(staticFilesPath: String) {
-        self.staticFilesPath = staticFilesPath
     }
 }
 

@@ -7,8 +7,12 @@ public class SparrowTests : XCTestCase {
         let log = LogMiddleware()
 
         let router = BasicRouter { route in
-            route.get("/") { request in
-                return Response(body: "Hello, world!")
+            route.get("/hello") { request in
+                return Response(body: "Hello, world! 👾")
+            }
+
+            route.fallback = BasicResponder { request in
+                Response(status: .notFound, body: "Fallback: not found")
             }
         }
 

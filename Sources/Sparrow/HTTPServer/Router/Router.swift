@@ -26,7 +26,7 @@ extension Router {
 
 extension Router {
     public var router: BasicRouter {
-        let routes = Routes(staticFilesPath: staticFilesPath)
+        let routes = Routes()
         custom(routes: routes)
         return BasicRouter(middleware: [RecoveryMiddleware(recover)] + middleware, routes: routes)
     }

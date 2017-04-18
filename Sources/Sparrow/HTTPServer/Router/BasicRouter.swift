@@ -21,8 +21,8 @@ public struct BasicRouter {
         )
     }
 
-    public init(staticFilesPath: String = "Public", middleware: [Middleware] = [], routes: (Routes) -> Void) {
-        let r = Routes(staticFilesPath: staticFilesPath)
+    public init(middleware: [Middleware] = [], routes: (Routes) -> Void) {
+        let r = Routes()
         routes(r)
         self.init(
             middleware: middleware,
