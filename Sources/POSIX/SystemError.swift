@@ -405,6 +405,8 @@ extension SystemError : CustomStringConvertible {
 
 extension SystemError {
     public static var lastOperationError: SystemError? {
+        let err = SystemError(errorNumber: errno)
+        print(err ?? .unknown)
         return SystemError(errorNumber: errno)
     }
 }

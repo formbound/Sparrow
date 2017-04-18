@@ -93,8 +93,10 @@ public func connect(socket: FileDescriptor, address: Address) throws {
     var address = address
     let length = socklen_t(MemoryLayout<sockaddr>.size)
 
-    let result = address.withAddressPointer { pointer in
-        connect(socket, pointer, length)
+    try setNonBlocking(fileDescriptor: socket)
+
+    let result = address.withAddressPointer { addressPointer in
+        connect(socket, addressPointer, length)
     }
 
     guard result == 0 else {

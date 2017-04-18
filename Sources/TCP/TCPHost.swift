@@ -104,7 +104,6 @@ public final class TCPHost : Host {
                     do {
                         // Wait till new connection is available.
                         try poll(socket, event: .read, deadline: deadline)
-                        print("poll")
                         continue loop
                     } catch VeniceError.timeout {
                         throw TCPError.acceptTimedOut

@@ -12,14 +12,18 @@ public class TCPTests : XCTestCase {
     func testWriteClosedSocket() throws {
         let port = 2222
 
+        let channel = try Channel<Void>()
+
         let coroutine = try Coroutine {
             let host = try TCPHost(host: "0.0.0.0", port: port)
             _ = try host.accept(deadline: 1.second.fromNow())
+            try channel.send((), deadline: .never)
         }
 
         let stream = try TCPStream(host: "127.0.0.1", port: port, deadline: 1.second.fromNow())
         try stream.open(deadline: 1.second.fromNow())
         stream.close()
+        try channel.receive(deadline: .never)
         try coroutine.cancel()
         XCTAssertThrowsError(try stream.write([1, 2, 3], deadline: 1.second.fromNow()))
     }
@@ -27,14 +31,18 @@ public class TCPTests : XCTestCase {
     func testFlushClosedSocket() throws {
         let port = 3333
 
+        let channel = try Channel<Void>()
+
         let coroutine = try Coroutine {
             let host = try TCPHost(host: "127.0.0.1", port: port)
             _ = try host.accept(deadline: 1.second.fromNow())
+            try channel.send((), deadline: .never)
         }
 
         let connection = try TCPStream(host: "127.0.0.1", port: port, deadline: 1.second.fromNow())
         try connection.open(deadline: 1.second.fromNow())
         connection.close()
+        try channel.receive(deadline: .never)
         try coroutine.cancel()
         XCTAssertThrowsError(try connection.flush(deadline: 1.second.fromNow()))
     }
@@ -42,14 +50,18 @@ public class TCPTests : XCTestCase {
     func testReadClosedSocket() throws {
         let port = 4444
 
+        let channel = try Channel<Void>()
+
         let coroutine = try Coroutine {
             let host = try TCPHost(host: "127.0.0.1", port: port)
             _ = try host.accept(deadline: 1.second.fromNow())
+            try channel.send((), deadline: .never)
         }
 
         let connection = try TCPStream(host: "127.0.0.1", port: port, deadline: 1.second.fromNow())
         try connection.open(deadline: 1.second.fromNow())
         connection.close()
+        try channel.receive(deadline: .never)
         try coroutine.cancel()
         XCTAssertThrowsError(try connection.read(upTo: 1, deadline: 1.second.fromNow()))
     }
@@ -57,26 +69,30 @@ public class TCPTests : XCTestCase {
     func testWriteRead() throws {
         let port = 5555
 
+        let channel = try Channel<Void>()
+
         let coroutine = try Coroutine {
             let host = try TCPHost(host: "127.0.0.1", port: port)
             let connection = try host.accept(deadline: 1.second.fromNow())
             let buffer = try connection.read(upTo: 1, deadline: 1.second.fromNow())
-            XCTAssertEqual(buffer.count, 1)
+
             XCTAssertEqual(buffer, Buffer([123]))
             connection.close()
+            try channel.send((), deadline: .never)
         }
 
         let connection = try TCPStream(host: "127.0.0.1", port: port, deadline: 1.second.fromNow())
         try connection.open(deadline: 1.second.fromNow())
         try connection.write([123], deadline: 1.second.fromNow())
         try connection.flush(deadline: 1.second.fromNow())
+        try channel.receive(deadline: .never)
         try coroutine.cancel()
     }
 
     func testClientServer() throws {
         let port = 6666
         let deadline = 5.seconds.fromNow()
-        let done = try Channel<Void>()
+        let channel = try Channel<Void>()
 
         let coroutine = try Coroutine {
             let host = try TCPHost(host: "127.0.0.1", port: port)
@@ -89,7 +105,7 @@ public class TCPTests : XCTestCase {
             XCTAssertEqual(buffer.count, 9)
             XCTAssertEqual(buffer, Buffer("123456789"))
 
-            try done.send((), deadline: .never)
+            try channel.send((), deadline: .never)
         }
 
         let stream = try TCPStream(host: "127.0.0.1", port: port, deadline: deadline)
@@ -102,7 +118,7 @@ public class TCPTests : XCTestCase {
         try stream.write("123456789", deadline: deadline)
         try stream.flush(deadline: deadline)
 
-        try done.receive(deadline: .never)
+        try channel.receive(deadline: .never)
         try coroutine.cancel()
     }
 }
