@@ -32,7 +32,7 @@ public class IO {
 
 	public convenience init(buffer: BufferRepresentable) throws {
 		try self.init()
-        _ = try buffer.buffer.bytes.withUnsafeBufferPointer {
+        _ = try buffer.buffer.withUnsafeBufferPointer {
             try write($0)
         }
         

@@ -27,7 +27,7 @@ public final class BufferStream : Stream {
 
         let bytesRead = min(buffer.count, readBuffer.count)
         buffer.copyBytes(to: readPointer, count: bytesRead)
-        buffer = buffer.suffix(from: bytesRead)
+        buffer = Array(buffer.suffix(from: bytesRead))
 
         return UnsafeBufferPointer(start: readPointer, count: bytesRead)
     }

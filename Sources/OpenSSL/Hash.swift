@@ -65,11 +65,11 @@ public struct Hash {
 
 	// MARK: - Hash
 
-	public static func hash(_ function: Function, message: BufferRepresentable) -> Buffer {
+	public static func hash(_ function: Function, message: BufferRepresentable) throws -> Buffer {
 		initialize()
         
         let messageBuffer = message.buffer
-        return Buffer(count: function.digestLength) { bytesBuffer in
+        return try Buffer(count: function.digestLength) { bytesBuffer in
             _ = messageBuffer.withUnsafeBytes { (messageBytes: UnsafePointer<UInt8>) in
                 function.function(messageBytes, messageBuffer.count, bytesBuffer.baseAddress!)
             }
@@ -78,13 +78,13 @@ public struct Hash {
 
 	// MARK: - HMAC
 
-	public static func hmac(_ function: Function, key: BufferRepresentable, message: BufferRepresentable) -> Buffer {
+	public static func hmac(_ function: Function, key: BufferRepresentable, message: BufferRepresentable) throws -> Buffer {
 		initialize()
         
         let keyBuffer = key.buffer
         let messageBuffer = message.buffer
         
-        return Buffer(capacity: Int(EVP_MAX_MD_SIZE)) { bytesBuffer in
+        return try Buffer(capacity: Int(EVP_MAX_MD_SIZE)) { bytesBuffer in
             return keyBuffer.withUnsafeBytes { (keyBytes: UnsafePointer<UInt8>) -> Int in
                 return messageBuffer.withUnsafeBytes { (messageBytes: UnsafePointer<UInt8>) -> Int in
                     var outLength: UInt32 = 0
@@ -109,7 +109,7 @@ public struct Hash {
         let passwordBuffer = password.buffer
         let saltBuffer = salt.buffer
         
-        return Buffer(count: Int(function.digestLength)) { bufferPtr in
+        return try Buffer(count: Int(function.digestLength)) { bufferPtr in
             passwordBuffer.withUnsafeBytes { (passwordBufferPtr: UnsafePointer<Int8>) in
                 saltBuffer.withUnsafeBytes { (saltBufferPtr: UnsafePointer<UInt8>) in
                     _ = COpenSSL.PKCS5_PBKDF2_HMAC(passwordBufferPtr,
@@ -137,7 +137,7 @@ public struct Hash {
         
         let messageBuffer = message.buffer
 
-        return Buffer(capacity: Int(EVP_PKEY_size(key.key))) { bytesBuffer in
+        return try Buffer(capacity: Int(EVP_PKEY_size(key.key))) { bytesBuffer in
             return messageBuffer.withUnsafeBytes { (messageBytes: UnsafePointer<UInt8>) -> Int in
                 EVP_DigestInit_ex(ctx, function.evp, nil)
                 EVP_DigestUpdate(ctx, UnsafeRawPointer(messageBytes), messageBuffer.count)

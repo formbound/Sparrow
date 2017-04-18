@@ -70,7 +70,16 @@ extension Request {
         }
     }
 
-    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: BufferRepresentable = Buffer()) {
+    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: Buffer = []) {
+        self.init(
+            method: method,
+            url: url,
+            headers: headers,
+            body: .buffer(body)
+        )
+    }
+
+    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: BufferRepresentable) {
         self.init(
             method: method,
             url: url,
@@ -99,7 +108,7 @@ extension Request {
 }
 
 extension Request {
-    public init?(method: Method = .get, url: String, headers: Headers = [:], body: BufferRepresentable = Buffer()) {
+    public init?(method: Method = .get, url: String, headers: Headers = [:], body: Buffer = []) {
         guard let url = URL(string: url) else {
             return nil
         }
@@ -110,6 +119,10 @@ extension Request {
             headers: headers,
             body: body
         )
+    }
+
+    public init?(method: Method = .get, url: String, headers: Headers = [:], body: BufferRepresentable) {
+        self.init(method: method, url: url, headers: headers, body: body.buffer)
     }
 
     public init?(method: Method = .get, url: String, headers: Headers = [:], body: Core.InputStream) {

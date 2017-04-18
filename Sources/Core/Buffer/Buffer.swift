@@ -5,86 +5,61 @@
 #endif
 
 public typealias Byte = UInt8
+public typealias Buffer = [Byte]
 
-public struct Buffer : RandomAccessCollection {
-    public typealias Iterator = Array<Byte>.Iterator
-    public typealias Index = Int
-    public typealias Indices = DefaultRandomAccessIndices<Buffer>
+extension Array where Iterator.Element == Byte {
 
-    public private(set) var bytes: [Byte]
-
-    public var count: Int {
-        return bytes.count
+    public static var empty: Buffer {
+        return []
     }
 
-    public init(_ bytes: [Byte] = []) {
-        self.bytes = bytes
+    public init() {
+        self = []
     }
 
-    public init(_ bytes: ArraySlice<Byte>) {
-        self.bytes = [Byte](bytes)
+    public init(_ string: String) {
+        self = [Byte](string.utf8)
+    }
+
+    public init(count: Int, fill: @escaping (UnsafeMutableBufferPointer<Byte>) throws -> Void) throws {
+        try self.init(capacity: count) {
+            guard count > 0 else {
+                return 0
+            }
+            try fill($0)
+            return count
+        }
+    }
+
+
+    public init(capacity: Int, fill: @escaping (UnsafeMutableBufferPointer<Byte>) throws -> Int) throws {
+        var bytes = [Byte](repeating: 0, count: capacity)
+        let usedCapacity = try bytes.withUnsafeMutableBufferPointer { try fill($0) }
+
+        guard usedCapacity > 0 else {
+            self = []
+            return
+        }
+
+        self = [Byte](bytes.prefix(usedCapacity))
     }
 
     public init(_ bytes: UnsafeBufferPointer<Byte>) {
-        self.bytes = [Byte](bytes)
-    }
-
-    public mutating func append(_ other: Buffer) {
-        bytes.append(contentsOf: other.bytes)
-    }
-
-    public mutating func append(_ other: [Byte]) {
-        bytes.append(contentsOf: other)
+        self = [Byte](bytes)
     }
 
     public mutating func append(_ other: UnsafeBufferPointer<Byte>) {
         guard other.count > 0 else {
             return
         }
-        bytes.append(contentsOf: [Byte](other))
+        append(contentsOf: [Byte](other))
     }
 
     public mutating func append(_ other: UnsafePointer<Byte>, count: Int) {
         guard count > 0 else {
             return
         }
-        bytes.append(contentsOf: [Byte](UnsafeBufferPointer(start: other, count: count)))
-    }
-
-    public subscript(index: Index) -> Byte {
-        return bytes[index]
-    }
-
-    public subscript(bounds: Range<Int>) -> Buffer {
-        return Buffer(bytes[bounds])
-    }
-
-    public subscript(bounds: CountableRange<Int>) -> Buffer {
-        return Buffer(bytes[bounds])
-    }
-
-    public var startIndex: Int {
-        return 0
-    }
-
-    public var endIndex: Int {
-        return count
-    }
-
-    public func index(before i: Int) -> Int {
-        return i - 1
-    }
-
-    public func index(after i: Int) -> Int {
-        return i + 1
-    }
-
-    public func makeIterator() -> Iterator {
-        return bytes.makeIterator()
-    }
-
-    public func copyBytes(to pointer: UnsafeMutablePointer<Byte>, count: Int) {
-        copyBytes(to: UnsafeMutableBufferPointer(start: pointer, count: count))
+        append(contentsOf: [Byte](UnsafeBufferPointer(start: other, count: count)))
     }
 
     public func copyBytes(to pointer: UnsafeMutableBufferPointer<Byte>) {
@@ -92,35 +67,39 @@ public struct Buffer : RandomAccessCollection {
             return
         }
 
-        precondition(bytes.endIndex >= 0)
-        precondition(bytes.endIndex <= pointer.count, "The pointer is not large enough")
+        precondition(endIndex >= 0)
+        precondition(endIndex <= pointer.count, "The pointer is not large enough")
 
-        _ = bytes.withUnsafeBufferPointer {
+        _ = withUnsafeBufferPointer {
             memcpy(pointer.baseAddress!, $0.baseAddress!, count)
         }
 
     }
 
+    public func copyBytes(to pointer: UnsafeMutablePointer<Byte>, count: Int) {
+        copyBytes(to: UnsafeMutableBufferPointer(start: pointer, count: count))
+    }
+
     public func withUnsafeBytes<Result, ContentType>(body: (UnsafePointer<ContentType>) throws -> Result) rethrows -> Result {
-        return try bytes.withUnsafeBufferPointer {
+        return try withUnsafeBufferPointer {
             let capacity = count / MemoryLayout<ContentType>.stride
             return try $0.baseAddress!.withMemoryRebound(to: ContentType.self, capacity: capacity) { try body($0) }
         }
-
     }
 
-    public func withUnsafeBufferPointer<R>(_ body: (UnsafeBufferPointer<Byte>) throws -> R) rethrows -> R {
-        return try bytes.withUnsafeBufferPointer(body)
+    public func hexadecimalString(inGroupsOf characterCount: Int = 0) -> String {
+        var string = ""
+        for (index, value) in self.enumerated() {
+            if characterCount != 0 && index > 0 && index % characterCount == 0 {
+                string += " "
+            }
+            string += (value < 16 ? "0" : "") + String(value, radix: 16)
+        }
+        return string
     }
 
-    public mutating func withUnsafeMutableBufferPointer<R>(_ body: (inout UnsafeMutableBufferPointer<Byte>) throws -> R) rethrows -> R {
-        return try bytes.withUnsafeMutableBufferPointer(body)
-    }
-}
-
-extension Buffer {
-    public static var empty: Buffer {
-        return Buffer()
+    public var hexadecimalDescription: String {
+        return hexadecimalString(inGroupsOf: 2)
     }
 }
 
@@ -146,50 +125,14 @@ extension UnsafeMutableBufferPointer {
 }
 
 public protocol BufferInitializable {
-    init(buffer: Buffer) throws
+    init(buffer: [Byte]) throws
 }
 
 public protocol BufferRepresentable {
-    var buffer: Buffer { get }
-}
-
-extension Buffer : BufferRepresentable {
-    public var buffer: Buffer {
-        return self
-    }
+    var buffer: [Byte] { get }
 }
 
 public protocol BufferConvertible : BufferInitializable, BufferRepresentable {}
-
-extension Buffer {
-    public init(_ string: String) {
-        self = Buffer([Byte](string.utf8))
-    }
-
-    public init(count: Int, fill: (UnsafeMutableBufferPointer<Byte>) throws -> Void) rethrows {
-        self = try Buffer(capacity: count) {
-            guard count > 0 else {
-                return 0
-            }
-            try fill($0)
-            return count
-        }
-    }
-
-
-    public init(capacity: Int, fill: (UnsafeMutableBufferPointer<Byte>) throws -> Int) rethrows {
-        var bytes = [Byte](repeating: 0, count: capacity)
-        let usedCapacity = try bytes.withUnsafeMutableBufferPointer { try fill($0) }
-
-        guard usedCapacity > 0 else {
-            self = Buffer()
-            return
-        }
-
-
-        self = Buffer([Byte](bytes.prefix(usedCapacity)))
-    }
-}
 
 public enum BufferConversionError: Error {
     case invalidString
@@ -197,7 +140,7 @@ public enum BufferConversionError: Error {
 
 extension String : BufferConvertible {
     public init(buffer: Buffer) throws {
-        guard let string = String(bytes: buffer.bytes, encoding: .utf8) else {
+        guard let string = String(bytes: buffer, encoding: .utf8) else {
             throw BufferConversionError.invalidString
         }
         self = string
@@ -208,38 +151,3 @@ extension String : BufferConvertible {
     }
 }
 
-extension Buffer {
-    public func hexadecimalString(inGroupsOf characterCount: Int = 0) -> String {
-        var string = ""
-        for (index, value) in self.enumerated() {
-            if characterCount != 0 && index > 0 && index % characterCount == 0 {
-                string += " "
-            }
-            string += (value < 16 ? "0" : "") + String(value, radix: 16)
-        }
-        return string
-    }
-
-    public var hexadecimalDescription: String {
-        return hexadecimalString(inGroupsOf: 2)
-    }
-}
-
-extension Buffer : CustomDebugStringConvertible {
-    public var debugDescription: String {
-        return (try? String(buffer: self)) ?? hexadecimalString()
-    }
-}
-
-extension Buffer : Equatable {}
-
-public func ==(lhs: Buffer, rhs: Buffer) -> Bool {
-    guard lhs.count == rhs.count else {
-        return false
-    }
-    guard lhs.count > 0 && rhs.count > 0 else {
-        return true
-    }
-    
-    return lhs.bytes == rhs.bytes
-}

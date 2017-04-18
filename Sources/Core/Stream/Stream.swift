@@ -59,7 +59,7 @@ extension InputStream {
         var buffer = Buffer()
 
         while !self.closed, let chunk = try? self.read(upTo: 2048, deadline: deadline), chunk.count > 0 {
-            buffer.append(chunk)
+            buffer.append(contentsOf: chunk)
         }
 
         return buffer
@@ -83,20 +83,13 @@ extension OutputStream {
             return
         }
 
-        try buffer.bytes.withUnsafeBufferPointer {
+        try buffer.withUnsafeBufferPointer {
             try write($0, deadline: deadline)
         }
     }
 
     public func write(_ converting: BufferRepresentable, deadline: Deadline) throws {
         try write(converting.buffer, deadline: deadline)
-    }
-
-    public func write(_ bytes: [Byte], deadline: Deadline) throws {
-        guard !bytes.isEmpty else {
-            return
-        }
-        try bytes.withUnsafeBufferPointer { try self.write($0, deadline: deadline) }
     }
 }
 

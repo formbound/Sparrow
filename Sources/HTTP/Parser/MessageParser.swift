@@ -84,8 +84,7 @@ public final class MessageParser {
         self.parser.data = Unmanaged.passUnretained(self).toOpaque()
     }
     
-    public func parse(_ from: BufferRepresentable) throws -> [Message] {
-        let buffer = from.buffer
+    public func parse(_ buffer: Buffer) throws -> [Message] {
 
         return try buffer.withUnsafeBytes {
             try self.parse(UnsafeBufferPointer(start: $0, count: buffer.count))

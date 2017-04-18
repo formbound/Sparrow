@@ -121,12 +121,16 @@ extension Response {
         }
     }
 
-    public init(status: Status = .ok, headers: Headers = [:], body: BufferRepresentable = Buffer()) {
+    public init(status: Status = .ok, headers: Headers = [:], body: Buffer = []) {
         self.init(
             status: status,
             headers: headers,
-            body: .buffer(body.buffer)
+            body: .buffer(body)
         )
+    }
+
+    public init(status: Status = .ok, headers: Headers = [:], body: BufferRepresentable) {
+        self.init(status: status, headers: headers, body: body.buffer)
     }
 
     public init(status: Status = .ok, headers: Headers = [:], body: InputStream) {
