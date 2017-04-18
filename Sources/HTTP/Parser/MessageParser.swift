@@ -30,7 +30,7 @@ public final class MessageParser {
         var version: Version? = nil
         var url: URL? = nil
         var headers: [CaseInsensitiveString: String] = [:]
-        var body: [Byte] = .empty
+        var body: [Byte] = []
         
         var currentHeaderField: CaseInsensitiveString? = nil
         

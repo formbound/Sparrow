@@ -9,7 +9,7 @@ public enum Body {
 
 extension Body {
     public static var empty: Body {
-        return .data(.empty)
+        return .data([])
     }
 
     public var isEmpty: Bool {

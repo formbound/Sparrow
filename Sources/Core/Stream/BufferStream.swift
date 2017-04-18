@@ -4,7 +4,7 @@ public final class DataStream : Stream {
     public private(set) var bytes: [Byte]
     public private(set) var closed = false
 
-    public init(bytes: [Byte] = .empty) {
+    public init(bytes: [Byte] = []) {
         self.bytes = bytes
     }
 

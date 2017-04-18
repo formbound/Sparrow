@@ -8,14 +8,6 @@ public typealias Byte = UInt8
 
 extension Array where Iterator.Element == Byte {
 
-    public static var empty: [Byte] {
-        return []
-    }
-
-    public init() {
-        self = []
-    }
-
     public init(_ string: String) {
         self = [Byte](string.utf8)
     }

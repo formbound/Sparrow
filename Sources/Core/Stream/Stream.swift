@@ -19,7 +19,7 @@ public protocol InputStream {
 extension InputStream {
     public func read(upTo byteCount: Int, deadline: Deadline) throws -> [Byte] {
         guard byteCount > 0 else {
-            return .empty
+            return []
         }
 
         var bytes = [Byte](repeating: 0, count: byteCount)
@@ -33,7 +33,7 @@ extension InputStream {
 
     public func read(exactly byteCount: Int, deadline: Deadline) throws -> [Byte] {
         guard byteCount > 0 else {
-            return .empty
+            return []
         }
 
         var bytes = [Byte](repeating: 0, count: byteCount)
@@ -56,7 +56,7 @@ extension InputStream {
 
     /// Drains the `Stream` and returns the contents in a `Buffer`. At the end of this operation the stream will be closed.
     public func drain(deadline: Deadline) throws -> [Byte] {
-        var bytes: [Byte] = .empty
+        var bytes: [Byte] = []
 
         while !self.closed, let chunk = try? self.read(upTo: 2048, deadline: deadline), chunk.count > 0 {
             bytes.append(contentsOf: chunk)

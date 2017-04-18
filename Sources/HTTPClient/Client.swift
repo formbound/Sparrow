@@ -217,7 +217,7 @@ extension Client {
 }
 
 extension Client {
-    public func get(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public func get(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .get, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -225,7 +225,7 @@ extension Client {
         return try request(method: .get, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    public func head(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public func head(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .head, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -233,7 +233,7 @@ extension Client {
         return try request(method: .head, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    public func post(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public func post(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .post, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -241,7 +241,7 @@ extension Client {
         return try request(method: .post, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    public func put(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public func put(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .put, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -249,7 +249,7 @@ extension Client {
         return try request(method: .put, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    public func patch(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public func patch(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .patch, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -257,7 +257,7 @@ extension Client {
         return try request(method: .patch, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    public func delete(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public func delete(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .delete, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -265,7 +265,7 @@ extension Client {
         return try request(method: .delete, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    public func options(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public func options(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .options, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -273,7 +273,7 @@ extension Client {
         return try request(method: .options, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    private func request(method: Request.Method, url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    private func request(method: Request.Method, url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         guard let url = URL(string: url) else {
             throw HTTPClientError.invalidUrl
         }
@@ -283,7 +283,7 @@ extension Client {
 }
 
 extension Client {
-    public static func get(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public static func get(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .get, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -291,7 +291,7 @@ extension Client {
         return try request(method: .get, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    public static func head(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public static func head(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .head, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -299,7 +299,7 @@ extension Client {
         return try request(method: .head, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    public static func post(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public static func post(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .post, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -307,7 +307,7 @@ extension Client {
         return try request(method: .post, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    public static func put(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public static func put(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .put, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -315,7 +315,7 @@ extension Client {
         return try request(method: .put, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    public static func patch(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public static func patch(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .patch, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -323,7 +323,7 @@ extension Client {
         return try request(method: .patch, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    public static func delete(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public static func delete(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .delete, url: url, headers: headers, body: body, middleware: middleware)
     }
 
@@ -331,7 +331,7 @@ extension Client {
         return try request(method: .delete, url: url, headers: headers, body: body.bytes, middleware: middleware)
     }
 
-    public static func options(_ url: String, headers: Headers = [:], body: [Byte] = .empty, middleware: [Middleware] = []) throws -> Response {
+    public static func options(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
         return try request(method: .options, url: url, headers: headers, body: body, middleware: middleware)
     }
 
