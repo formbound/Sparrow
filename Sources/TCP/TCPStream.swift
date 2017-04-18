@@ -101,7 +101,7 @@ public final class TCPStream : Stream {
         loop: while true {
             do {
 
-                let bytesRead = try POSIX.receive(socket: socket, buffer: readBuffer, count: readBuffer.count)
+                let bytesRead = try POSIX.receive(socket: socket, buffer: readBuffer)
                 guard !bytesRead.isEmpty else {
                     close()
                     throw StreamError.closedStream

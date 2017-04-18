@@ -78,7 +78,9 @@ public func listen(socket: FileDescriptor, backlog: Int) throws {
 public func accept(socket: FileDescriptor) throws -> (FileDescriptor, Address) {
     var address = Address()
     var length = socklen_t(MemoryLayout<sockaddr>.size)
-    let acceptSocket = address.withAddressPointer(body: { accept(socket, $0, &length) })
+    let acceptSocket = address.withAddressPointer { pointer in
+        accept(socket, pointer, &length)
+    }
 
     guard acceptSocket >= 0 else {
         throw SystemError.lastOperationError ?? SystemError.unknown
@@ -90,7 +92,10 @@ public func accept(socket: FileDescriptor) throws -> (FileDescriptor, Address) {
 public func connect(socket: FileDescriptor, address: Address) throws {
     var address = address
     let length = socklen_t(MemoryLayout<sockaddr>.size)
-    let result = address.withAddressPointer(body: { connect(socket, $0, length) })
+
+    let result = address.withAddressPointer { pointer in
+        connect(socket, pointer, length)
+    }
 
     guard result == 0 else {
         throw SystemError.lastOperationError ?? SystemError.unknown
@@ -137,14 +142,14 @@ public struct ReceiveFlags : OptionSet {
 #endif
 }
 
-public func receive(socket: FileDescriptor, buffer: UnsafeMutableBufferPointer<Byte>, count: Int, flags: ReceiveFlags = .none) throws -> UnsafeBufferPointer<Byte> {
-    let result = recv(socket, buffer.baseAddress!, count, flags.rawValue)
+public func receive(socket: FileDescriptor, buffer: UnsafeMutableBufferPointer<Byte>, flags: ReceiveFlags = .none) throws -> UnsafeBufferPointer<Byte> {
+    let result = recv(socket, buffer.baseAddress!, buffer.count, flags.rawValue)
 
     guard result != -1 else {
         throw SystemError.lastOperationError ?? SystemError.unknown
     }
 
-    return UnsafeBufferPointer(start: buffer.baseAddress!, count: count)
+    return UnsafeBufferPointer(start: buffer.baseAddress!, count: buffer.count)
 }
 
 public func getAddress(socket: FileDescriptor) throws -> Address {
@@ -169,7 +174,7 @@ public func checkError(socket: FileDescriptor) throws {
     }
 
     guard error == 0 else {
-        throw SystemError(errorNumber: error)
+        throw SystemError(errorNumber: error) ?? .unknown
     }
 }
 

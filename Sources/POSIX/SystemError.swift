@@ -130,9 +130,9 @@ public enum SystemError : Error {
 }
 
 extension SystemError {
-    public init(errorNumber: Int32) {
+    public init?(errorNumber: Int32) {
         switch errorNumber {
-        case 0: self = .unknown
+        case 0: return nil
 
         case EPERM: self = .operationNotPermitted
         case ENOENT: self = .noSuchFileOrDirectory

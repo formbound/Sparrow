@@ -32,6 +32,12 @@
       "version": "0.15.0"
     },
     {
+      "package": "Powerline",
+      "reason": null,
+      "repositoryURL": "https://github.com/formbound/Powerline.git",
+      "version": "0.1.0"
+    },
+    {
       "package": "Venice",
       "reason": null,
       "repositoryURL": "https://github.com/formbound/Venice.git",
