@@ -85,14 +85,13 @@ public final class MessageParser {
     }
     
     public func parse(_ bytes: [Byte]) throws -> [Message] {
-
-        return try bytes.withUnsafeBytes {
-            try self.parse(UnsafeBufferPointer(start: $0, count: bytes.count))
+        return try bytes.withUnsafeBufferPointer { buffer in
+            try self.parse(buffer)
         }
     }
     
-    public func parse(_ bytes: UnsafeBufferPointer<Byte>) throws -> [Message] {
-        let final = bytes.isEmpty
+    public func parse(_ buffer: UnsafeBufferPointer<Byte>) throws -> [Message] {
+        let final = buffer.isEmpty
         let needsMessage: Bool
         switch state {
         case .ready, .messageComplete:
@@ -105,12 +104,12 @@ public final class MessageParser {
         if final {
             processedCount = http_parser_execute(&parser, &parserSettings, nil, 0)
         } else {
-            processedCount = bytes.baseAddress!.withMemoryRebound(to: Int8.self, capacity: bytes.count) {
-                return http_parser_execute(&self.parser, &self.parserSettings, $0, bytes.count)
+            processedCount = buffer.baseAddress!.withMemoryRebound(to: Int8.self, capacity: buffer.count) {
+                return http_parser_execute(&self.parser, &self.parserSettings, $0, buffer.count)
             }
         }
         
-        guard processedCount == bytes.count else {
+        guard processedCount == buffer.count else {
             throw MessageParserError(parser.http_errno)
         }
         

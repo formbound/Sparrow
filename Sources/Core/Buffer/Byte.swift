@@ -35,10 +35,6 @@ extension Array where Iterator.Element == Byte {
         self = [Byte](bytes.prefix(usedCapacity))
     }
 
-    public init(_ bytes: UnsafeBufferPointer<Byte>) {
-        self = [Byte](bytes)
-    }
-
     public mutating func append(_ other: UnsafeBufferPointer<Byte>) {
         guard other.count > 0 else {
             return
