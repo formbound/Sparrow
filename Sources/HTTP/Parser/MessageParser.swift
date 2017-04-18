@@ -51,7 +51,7 @@ public final class MessageParser {
     
     private var state: State = .ready
     private var context = Context()
-    private var buffer: [UInt8] = []
+    private var bytes: [Byte] = []
     
     private var messages: [Message] = []
     
@@ -84,10 +84,10 @@ public final class MessageParser {
         self.parser.data = Unmanaged.passUnretained(self).toOpaque()
     }
     
-    public func parse(_ buffer: [Byte]) throws -> [Message] {
+    public func parse(_ bytes: [Byte]) throws -> [Message] {
 
-        return try buffer.withUnsafeBytes {
-            try self.parse(UnsafeBufferPointer(start: $0, count: buffer.count))
+        return try bytes.withUnsafeBytes {
+            try self.parse(UnsafeBufferPointer(start: $0, count: bytes.count))
         }
     }
     
@@ -166,17 +166,17 @@ public final class MessageParser {
             case .ready, .messageBegin, .messageComplete:
                 break
             case .url:
-                buffer.append(0)
+                bytes.append(0)
 
-                let string = buffer.withUnsafeBufferPointer { (ptr: UnsafeBufferPointer<UInt8>) -> String in
+                let string = bytes.withUnsafeBufferPointer { (ptr: UnsafeBufferPointer<UInt8>) -> String in
                     return String(cString: ptr.baseAddress!)
                 }
 
                 context.url = URL(string: string)!
             case .status:
-                buffer.append(0)
+                bytes.append(0)
 
-                let string = buffer.withUnsafeBufferPointer { (ptr: UnsafeBufferPointer<UInt8>) -> String in
+                let string = bytes.withUnsafeBufferPointer { (ptr: UnsafeBufferPointer<UInt8>) -> String in
                     return String(cString: ptr.baseAddress!)
                 }
 
@@ -185,17 +185,17 @@ public final class MessageParser {
                     reasonPhrase: string
                 )
             case .headerField:
-                buffer.append(0)
+                bytes.append(0)
 
-                let string = buffer.withUnsafeBufferPointer { (ptr: UnsafeBufferPointer<UInt8>) -> String in
+                let string = bytes.withUnsafeBufferPointer { (ptr: UnsafeBufferPointer<UInt8>) -> String in
                     return String(cString: ptr.baseAddress!)
                 }
 
                 context.currentHeaderField = CaseInsensitiveString(string)
             case .headerValue:
-                buffer.append(0)
+                bytes.append(0)
 
-                let string = buffer.withUnsafeBufferPointer { (ptr: UnsafeBufferPointer<UInt8>) -> String in
+                let string = bytes.withUnsafeBufferPointer { (ptr: UnsafeBufferPointer<UInt8>) -> String in
                     return String(cString: ptr.baseAddress!)
                 }
 
@@ -205,10 +205,10 @@ public final class MessageParser {
                 context.method = Request.Method(code: http_method(rawValue: parser.method))
                 context.version = Version(major: Int(parser.http_major), minor: Int(parser.http_minor))
             case .body:
-                context.body = [Byte](buffer)
+                context.body = [Byte](bytes)
             }
             
-            buffer = []
+            bytes = []
             state = newState
             
             if state == .messageComplete {
@@ -219,7 +219,7 @@ public final class MessageParser {
                         method: context.method!,
                         url: context.url!,
                         headers: Headers(),
-                        body: .buffer(context.body)
+                        body: .data(context.body)
                     )
 
                     request.headers = Headers(context.headers)
@@ -238,7 +238,7 @@ public final class MessageParser {
                         status: context.status!,
                         headers: Headers(context.headers),
                         cookieHeaders: cookieHeaders,
-                        body: .buffer(context.body)
+                        body: .data(context.body)
                     )
                     
                     message = response
@@ -255,7 +255,7 @@ public final class MessageParser {
         
         data.baseAddress!.withMemoryRebound(to: UInt8.self, capacity: data.count) { ptr in
             for i in 0..<data.count {
-                self.buffer.append(ptr[i])
+                self.bytes.append(ptr[i])
             }
         }
 

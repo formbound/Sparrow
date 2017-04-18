@@ -97,8 +97,8 @@ extension Server {
     }
 
     public func process(stream: Stream) throws {
-        let buffer = UnsafeMutableBufferPointer<Byte>(capacity: bufferSize)
-        defer { buffer.deallocate(capacity: bufferSize) }
+        let bytes = UnsafeMutableBufferPointer<Byte>(capacity: bufferSize)
+        defer { bytes.deallocate(capacity: bufferSize) }
 
         let parser = MessageParser(mode: .request)
         let serializer = ResponseSerializer(stream: stream, bufferSize: bufferSize)
@@ -106,7 +106,7 @@ extension Server {
         while !stream.closed {
             do {
                 // TODO: Add timeout parameter
-                let bytesRead = try stream.read(into: buffer, deadline: 30.seconds.fromNow())
+                let bytesRead = try stream.read(into: bytes, deadline: 30.seconds.fromNow())
                 
                 for message in try parser.parse(bytesRead) {
                     let request = message as! Request

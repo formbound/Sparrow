@@ -56,13 +56,13 @@ extension InputStream {
 
     /// Drains the `Stream` and returns the contents in a `Buffer`. At the end of this operation the stream will be closed.
     public func drain(deadline: Deadline) throws -> [Byte] {
-        var buffer: [Byte] = .empty
+        var bytes: [Byte] = .empty
 
         while !self.closed, let chunk = try? self.read(upTo: 2048, deadline: deadline), chunk.count > 0 {
-            buffer.append(contentsOf: chunk)
+            bytes.append(contentsOf: chunk)
         }
 
-        return buffer
+        return bytes
     }
 }
 
@@ -72,18 +72,18 @@ public protocol OutputStream {
     func close()
 
     func write(_ buffer: UnsafeBufferPointer<Byte>, deadline: Deadline) throws
-    func write(_ buffer: [Byte], deadline: Deadline) throws
+    func write(_ bytes: [Byte], deadline: Deadline) throws
     func write(_ buffer: DataRepresentable, deadline: Deadline) throws
     func flush(deadline: Deadline) throws
 }
 
 extension OutputStream {
-    public func write(_ buffer: [Byte], deadline: Deadline) throws {
-        guard !buffer.isEmpty else {
+    public func write(_ bytes: [Byte], deadline: Deadline) throws {
+        guard !bytes.isEmpty else {
             return
         }
 
-        try buffer.withUnsafeBufferPointer {
+        try bytes.withUnsafeBufferPointer {
             try write($0, deadline: deadline)
         }
     }

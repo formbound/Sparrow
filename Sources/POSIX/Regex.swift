@@ -11,9 +11,9 @@ public struct RegexError : Error {
     let description: String
 
     static func error(from result: Int32, preg: inout regex_t) -> RegexError {
-        var buffer = [Int8](repeating: 0, count: Int(BUFSIZ))
-        regerror(result, &preg, &buffer, buffer.count)
-        let description = String(cString: buffer)
+        var bytes = [Int8](repeating: 0, count: Int(BUFSIZ))
+        regerror(result, &preg, &bytes, bytes.count)
+        let description = String(cString: bytes)
         return RegexError(description: description)
     }
 }

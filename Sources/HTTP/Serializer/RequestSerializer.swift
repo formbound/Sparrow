@@ -24,18 +24,18 @@ public class RequestSerializer {
         try stream.write(newLine, deadline: deadline)
 
         switch request.body {
-        case .buffer(let buffer):
-            try stream.write(buffer, deadline: deadline)
+        case .data(let bytes):
+            try stream.write(bytes, deadline: deadline)
         case .reader(let reader):
             while !reader.closed {
-                let buffer = try reader.read(upTo: bufferSize, deadline: deadline)
-                guard !buffer.isEmpty else {
+                let bytes = try reader.read(upTo: bufferSize, deadline: deadline)
+                guard !bytes.isEmpty else {
                     break
                 }
 
-                try stream.write(String(buffer.count, radix: 16), deadline: deadline)
+                try stream.write(String(bytes.count, radix: 16), deadline: deadline)
                 try stream.write(newLine, deadline: deadline)
-                try stream.write(buffer, deadline: deadline)
+                try stream.write(bytes, deadline: deadline)
                 try stream.write(newLine, deadline: deadline)
             }
 

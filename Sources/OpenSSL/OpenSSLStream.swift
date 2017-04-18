@@ -40,12 +40,12 @@ public final class SSLStream : Stream {
 	}
     
     private func handshake(deadline: Deadline) throws {
-        let buffer = UnsafeMutableBufferPointer<Byte>(capacity: 4096)
-        defer { buffer.deallocate(capacity: 4096) }
+        let bytes = UnsafeMutableBufferPointer<Byte>(capacity: 4096)
+        defer { bytes.deallocate(capacity: 4096) }
 
         func flushAndReceive() throws {
             try self.flush(deadline: deadline)
-            let bytesRead = try self.rawStream.read(into: buffer, deadline: deadline)
+            let bytesRead = try self.rawStream.read(into: bytes, deadline: deadline)
             _ = try self.readIO.write(bytesRead)
         }
 
@@ -69,8 +69,8 @@ public final class SSLStream : Stream {
             return UnsafeBufferPointer()
         }
 
-        let buffer = UnsafeMutableBufferPointer<Byte>(capacity: readBuffer.count)
-        defer { buffer.deallocate(capacity: readBuffer.count) }
+        let bytes = UnsafeMutableBufferPointer<Byte>(capacity: readBuffer.count)
+        defer { bytes.deallocate(capacity: readBuffer.count) }
 
         while true {
             do {
@@ -82,7 +82,7 @@ public final class SSLStream : Stream {
 
                 return UnsafeBufferPointer(start: readPointer, count: bytesRead)
             } catch SSLSessionError.wantRead {
-                let bytesRead = try rawStream.read(into: buffer, deadline: deadline)
+                let bytesRead = try rawStream.read(into: bytes, deadline: deadline)
                 _ = try self.readIO.write(bytesRead)
             } catch SSLSessionError.zeroReturn {
                 throw StreamError.closedStream
@@ -91,8 +91,8 @@ public final class SSLStream : Stream {
     }
 
     
-    public func write(_ buffer: UnsafeBufferPointer<UInt8>, deadline: Deadline) throws {
-        var remaining = buffer
+    public func write(_ bytes: UnsafeBufferPointer<UInt8>, deadline: Deadline) throws {
+        var remaining = bytes
         while !remaining.isEmpty {
             let bytesWritten = try session.write(remaining)
             guard bytesWritten != remaining.count else {

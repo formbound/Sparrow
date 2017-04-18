@@ -144,14 +144,14 @@ extension Address : CustomStringConvertible {
         var address = self
         if family == .ipv4 {
             return address.withIPv4Pointer {
-                var buffer = [Int8](repeating: 0, count: Int(INET_ADDRSTRLEN))
-                let cString = inet_ntop(family.rawValue, &$0.pointee.sin_addr, &buffer, socklen_t(INET_ADDRSTRLEN))
+                var bytes = [Int8](repeating: 0, count: Int(INET_ADDRSTRLEN))
+                let cString = inet_ntop(family.rawValue, &$0.pointee.sin_addr, &bytes, socklen_t(INET_ADDRSTRLEN))
                 return String(cString: cString!)
             }
         } else {
             return address.withIPv6Pointer {
-                var buffer = [Int8](repeating: 0, count: Int(INET6_ADDRSTRLEN))
-                let cString = inet_ntop(family.rawValue, &$0.pointee.sin6_addr, &buffer, socklen_t(INET6_ADDRSTRLEN))
+                var bytes = [Int8](repeating: 0, count: Int(INET6_ADDRSTRLEN))
+                let cString = inet_ntop(family.rawValue, &$0.pointee.sin6_addr, &bytes, socklen_t(INET6_ADDRSTRLEN))
                 return String(cString: cString!)
             }
         }

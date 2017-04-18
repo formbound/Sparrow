@@ -21,7 +21,7 @@ public class Key {
 	}
 
 	public convenience init(pemString: String) throws {
-		try self.init(io: IO(buffer: pemString))
+		try self.init(io: IO(data: pemString))
 	}
 
 	deinit {

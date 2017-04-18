@@ -2,19 +2,19 @@ import Core
 import Venice
 
 public enum Body {
-    case buffer([Byte])
+    case data([Byte])
     case reader(InputStream)
     case writer((OutputStream) throws -> Void)
 }
 
 extension Body {
     public static var empty: Body {
-        return .buffer(.empty)
+        return .data(.empty)
     }
 
     public var isEmpty: Bool {
         switch self {
-        case .buffer(let buffer): return buffer.isEmpty
+        case .data(let bytes): return bytes.isEmpty
         default: return false
         }
     }
@@ -23,7 +23,7 @@ extension Body {
 extension Body {
     public var isBuffer: Bool {
         switch self {
-        case .buffer: return true
+        case .data: return true
         default: return false
         }
     }
@@ -46,18 +46,18 @@ extension Body {
 extension Body {
     public mutating func becomeBuffer(deadline: Deadline) throws -> [Byte] {
         switch self {
-        case .buffer(let buffer):
-            return buffer
+        case .data(let bytes):
+            return bytes
         case .reader(let reader):
-            let buffer = try reader.drain(deadline: deadline)
-            self = .buffer(buffer)
-            return buffer
+            let bytes = try reader.drain(deadline: deadline)
+            self = .data(bytes)
+            return bytes
         case .writer(let writer):
-            let bufferStream = BufferStream()
-            try writer(bufferStream)
-            let buffer = bufferStream.bytes
-            self = .buffer(buffer)
-            return buffer
+            let dataStream = DataStream()
+            try writer(dataStream)
+            let bytes = dataStream.bytes
+            self = .data(bytes)
+            return bytes
         }
     }
 
@@ -65,31 +65,31 @@ extension Body {
         switch self {
         case .reader(let reader):
             return reader
-        case .buffer(let buffer):
-            let bufferStream = BufferStream(bytes: buffer)
-            self = .reader(bufferStream)
-            return bufferStream
+        case .data(let bytes):
+            let dataStream = DataStream(bytes: bytes)
+            self = .reader(dataStream)
+            return dataStream
         case .writer(let writer):
-            let bufferStream = BufferStream()
-            try writer(bufferStream)
-            self = .reader(bufferStream)
-            return bufferStream
+            let dataStream = DataStream()
+            try writer(dataStream)
+            self = .reader(dataStream)
+            return dataStream
         }
     }
 
     public mutating func becomeWriter(deadline: Deadline) throws -> ((OutputStream) throws -> Void) {
         switch self {
-        case .buffer(let buffer):
+        case .data(let bytes):
             let writer: ((OutputStream) throws -> Void) = { writer in
-                try writer.write(buffer, deadline: deadline)
+                try writer.write(bytes, deadline: deadline)
                 try writer.flush(deadline: deadline)
             }
             self = .writer(writer)
             return writer
         case .reader(let reader):
             let writer: ((OutputStream) throws -> Void) = { writer in
-                let buffer = try reader.drain(deadline: deadline)
-                try writer.write(buffer, deadline: deadline)
+                let bytes = try reader.drain(deadline: deadline)
+                try writer.write(bytes, deadline: deadline)
                 try writer.flush(deadline: deadline)
             }
             self = .writer(writer)
@@ -104,7 +104,7 @@ extension Body : Equatable {}
 
 public func == (lhs: Body, rhs: Body) -> Bool {
     switch (lhs, rhs) {
-        case let (.buffer(l), .buffer(r)) where l == r: return true
+        case let (.data(l), .data(r)) where l == r: return true
         default: return false
     }
 }

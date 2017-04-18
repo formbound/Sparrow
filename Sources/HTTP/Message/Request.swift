@@ -63,7 +63,7 @@ extension Request {
         )
 
         switch body {
-        case let .buffer(body):
+        case let .data(body):
             self.headers["Content-Length"] = body.count.description
         default:
             self.headers["Transfer-Encoding"] = "chunked"
@@ -75,7 +75,7 @@ extension Request {
             method: method,
             url: url,
             headers: headers,
-            body: .buffer(body)
+            body: .data(body)
         )
     }
 
@@ -84,7 +84,7 @@ extension Request {
             method: method,
             url: url,
             headers: headers,
-            body: .buffer(body.bytes)
+            body: .data(body.bytes)
         )
     }
 

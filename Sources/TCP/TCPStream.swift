@@ -50,8 +50,8 @@ public final class TCPStream : Stream {
         self.closed = false
     }
 
-    public func write(_ buffer: UnsafeBufferPointer<UInt8>, deadline: Deadline) throws {
-        guard !buffer.isEmpty else {
+    public func write(_ bytes: UnsafeBufferPointer<UInt8>, deadline: Deadline) throws {
+        guard !bytes.isEmpty else {
             return
         }
 
@@ -59,9 +59,9 @@ public final class TCPStream : Stream {
         try ensureStillOpen()
 
         loop: while true {
-            var remaining: UnsafeBufferPointer<UInt8> = buffer
+            var remaining: UnsafeBufferPointer<UInt8> = bytes
             do {
-                let bytesWritten = try POSIX.send(socket: socket, buffer: remaining.baseAddress!, count: remaining.count, flags: .noSignal)
+                let bytesWritten = try POSIX.send(socket: socket, bytes: remaining.baseAddress!, count: remaining.count, flags: .noSignal)
                 guard bytesWritten > 0 else {
                     throw SystemError.other(errorNumber: -1)
                 }
@@ -101,7 +101,7 @@ public final class TCPStream : Stream {
         loop: while true {
             do {
 
-                let bytesRead = try POSIX.receive(socket: socket, buffer: readBuffer)
+                let bytesRead = try POSIX.receive(socket: socket, bytes: readBuffer)
                 guard !bytesRead.isEmpty else {
                     close()
                     throw StreamError.closedStream

@@ -76,7 +76,7 @@ public class TCPTests : XCTestCase {
             let connection = try host.accept(deadline: 1.second.fromNow())
             let buffer = try connection.read(upTo: 1, deadline: 1.second.fromNow())
 
-            XCTAssertEqual(buffer, Buffer([123]))
+            XCTAssertEqual(buffer, [Byte]([123]))
             connection.close()
             try channel.send((), deadline: .never)
         }
@@ -103,7 +103,7 @@ public class TCPTests : XCTestCase {
 
             let buffer = try stream.read(upTo: 9, deadline: deadline)
             XCTAssertEqual(buffer.count, 9)
-            XCTAssertEqual(buffer, Buffer("123456789"))
+            XCTAssertEqual(buffer, [Byte]("123456789"))
 
             try channel.send((), deadline: .never)
         }
@@ -112,7 +112,7 @@ public class TCPTests : XCTestCase {
         try stream.open(deadline: deadline)
 
         let buffer = try stream.read(upTo: 3, deadline: deadline)
-        XCTAssertEqual(buffer, Buffer("ABC"))
+        XCTAssertEqual(buffer, [Byte]("ABC"))
         XCTAssertEqual(buffer.count, 3)
 
         try stream.write("123456789", deadline: deadline)

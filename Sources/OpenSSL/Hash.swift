@@ -109,7 +109,7 @@ public struct Hash {
         let passwordBuffer = password.bytes
         let saltBuffer = salt.bytes
         
-        return try [Byte](count: Int(function.digestLength)) { bufferPtr in
+        return try [Byte](count: Int(function.digestLength)) { pointer in
             passwordBuffer.withUnsafeBytes { (passwordBufferPtr: UnsafePointer<Int8>) in
                 saltBuffer.withUnsafeBytes { (saltBufferPtr: UnsafePointer<UInt8>) in
                     _ = COpenSSL.PKCS5_PBKDF2_HMAC(passwordBufferPtr,
@@ -118,8 +118,8 @@ public struct Hash {
                                                    Int32(saltBuffer.count),
                                                    Int32(iterations),
                                                    function.evp,
-                                                   Int32(bufferPtr.count),
-                                                   bufferPtr.baseAddress)
+                                                   Int32(pointer.count),
+                                                   pointer.baseAddress)
                 }
             }
         }

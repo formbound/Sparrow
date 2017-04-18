@@ -99,12 +99,12 @@ public class SSLSession {
 		}
 	}
     
-    public func write(_ buffer: UnsafeBufferPointer<UInt8>) throws -> Int {
-        guard !buffer.isEmpty else {
+    public func write(_ bytes: UnsafeBufferPointer<UInt8>) throws -> Int {
+        guard !bytes.isEmpty else {
             return 0
         }
         
-        let bytesWritten = SSL_write(ssl, buffer.baseAddress!, Int32(buffer.count))
+        let bytesWritten = SSL_write(ssl, bytes.baseAddress!, Int32(bytes.count))
         
         guard bytesWritten > 0 else {
             let error = SSL_get_error(ssl, bytesWritten)

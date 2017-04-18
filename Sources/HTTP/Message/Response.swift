@@ -114,7 +114,7 @@ extension Response {
         )
 
         switch body {
-        case let .buffer(body):
+        case let .data(body):
             self.headers["Content-Length"] = body.count.description
         default:
             self.headers["Transfer-Encoding"] = "chunked"
@@ -125,7 +125,7 @@ extension Response {
         self.init(
             status: status,
             headers: headers,
-            body: .buffer(body)
+            body: .data(body)
         )
     }
 

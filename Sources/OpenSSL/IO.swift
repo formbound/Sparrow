@@ -30,9 +30,9 @@ public class IO {
 		}
 	}
 
-	public convenience init(buffer: DataRepresentable) throws {
+	public convenience init(data: DataRepresentable) throws {
 		try self.init()
-        _ = try buffer.bytes.withUnsafeBufferPointer {
+        _ = try data.bytes.withUnsafeBufferPointer {
             try write($0)
         }
         
@@ -52,12 +52,12 @@ public class IO {
 	}
 
     // Make this all or nothing
-    public func write(_ buffer: UnsafeBufferPointer<UInt8>) throws -> Int {
-        guard !buffer.isEmpty else {
+    public func write(_ bytes: UnsafeBufferPointer<UInt8>) throws -> Int {
+        guard !bytes.isEmpty else {
             return 0
         }
         
-        let bytesWritten = BIO_write(bio, buffer.baseAddress!, Int32(buffer.count))
+        let bytesWritten = BIO_write(bio, bytes.baseAddress!, Int32(bytes.count))
         
         guard bytesWritten >= 0 else {
             if shouldRetry {
