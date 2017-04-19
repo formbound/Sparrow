@@ -7,38 +7,61 @@ public class SparrowTests : XCTestCase {
 
         let router = Router()
 
-        router.root.respond(to: .get) { request in
-            return Response(status: .ok, body: "Welcome!")
-        }
+        // Router.root has path component "/"
 
-        router.root.processRequest(for: .get) { request in
+        // /users
+        router.root.add(pathComponent: "users") { usersRoute in
 
-            guard request.headers["content-type"] == "application/xml" else {
-                return .break(
-                    Response(status: .badRequest, body: "Invalid content type")
-                )
+            usersRoute.add(parameter: "id") { route in
+
+                route.respond(to: .get) { request, requestParameters in
+
+                    guard let id: Int = requestParameters.value(for: "id") else {
+                        return Response(status: .badRequest, body: "Missing or invalid parameter for id")
+                    }
+
+                    return Response(status: .ok, body: "Hello mr \(id)")
+                }
+
             }
 
-            return .continue(request)
+
+            // /users/auth
+            // Has no actions, so will not respond with anything, but processes the request
+            usersRoute.add(pathComponent: "auth") { route in
+
+                route.processRequest(for: [.get, .post]) { request, pathParameters in
+                    guard request.headers["content-type"] == "application/json" else {
+
+                        // Return a response, becase the request shouldn't fall through
+                        return .break(
+                            Response(status: .badRequest, body: "I only accept json")
+                        )
+                    }
+
+                    // Pass the optionally modified request
+                    return .continue(request)
+                }
+
+                // /users/auth/facebook
+                // Will only be accessed if
+                route.add(pathComponent: "facebook") { route in
+
+                    route.respond(to: .get) { request, pathParameters in
+                        return Response(status: .ok, body: "Hey, it's me, Facebook")
+                    }
+                }
+            }
         }
 
-        let usersRoute = Route(pathComponent: "users")
-        usersRoute.respond(to: .get) { request in
-            return Response(status: .ok, body: "Lots of users")
-        }
-
-        router.root.add(child: usersRoute)
-
-        let log = LogMiddleware()
-
-        let server = try HTTPServer(port: 8080, middleware: [log], responder: router)
+        let server = try HTTPServer(port: 8080, responder: router)
         try server.start()
     }
 
     func testRoute() throws {
         let users = Route(pathComponent: "users")
 
-        users.actions[.get] = BasicResponder { request in
+        users.actions[.get] = { request, pathParameters in
             return Response(status: .ok)
         }
 
@@ -50,7 +73,7 @@ public class SparrowTests : XCTestCase {
 
         let login = Route(pathComponent: "login")
 
-        login.actions[.get] = BasicResponder { request in
+        login.actions[.get] = { request, pathParameters in
             return Response(status: .ok)
         }
 

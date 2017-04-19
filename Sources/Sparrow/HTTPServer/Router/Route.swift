@@ -2,6 +2,9 @@ import HTTP
 
 public class Route {
 
+    public typealias Action = (Request, PathParameters) throws -> Response
+    public typealias RequestPreprocessor = (Request, PathParameters) throws -> RequestProcessResult
+
     public enum RequestProcessResult {
         case `continue`(Request)
         case `break`(Response)
@@ -9,8 +12,8 @@ public class Route {
 
     fileprivate(set) public var children: [Route] = []
     public let pathSegment: PathSegment
-    internal var handlers: [Request.Method: (Request) throws -> RequestProcessResult] = [:]
-    internal var actions: [Request.Method: Responder] = [:]
+    internal var preprocessors: [Request.Method: RequestPreprocessor] = [:]
+    internal var actions: [Request.Method: Action] = [:]
 
     internal init(pathSegment: PathSegment) {
         self.pathSegment = pathSegment
@@ -31,45 +34,54 @@ public class Route {
     public func add(children routes: [Route]) {
         self.children += routes
     }
+
+    public func add(pathComponent: String, builder: (Route) -> Void) {
+        let route = Route(pathComponent: pathComponent)
+        builder(route)
+        add(child: route)
+    }
+
+    public func add(parameter: String, builder: (Route) -> Void) {
+        let route = Route(parameter: parameter)
+        builder(route)
+        add(child: route)
+    }
 }
 
 public extension Route {
 
-    public func respond(to method: Request.Method, handler: @escaping (Request) throws -> Response) {
-        actions[method] = BasicResponder { request in
-            return try handler(request)
-        }
+    public func respond(to method: Request.Method, handler: @escaping Action) {
+        actions[method] = handler
     }
 
-    public func processRequest(for method: Request.Method, handler: @escaping (Request) throws -> RequestProcessResult) {
-        handlers[method] = handler
+    public func processRequest(for methods: [Request.Method], handler: @escaping RequestPreprocessor) {
+        for method in methods {
+            preprocessors[method] = handler
+        }
     }
 }
 
 internal extension Route {
 
-    internal func matchingRouteChain(for pathComponents: [String], method: HTTP.Request.Method, parents: [Route] = []) -> RouteChain? {
+    internal func matchingRouteChain(for pathComponents: [String], depth: Array<String>.Index = 0, method: HTTP.Request.Method, parents: [Route] = []) -> RouteChain? {
 
-        guard !pathComponents.isEmpty else {
+
+        guard pathComponents.count > depth else {
             return nil
         }
 
-        var pathComponents = pathComponents
-
-        let firstPathComponent = pathComponents.removeFirst()
-
         if case .literal(let string) = pathSegment {
-            guard string == firstPathComponent else {
+            guard string == pathComponents[depth] else {
                 return nil
             }
         }
 
-        guard !pathComponents.isEmpty else {
-            return RouteChain(method: method, routes: parents + [self])
+        guard depth != pathComponents.index(before: pathComponents.endIndex) else {
+            return RouteChain(method: method, routes: parents + [self], pathComponents: pathComponents)
         }
 
         for child in children {
-            guard let matching = child.matchingRouteChain(for: pathComponents, method: method, parents: parents + [self]) else {
+            guard let matching = child.matchingRouteChain(for: pathComponents, depth: depth.advanced(by: 1), method: method, parents: parents + [self]) else {
                 continue
             }
             return matching

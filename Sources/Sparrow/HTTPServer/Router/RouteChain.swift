@@ -1,10 +1,11 @@
 internal struct RouteChain {
     internal let method: HTTP.Request.Method
-    internal let handlers: [(Request) throws -> Route.RequestProcessResult]
-    internal let action: Responder
+    internal let preprocessors: [Route.RequestPreprocessor]
+    internal let action: Route.Action
     internal let pathSegments: [PathSegment]
+    internal let pathParameters: PathParameters
 
-    init?(method: Request.Method, routes: [Route]) {
+    init?(method: Request.Method, routes: [Route], pathComponents: [String]) {
 
         guard !routes.isEmpty else {
             return nil
@@ -18,18 +19,30 @@ internal struct RouteChain {
 
         self.method = method
 
-        var handlers: [(Request) throws -> Route.RequestProcessResult] = []
+        var preprocessors: [Route.RequestPreprocessor] = []
 
         for route in routes {
-            if let routeHandler = route.handlers[method] {
-                handlers.append(routeHandler)
+            if let routeHandler = route.preprocessors[method] {
+                preprocessors.append(routeHandler)
             }
         }
 
-        self.handlers = handlers
+        self.preprocessors = preprocessors
         pathSegments = routes.map {
             $0.pathSegment
         }
+
+        var parametersByName: [String: String] = [:]
+
+        for (pathSegment, pathComponent) in zip(pathSegments, pathComponents) {
+            guard case .parameter(let name) = pathSegment else {
+                continue
+            }
+
+            parametersByName[name] = pathComponent
+        }
+
+        self.pathParameters = PathParameters(contents: parametersByName)
     }
 }
 
@@ -45,8 +58,8 @@ extension RouteChain: Responder {
 
         var request = request
 
-        for handler in handlers {
-            switch try handler(request) {
+        for handler in preprocessors {
+            switch try handler(request, pathParameters) {
             case .continue(let processedRequest):
                 request = processedRequest
             case .break(let response):
@@ -54,6 +67,6 @@ extension RouteChain: Responder {
             }
         }
         
-        return try action.respond(to: request)
+        return try action(request, pathParameters)
     }
 }

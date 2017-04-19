@@ -6,7 +6,6 @@ import POSIX
 
 public struct HTTPServer {
     public let tcpHost: Host
-    public let middleware: [Middleware]
     public let responder: Responder
     public let failure: (Error) -> Void
 
@@ -16,7 +15,7 @@ public struct HTTPServer {
 
     fileprivate let coroutineGroup = CoroutineGroup()
 
-    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, middleware: [Middleware] = [], responder: Responder, failure: @escaping (Error) -> Void =  HTTPServer.log(error:)) throws {
+    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, responder: Responder, failure: @escaping (Error) -> Void =  HTTPServer.log(error:)) throws {
         self.tcpHost = try TCPHost(
             host: host,
             port: port,
@@ -26,12 +25,11 @@ public struct HTTPServer {
         self.host = host
         self.port = port
         self.bufferSize = bufferSize
-        self.middleware = middleware
         self.responder = responder
         self.failure = failure
     }
 
-    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, certificatePath: String, privateKeyPath: String, certificateChainPath: String? = nil, middleware: [Middleware] = [], responder: Responder, failure: @escaping (Error) -> Void =  HTTPServer.log(error:)) throws {
+    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, certificatePath: String, privateKeyPath: String, certificateChainPath: String? = nil, responder: Responder, failure: @escaping (Error) -> Void =  HTTPServer.log(error:)) throws {
         self.tcpHost = try TCPTLSHost(
             host: host,
             port: port,
@@ -44,7 +42,6 @@ public struct HTTPServer {
         self.host = host
         self.port = port
         self.bufferSize = bufferSize
-        self.middleware = middleware
         self.responder = responder
         self.failure = failure
     }
@@ -110,7 +107,7 @@ extension HTTPServer {
                 
                 for message in try parser.parse(bytesRead) {
                     let request = message as! Request
-                    let response = try middleware.chain(to: responder).respond(to: request)
+                    let response = try responder.respond(to: request)
                     // TODO: Add timeout parameter
                     try serializer.serialize(response, deadline: 5.minutes.fromNow())
                     

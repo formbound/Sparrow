@@ -75,10 +75,10 @@ public final class HTTPClient : Responder {
 }
 
 extension HTTPClient {
-    public func request(_ request: Request, middleware: [Middleware] = []) throws -> Response {
+    public func request(_ request: Request) throws -> Response {
         var request = request
         addHeaders(to: &request)
-        return try middleware.chain(to: self).respond(to: request)
+        return try respond(to: request)
     }
 
     public func respond(to request: Request) throws -> Response {
@@ -217,129 +217,129 @@ extension HTTPClient {
 }
 
 extension HTTPClient {
-    public func get(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .get, url: url, headers: headers, body: body, middleware: middleware)
+    public func get(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .get, url: url, headers: headers, body: body)
     }
 
-    public func get(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .get, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public func get(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .get, url: url, headers: headers, body: body.bytes)
     }
 
-    public func head(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .head, url: url, headers: headers, body: body, middleware: middleware)
+    public func head(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .head, url: url, headers: headers, body: body)
     }
 
-    public func head(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .head, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public func head(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .head, url: url, headers: headers, body: body.bytes)
     }
 
-    public func post(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .post, url: url, headers: headers, body: body, middleware: middleware)
+    public func post(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .post, url: url, headers: headers, body: body)
     }
 
-    public func post(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .post, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public func post(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .post, url: url, headers: headers, body: body.bytes)
     }
 
-    public func put(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .put, url: url, headers: headers, body: body, middleware: middleware)
+    public func put(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .put, url: url, headers: headers, body: body)
     }
 
-    public func put(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .put, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public func put(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .put, url: url, headers: headers, body: body.bytes)
     }
 
-    public func patch(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .patch, url: url, headers: headers, body: body, middleware: middleware)
+    public func patch(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .patch, url: url, headers: headers, body: body)
     }
 
-    public func patch(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .patch, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public func patch(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .patch, url: url, headers: headers, body: body.bytes)
     }
 
-    public func delete(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .delete, url: url, headers: headers, body: body, middleware: middleware)
+    public func delete(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .delete, url: url, headers: headers, body: body)
     }
 
-    public func delete(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .delete, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public func delete(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .delete, url: url, headers: headers, body: body.bytes)
     }
 
-    public func options(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .options, url: url, headers: headers, body: body, middleware: middleware)
+    public func options(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .options, url: url, headers: headers, body: body)
     }
 
-    public func options(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .options, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public func options(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .options, url: url, headers: headers, body: body.bytes)
     }
 
-    private func request(method: Request.Method, url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
+    private func request(method: Request.Method, url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
         guard let url = URL(string: url) else {
             throw HTTPClientError.invalidUrl
         }
         let req = Request(method: method, url: url, headers: headers, body: body)
-        return try request(req, middleware: middleware)
+        return try request(req)
     }
 }
 
 extension HTTPClient {
-    public static func get(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .get, url: url, headers: headers, body: body, middleware: middleware)
+    public static func get(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .get, url: url, headers: headers, body: body)
     }
 
-    public static func get(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .get, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public static func get(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .get, url: url, headers: headers, body: body.bytes)
     }
 
-    public static func head(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .head, url: url, headers: headers, body: body, middleware: middleware)
+    public static func head(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .head, url: url, headers: headers, body: body)
     }
 
-    public static func head(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .head, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public static func head(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .head, url: url, headers: headers, body: body.bytes)
     }
 
-    public static func post(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .post, url: url, headers: headers, body: body, middleware: middleware)
+    public static func post(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .post, url: url, headers: headers, body: body)
     }
 
-    public static func post(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .post, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public static func post(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .post, url: url, headers: headers, body: body.bytes)
     }
 
-    public static func put(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .put, url: url, headers: headers, body: body, middleware: middleware)
+    public static func put(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .put, url: url, headers: headers, body: body)
     }
 
-    public static func put(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .put, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public static func put(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .put, url: url, headers: headers, body: body.bytes)
     }
 
-    public static func patch(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .patch, url: url, headers: headers, body: body, middleware: middleware)
+    public static func patch(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .patch, url: url, headers: headers, body: body)
     }
 
-    public static func patch(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .patch, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public static func patch(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .patch, url: url, headers: headers, body: body.bytes)
     }
 
-    public static func delete(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .delete, url: url, headers: headers, body: body, middleware: middleware)
+    public static func delete(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .delete, url: url, headers: headers, body: body)
     }
 
-    public static func delete(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .delete, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public static func delete(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .delete, url: url, headers: headers, body: body.bytes)
     }
 
-    public static func options(_ url: String, headers: Headers = [:], body: [Byte] = [], middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .options, url: url, headers: headers, body: body, middleware: middleware)
+    public static func options(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+        return try request(method: .options, url: url, headers: headers, body: body)
     }
 
-    public static func options(_ url: String, headers: Headers = [:], body: DataRepresentable, middleware: [Middleware] = []) throws -> Response {
-        return try request(method: .options, url: url, headers: headers, body: body.bytes, middleware: middleware)
+    public static func options(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+        return try request(method: .options, url: url, headers: headers, body: body.bytes)
     }
 
-    fileprivate static func request(method: Request.Method, url: String, headers: Headers = [:], body: [Byte], middleware: [Middleware] = []) throws -> Response {
+    fileprivate static func request(method: Request.Method, url: String, headers: Headers = [:], body: [Byte]) throws -> Response {
         guard let clientUrl = URL(string: url) else {
             throw HTTPClientError.invalidUrl
         }
@@ -347,7 +347,7 @@ extension HTTPClient {
         let client = try getCachedClient(url: clientUrl)
 
         let request = Request(method: method, url: clientUrl, headers: headers, body: body)
-        return try client.request(request, middleware: middleware)
+        return try client.request(request)
     }
 
     private static func getCachedClient(url: URL) throws -> HTTPClient {
