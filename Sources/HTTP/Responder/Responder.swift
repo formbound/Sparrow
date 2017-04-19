@@ -1,16 +1,7 @@
-public protocol Responder : ResponderRepresentable {
+public protocol Responder {
     func respond(to request: Request) throws -> Response
 }
 
-extension Responder {
-    public var responder: Responder {
-        return self
-    }
-}
-
-public protocol ResponderRepresentable {
-    var responder: Responder { get }
-}
 
 public typealias Respond = (_ to: Request) throws -> Response
 

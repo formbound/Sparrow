@@ -1,33 +1,19 @@
 import HTTP
 
-public protocol Router : RouterRepresentable {
-    var staticFilesPath: String { get }
-    var middleware: [Middleware] { get }
+public struct Router {
 
-    func recover(error: Error) throws -> Response
-    func custom(routes: Routes)
+    let routes: [Route]
+    var middleware: [Middleware]
+    var fallback: Responder
+
 }
 
-extension Router {
-    public var staticFilesPath: String {
-        return "Public"
-    }
+extension Router: Responder {
+    public func respond(to request: Request) throws -> Response {
 
-    public var middleware: [Middleware] {
-        return []
-    }
+        
+        fatalError()
 
-    public func recover(error: Error) throws -> Response {
-        return try RecoveryMiddleware.recover(error: error)
-    }
-
-    public func custom(routes: Routes) {}
-}
-
-extension Router {
-    public var router: BasicRouter {
-        let routes = Routes()
-        custom(routes: routes)
-        return BasicRouter(middleware: [RecoveryMiddleware(recover)] + middleware, routes: routes)
+        //return try middleware.chain(to: action).respond(to: request)
     }
 }

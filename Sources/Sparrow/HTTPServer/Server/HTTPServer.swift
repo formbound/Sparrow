@@ -16,7 +16,7 @@ public struct HTTPServer {
 
     fileprivate let coroutineGroup = CoroutineGroup()
 
-    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, middleware: [Middleware] = [], responder: ResponderRepresentable, failure: @escaping (Error) -> Void =  HTTPServer.log(error:)) throws {
+    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, middleware: [Middleware] = [], responder: Responder, failure: @escaping (Error) -> Void =  HTTPServer.log(error:)) throws {
         self.tcpHost = try TCPHost(
             host: host,
             port: port,
@@ -27,11 +27,11 @@ public struct HTTPServer {
         self.port = port
         self.bufferSize = bufferSize
         self.middleware = middleware
-        self.responder = responder.responder
+        self.responder = responder
         self.failure = failure
     }
 
-    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, certificatePath: String, privateKeyPath: String, certificateChainPath: String? = nil, middleware: [Middleware] = [], responder: ResponderRepresentable, failure: @escaping (Error) -> Void =  HTTPServer.log(error:)) throws {
+    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, certificatePath: String, privateKeyPath: String, certificateChainPath: String? = nil, middleware: [Middleware] = [], responder: Responder, failure: @escaping (Error) -> Void =  HTTPServer.log(error:)) throws {
         self.tcpHost = try TCPTLSHost(
             host: host,
             port: port,
@@ -45,7 +45,7 @@ public struct HTTPServer {
         self.port = port
         self.bufferSize = bufferSize
         self.middleware = middleware
-        self.responder = responder.responder
+        self.responder = responder
         self.failure = failure
     }
 }

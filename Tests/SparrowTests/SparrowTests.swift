@@ -4,20 +4,39 @@ import XCTest
 public class SparrowTests : XCTestCase {
 
     func testServer() throws {
-        let log = LogMiddleware()
 
-        let router = BasicRouter { route in
-            route.get("/hello") { request in
-                return Response(body: "Hello, world! 👾")
-            }
+    }
 
-            route.fallback = BasicResponder { request in
-                Response(status: .notFound, body: "Fallback: not found")
-            }
+    func testRoute() throws {
+        var users = Route(pathComponent: "users")
+
+        users.actions[.get] = BasicResponder { request in
+            return Response(status: .ok)
         }
 
-        let server = try HTTPServer(port: 8080, middleware: [log], responder: router)
-        try server.start()
+        var auth = Route(pathComponent: "auth")
+
+        let admin = Route(pathComponent: "admin")
+
+        var authMethod = Route(parameter: "authMethod")
+
+        let login = Route(pathComponent: "login")
+
+        let signup = Route(pathComponent: "signup")
+
+
+        authMethod.children += [login, signup]
+        auth.children.append(authMethod)
+        users.children.append(auth)
+        users.children.append(admin)
+
+        print(
+            "Result:",
+            users.matchingEndpoint(for: ["users", "auth", "facebook", "login"], method: .get),
+            users.matchingEndpoint(for: ["users"], method: .get),
+            users.matchingEndpoint(for: ["users", "admin"], method: .get)
+        )
+        
     }
 }
 
