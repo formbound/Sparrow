@@ -22,7 +22,7 @@ public class ResponseSerializer {
         header += "\r\n"
         
         for (name, value) in response.headers.headers {
-            header += name.string
+            header += name.rawValue
             header += ": "
             header += value
             header += "\r\n"

@@ -29,10 +29,10 @@ public final class MessageParser {
         var status: Response.Status? = nil
         var version: Version? = nil
         var url: URL? = nil
-        var headers: [CaseInsensitiveString: String] = [:]
+        var headers: [Header: String] = [:]
         var body: [Byte] = []
         
-        var currentHeaderField: CaseInsensitiveString? = nil
+        var currentHeaderField: Header? = nil
         
         func addValueForCurrentHeaderField(_ value: String) {
             let key = currentHeaderField!
@@ -190,7 +190,7 @@ public final class MessageParser {
                     return String(cString: ptr.baseAddress!)
                 }
 
-                context.currentHeaderField = CaseInsensitiveString(string)
+                context.currentHeaderField = Header(rawValue: string)
             case .headerValue:
                 bytes.append(0)
 

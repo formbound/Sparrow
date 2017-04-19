@@ -1,9 +1,53 @@
 import Core
 
-public struct Headers {
-    public var headers: [CaseInsensitiveString: String]
+public struct Header: RawRepresentable {
+    public let rawValue: String
 
-    public init(_ headers: [CaseInsensitiveString: String]) {
+    public init(rawValue: String) {
+        self.rawValue = rawValue.lowercased()
+    }
+}
+
+extension Header: Hashable {
+    public var hashValue: Int {
+        return rawValue.hashValue
+    }
+}
+
+extension Header: Equatable {
+    public static func == (lhs: Header, rhs: Header) -> Bool {
+        return lhs.hashValue == rhs.hashValue
+    }
+}
+
+public extension Header {
+
+    public static let contentLength = Header(rawValue: "content-length")
+    public static let contentType = Header(rawValue: "content-type")
+
+}
+
+extension Header : ExpressibleByStringLiteral {
+    public typealias UnicodeScalarLiteralType = String
+    public typealias ExtendedGraphemeClusterLiteralType = StringLiteralType
+
+    public init(unicodeScalarLiteral value: UnicodeScalarLiteralType) {
+        self.init(rawValue: value)
+    }
+
+    public init(extendedGraphemeClusterLiteral value: ExtendedGraphemeClusterLiteralType) {
+        self.init(rawValue: value)
+    }
+
+    public init(stringLiteral value: StringLiteralType) {
+        self.init(rawValue: value)
+    }
+}
+
+public struct Headers {
+    public var headers: [Header: String]
+
+    public init(_ headers: [Header: String]) {
         self.headers = headers
     }
 }
@@ -15,8 +59,8 @@ extension Headers {
 }
 
 extension Headers : ExpressibleByDictionaryLiteral {
-    public init(dictionaryLiteral elements: (CaseInsensitiveString, String)...) {
-        var headers: [CaseInsensitiveString: String] = [:]
+    public init(dictionaryLiteral elements: (Header, String)...) {
+        var headers: [Header: String] = [:]
 
         for (key, value) in elements {
             headers[key] = value
@@ -27,7 +71,7 @@ extension Headers : ExpressibleByDictionaryLiteral {
 }
 
 extension Headers : Sequence {
-    public func makeIterator() -> DictionaryIterator<CaseInsensitiveString, String> {
+    public func makeIterator() -> DictionaryIterator<Header, String> {
         return headers.makeIterator()
     }
 
@@ -39,7 +83,7 @@ extension Headers : Sequence {
         return headers.isEmpty
     }
 
-    public subscript(field: CaseInsensitiveString) -> String? {
+    public subscript(field: Header) -> String? {
         get {
             return headers[field]
         }
@@ -52,16 +96,6 @@ extension Headers : Sequence {
             } else if field == "Transfer-Encoding" && header == "chunked" {
                 headers["Content-Length"] = nil
             }
-        }
-    }
-
-    public subscript(field: CaseInsensitiveStringRepresentable) -> String? {
-        get {
-            return self[field.caseInsensitiveString]
-        }
-
-        set(header) {
-            self[field.caseInsensitiveString] = header
         }
     }
 }

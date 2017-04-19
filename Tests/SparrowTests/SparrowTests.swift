@@ -14,9 +14,9 @@ public class SparrowTests : XCTestCase {
 
             usersRoute.add(parameter: "id") { route in
 
-                route.respond(to: .get) { request, requestParameters in
+                route.respond(to: .get) { request, pathParameters in
 
-                    guard let id: Int = requestParameters.value(for: "id") else {
+                    guard let id: Int = pathParameters.value(for: "id") else {
                         return Response(status: .badRequest, body: "Missing or invalid parameter for id")
                     }
 
@@ -100,3 +100,7 @@ extension SparrowTests {
         return []
     }
 }
+
+
+
+

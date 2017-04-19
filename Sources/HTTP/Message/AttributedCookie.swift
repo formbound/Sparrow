@@ -35,16 +35,17 @@ public struct AttributedCookie {
         let name = cookieTokens[0]
         let value = cookieTokens[1]
 
-        var attributes: [CaseInsensitiveString: String] = [:]
+        // TODO: Previously CaseInsensitiveString – do some work
+        var attributes: [String: String] = [:]
 
         for i in 1 ..< cookieStringTokens.count {
             let attributeTokens = cookieStringTokens[i].components(separatedBy: "=")
 
             switch attributeTokens.count {
             case 1:
-                attributes[CaseInsensitiveString(attributeTokens[0].trimmingCharacters(in: .whitespacesAndNewlines))] = ""
+                attributes[attributeTokens[0].trimmingCharacters(in: .whitespacesAndNewlines)] = ""
             case 2:
-                attributes[CaseInsensitiveString(attributeTokens[0].trimmingCharacters(in: .whitespacesAndNewlines))] = attributeTokens[1].trimmingCharacters(in: .whitespacesAndNewlines)
+                attributes[attributeTokens[0].trimmingCharacters(in: .whitespacesAndNewlines)] = attributeTokens[1].trimmingCharacters(in: .whitespacesAndNewlines)
             default:
                 return nil
             }

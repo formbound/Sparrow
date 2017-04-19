@@ -32,26 +32,6 @@ public struct Request : Message {
     }
 }
 
-public protocol RequestInitializable {
-    init(request: Request)
-}
-
-public protocol RequestRepresentable {
-    var request: Request { get }
-}
-
-public protocol RequestConvertible : RequestInitializable, RequestRepresentable {}
-
-extension Request : RequestConvertible {
-    public init(request: Request) {
-        self = request
-    }
-
-    public var request: Request {
-        return self
-    }
-}
-
 extension Request {
     public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: Body) {
         self.init(
@@ -151,16 +131,6 @@ extension Request {
         )
     }
 }
-
-//extension Request {
-//    public var path: String? {
-//        return url.path
-//    }
-//
-//    public var queryItems: [URLQueryItem] {
-//        return url.queryItems
-//    }
-//}
 
 extension Request {
     public var accept: [MediaType] {
