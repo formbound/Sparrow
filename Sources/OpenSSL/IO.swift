@@ -35,7 +35,7 @@ public class IO {
         _ = try data.bytes.withUnsafeBufferPointer {
             try write($0)
         }
-        
+
 	}
 
 	// TODO: crash???
@@ -56,9 +56,9 @@ public class IO {
         guard !bytes.isEmpty else {
             return 0
         }
-        
+
         let bytesWritten = BIO_write(bio, bytes.baseAddress!, Int32(bytes.count))
-        
+
         guard bytesWritten >= 0 else {
             if shouldRetry {
                 throw SSLIOError.shouldRetry(description: lastSSLErrorDescription)
@@ -66,17 +66,17 @@ public class IO {
                 throw SSLIOError.io(description: lastSSLErrorDescription)
             }
         }
-        
+
         return Int(bytesWritten)
     }
-    
+
     public func read(into: UnsafeMutableBufferPointer<UInt8>) throws -> Int {
         guard !into.isEmpty else {
             return 0
         }
-        
+
         let bytesRead = BIO_read(bio, into.baseAddress!, Int32(into.count))
-        
+
         guard bytesRead >= 0 else {
             if shouldRetry {
                 throw SSLIOError.shouldRetry(description: lastSSLErrorDescription)
@@ -84,7 +84,7 @@ public class IO {
                 throw SSLIOError.io(description: lastSSLErrorDescription)
             }
         }
-        
+
         return Int(bytesRead)
     }
 }

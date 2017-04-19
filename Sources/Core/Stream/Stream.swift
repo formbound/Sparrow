@@ -1,6 +1,6 @@
 import Venice
 
-public enum StreamError : Error {
+public enum StreamError: Error {
     case closedStream
     case timeout
 }
@@ -14,7 +14,6 @@ public protocol InputStream {
     func read(upTo byteCount: Int, deadline: Deadline) throws -> [Byte]
     func read(exactly byteCount: Int, deadline: Deadline) throws -> [Byte]
 }
-
 
 extension InputStream {
     public func read(upTo byteCount: Int, deadline: Deadline) throws -> [Byte] {

@@ -2,7 +2,7 @@ import COpenSSL
 import Core
 import Venice
 
-public struct SSLHost : Host {
+public struct SSLHost: Host {
 	public let host: Host
 	public let context: Context
 

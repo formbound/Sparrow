@@ -19,7 +19,7 @@ public class Random {
             return Int(random() % (max + 1))
         #endif
     }
-    
+
     public static func bytes(_ size: Int) throws -> [Byte] {
         let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: size)
         defer {
@@ -29,7 +29,7 @@ public class Random {
             pointer.deallocate(capacity: size)
             throw SSLRandomError.error(description: lastSSLErrorDescription)
         }
-        
+
         return [Byte](UnsafeBufferPointer(start: pointer, count: size))
     }
 }

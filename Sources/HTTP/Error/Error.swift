@@ -2,7 +2,7 @@ import Core
 
 public enum HTTPError {}
 
-public enum ClientError : Error {
+public enum ClientError: Error {
     case badRequest(headers: Headers, body: Body)
     case unauthorized(headers: Headers, body: Body)
     case paymentRequired(headers: Headers, body: Body)
@@ -359,7 +359,7 @@ extension HTTPError {
     }
 }
 
-public enum ServerError : Error {
+public enum ServerError: Error {
     case internalServerError(headers: Headers, body: Body)
     case notImplemented(headers: Headers, body: Body)
     case badGateway(headers: Headers, body: Body)

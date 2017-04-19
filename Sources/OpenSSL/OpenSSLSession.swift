@@ -98,14 +98,14 @@ public class SSLSession {
 			}
 		}
 	}
-    
+
     public func write(_ bytes: UnsafeBufferPointer<UInt8>) throws -> Int {
         guard !bytes.isEmpty else {
             return 0
         }
-        
+
         let bytesWritten = SSL_write(ssl, bytes.baseAddress!, Int32(bytes.count))
-        
+
         guard bytesWritten > 0 else {
             let error = SSL_get_error(ssl, bytesWritten)
             switch error {
@@ -119,17 +119,17 @@ public class SSLSession {
                 throw SSLSessionError.session(description: lastSSLErrorDescription)
             }
         }
-        
+
         return Int(bytesWritten)
     }
-    
+
     public func read(into: UnsafeMutableBufferPointer<UInt8>) throws -> Int {
         guard !into.isEmpty else {
             return 0
         }
-        
+
         let bytesRead = SSL_read(ssl, into.baseAddress!, Int32(into.count))
-        
+
         guard bytesRead > 0 else {
             let error = SSL_get_error(ssl, bytesRead)
             switch error {
@@ -143,10 +143,10 @@ public class SSLSession {
                 throw SSLSessionError.session(description: lastSSLErrorDescription)
             }
         }
-        
+
         return Int(bytesRead)
     }
-    
+
 	public func shutdown() {
 		SSL_shutdown(ssl)
 		SSL_free(ssl)

@@ -6,8 +6,7 @@
 
 import Foundation
 
-
-public struct RegexError : Error {
+public struct RegexError: Error {
     let description: String
 
     static func error(from result: Int32, preg: inout regex_t) -> RegexError {
@@ -18,10 +17,9 @@ public struct RegexError : Error {
     }
 }
 
-
 public final class Regex {
 
-    public struct Options : OptionSet {
+    public struct Options: OptionSet {
         public let rawValue: Int32
 
         public init(rawValue: Int32) {
@@ -35,7 +33,7 @@ public final class Regex {
         public static let resultOnly       = Options(rawValue: 8)
     }
 
-    public struct MatchOptions : OptionSet {
+    public struct MatchOptions: OptionSet {
         public let rawValue: Int32
 
         public init(rawValue: Int32) {
@@ -45,7 +43,6 @@ public final class Regex {
         public static let firstCharacterNotAtBeginningOfLine = MatchOptions(rawValue: REG_NOTBOL)
         public static let lastCharacterNotAtEndOfLine        = MatchOptions(rawValue: REG_NOTEOL)
     }
-
 
     var preg = regex_t()
 
@@ -69,7 +66,6 @@ public final class Regex {
 
 }
 
-
 /// In the context of a String UTF8View, returns the UTF8View.Index
 /// of a given character (designated by `regoff`)
 ///
@@ -83,7 +79,6 @@ fileprivate func utf8Index(from offset: regoff_t, in utf8view: String.UTF8View) 
     return utf8view.index(utf8view.startIndex, offsetBy: Int(offset))
 }
 
-
 extension String {
 
     /// Check if the string matches a given Regex Regular Expression.
@@ -93,14 +88,14 @@ extension String {
     ///
     /// - returns: `true` if the string matches the regex, else `false`.
     public func matches(_ regex: Regex, options: Regex.MatchOptions = []) -> Bool {
-        
+
         var regexMatches = [regmatch_t](repeating: regmatch_t(), count: 1)
         let result = regexec(&(regex.preg), self, regexMatches.count, &regexMatches, options.rawValue)
 
         guard result == 0 else {
             return false
         }
-        
+
         return true
     }
 
@@ -117,7 +112,6 @@ extension String {
         return self.matches(regex, options: options)
     }
 
-    
     /// Substrings matching a given Regex Regular Expression.
     ///
     /// - parameter regex: Regex regular expression.
@@ -165,12 +159,12 @@ extension String {
                 break
             }
             string = remainderString
-            
+
         }
 
         return groups
     }
-    
+
     /// Substrings matching a given Regular Expression pattern string.
     ///
     /// - parameter pattern: Regular Expression pattern string, like `([[:digit:]]{4,})`.
@@ -184,7 +178,6 @@ extension String {
         return self.groupsMatching(regex, options: options)
     }
 
-    
     /// Return a new string in which substrings matching a given Regex Regular Expression were replaced with the given template string.
     ///
     /// - parameter regex: Regex Regular Expression.
@@ -193,12 +186,12 @@ extension String {
     ///
     /// - returns: New string in which all substrings matching the regex were replaced with the template.
     public func replace(_ regex: Regex, with template: String, options: Regex.MatchOptions = []) -> String {
-        
+
         var string = self
         let maxMatches = 10
         var totalReplacedString: String = ""
         let templateArray = [UInt8](template.utf8)
-        
+
         while true {
             var regexMatches = [regmatch_t](repeating: regmatch_t(), count: maxMatches)
             let result = regexec(&(regex.preg), string, regexMatches.count, &regexMatches, options.rawValue)
@@ -215,7 +208,7 @@ extension String {
             let end   = Int(regexMatches[0].rm_eo)
             var replacedStringArray = [UInt8](string.utf8)
             replacedStringArray.replaceSubrange(start..<end, with: templateArray)
-            
+
             guard let replacedString = String(bytes: replacedStringArray, encoding: .utf8) else {
                 break
             }
@@ -231,7 +224,7 @@ extension String {
 
         return totalReplacedString + string
     }
-    
+
     /// Return a new string in which substrings matching a given Regular Expression pattern string were replaced with the given template string.
     ///
     /// - parameter pattern: Regular Expression pattern string, like `[[:digit:]]{4,}`.
@@ -244,8 +237,6 @@ extension String {
         return self.replace(regex, with: template, options: options)
     }
 }
-
-
 
 // MARK: - Helper for building Regex Regular Expression from string literal.
 //
@@ -270,9 +261,7 @@ extension Regex : ExpressibleByStringLiteral {
     }
 }
 
-
 /// MARK: - Operators
-
 
 /// Check if a string matches a given Regex.
 ///
@@ -308,7 +297,6 @@ public func ~ (string: String, pattern: String) throws -> Bool {
 public func ~? (string: String, pattern: String) -> Bool? {
     return try? (string ~ pattern)
 }
-
 
 /// Matching groups in a string, given a regex pattern.
 ///
@@ -349,7 +337,6 @@ public func ~*? (string: String, pattern: String) -> [String]? {
     }
     return string ~* regex
 }
-
 
 infix operator ~
 infix operator ~?

@@ -20,7 +20,7 @@ public class ResponseSerializer {
         header += " "
         header += response.reasonPhrase
         header += "\r\n"
-        
+
         for (name, value) in response.headers.headers {
             header += name.rawValue
             header += ": "
@@ -33,7 +33,7 @@ public class ResponseSerializer {
             header += cookie
             header += "\r\n"
         }
-        
+
         header += "\r\n"
 
         try stream.write(header, deadline: deadline)
@@ -44,7 +44,7 @@ public class ResponseSerializer {
         case .reader(let reader):
             while !reader.closed {
                 let bytes = try reader.read(upTo: bufferSize, deadline: deadline)
-                
+
                 guard !bytes.isEmpty else {
                     break
                 }

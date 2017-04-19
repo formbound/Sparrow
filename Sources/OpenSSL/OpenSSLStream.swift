@@ -2,7 +2,7 @@ import COpenSSL
 import Core
 import Venice
 
-public final class SSLStream : Stream {
+public final class SSLStream: Stream {
 	private let rawStream: Stream
 	private let context: Context
 	private let session: SSLSession
@@ -38,7 +38,7 @@ public final class SSLStream : Stream {
 		try rawStream.open(deadline: deadline)
 		try handshake(deadline: deadline)
 	}
-    
+
     private func handshake(deadline: Deadline) throws {
         let bytes = UnsafeMutableBufferPointer<Byte>(capacity: 4096)
         defer { bytes.deallocate(capacity: 4096) }
@@ -57,7 +57,7 @@ public final class SSLStream : Stream {
                     try flushAndReceive()
                 }
             }
-            
+
             if context.mode == .server {
                 try flushAndReceive()
             }
@@ -90,7 +90,6 @@ public final class SSLStream : Stream {
         }
     }
 
-    
     public func write(_ bytes: UnsafeBufferPointer<UInt8>, deadline: Deadline) throws {
         var remaining = bytes
         while !remaining.isEmpty {
@@ -102,12 +101,12 @@ public final class SSLStream : Stream {
                                             count: remaining.count - bytesWritten)
         }
     }
-    
+
 	public func flush(deadline: Deadline) throws {
         guard writeIO.pending > 0 else {
             return
         }
-        
+
 		do {
             let rawBufferCapacity = writeIO.pending
             let rawBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: rawBufferCapacity)

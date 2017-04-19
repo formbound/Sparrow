@@ -29,8 +29,8 @@ public final class Logger {
         public let level: Logger.Level
         public let name: String
         public let logger: Logger
-        public var message: Any? = nil
-        public var error: Error? = nil
+        public var message: Any?
+        public var error: Error?
     }
 
     public struct LocationInfo {

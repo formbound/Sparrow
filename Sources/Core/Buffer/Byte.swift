@@ -22,7 +22,6 @@ extension Array where Iterator.Element == Byte {
         }
     }
 
-
     public init(capacity: Int, fill: @escaping (UnsafeMutableBufferPointer<Byte>) throws -> Int) throws {
         var bytes = [Byte](repeating: 0, count: capacity)
         let usedCapacity = try bytes.withUnsafeMutableBufferPointer { try fill($0) }
@@ -110,4 +109,3 @@ extension UnsafeMutableBufferPointer {
         baseAddress?.deallocate(capacity: capacity)
     }
 }
-

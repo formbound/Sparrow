@@ -1,6 +1,6 @@
 import Core
 
-public struct Response : Message {
+public struct Response: Message {
     public enum Status {
         case `continue`
         case switchingProtocols
@@ -63,7 +63,7 @@ public struct Response : Message {
         case loopDetected
         case notExtended
         case networkAuthenticationRequired
-        
+
         case other(statusCode: Int, reasonPhrase: String)
     }
 
@@ -91,8 +91,7 @@ public protocol ResponseRepresentable {
     var response: Response { get }
 }
 
-public protocol ResponseConvertible : ResponseInitializable, ResponseRepresentable {}
-
+public protocol ResponseConvertible: ResponseInitializable, ResponseRepresentable {}
 
 extension Response {
     public init(status: Status = .ok, headers: Headers = [:], body: Body) {
@@ -209,7 +208,7 @@ extension Response {
         return storage["response-connection-upgrade"] as? UpgradeConnection
     }
 
-    public mutating func upgradeConnection(_ upgrade: @escaping UpgradeConnection)  {
+    public mutating func upgradeConnection(_ upgrade: @escaping UpgradeConnection) {
         storage["response-connection-upgrade"] = upgrade
     }
 }

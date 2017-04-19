@@ -97,7 +97,6 @@ extension Response.Status {
         case .temporaryRedirect:             return 307
         case .permanentRedirect:             return 308
 
-
         case .badRequest:                    return 400
         case .unauthorized:                  return 401
         case .paymentRequired:               return 402

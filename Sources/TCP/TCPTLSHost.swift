@@ -2,7 +2,7 @@ import Core
 import OpenSSL
 import Venice
 
-public final class TCPTLSHost : Host {
+public final class TCPTLSHost: Host {
     public let host: TCPHost
     public let context: Context
 

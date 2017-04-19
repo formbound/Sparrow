@@ -18,7 +18,7 @@ public class Router {
 
     internal var actions: [Request.Method: Action] = [:]
 
-    public lazy var fallback: Responder = BasicResponder { request in
+    public lazy var fallback: Responder = BasicResponder { _ in
         return Response(status: self.actions.isEmpty ? .notFound : .methodNotAllowed)
     }
 
@@ -76,7 +76,6 @@ internal extension Router {
 
     internal func matchingRouteChain(for pathComponents: [String], depth: Array<String>.Index = 0, request: HTTP.Request, parents: [Router] = []) -> RouterChain? {
 
-
         guard pathComponents.count > depth else {
             return nil
         }
@@ -112,7 +111,6 @@ extension Router: Responder {
         }
 
         return try routeChain.respond(to: request)
-        
-        
+
     }
 }

@@ -4,7 +4,7 @@
     import Darwin.C
 #endif
 
-public enum SpawnError : Error {
+public enum SpawnError: Error {
     case exitStatus(Int32, [String])
 }
 

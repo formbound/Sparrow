@@ -3,7 +3,7 @@ import Venice
 import IP
 import POSIX
 
-public final class TCPStream : Stream {
+public final class TCPStream: Stream {
 
     private var socket: FileDescriptor?
 
@@ -89,7 +89,7 @@ public final class TCPStream : Stream {
             }
         }
     }
-    
+
     public func read(into readBuffer: UnsafeMutableBufferPointer<Byte>, deadline: Deadline) throws -> UnsafeBufferPointer<Byte> {
         guard !readBuffer.isEmpty else {
             return UnsafeBufferPointer()

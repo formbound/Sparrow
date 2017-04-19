@@ -12,7 +12,7 @@ private func withUnsafeMutablePointer<S, T, Result>(to source: inout S, rebindin
     }
 }
 
-public enum AddressFamily : RawRepresentable {
+public enum AddressFamily: RawRepresentable {
     case ipv4
     case ipv6
 

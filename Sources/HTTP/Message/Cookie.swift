@@ -1,4 +1,4 @@
-public struct Cookie : CookieProtocol {
+public struct Cookie: CookieProtocol {
     public var name: String
     public var value: String
 
@@ -44,7 +44,7 @@ extension Set where Element : CookieProtocol {
 
             cookies.insert(Element(name: cookieTokens[0].trimmingCharacters(in: .whitespacesAndNewlines), value: cookieTokens[1].trimmingCharacters(in: .whitespacesAndNewlines)))
         }
-        
+
         self = cookies
     }
 }

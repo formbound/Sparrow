@@ -90,7 +90,7 @@ extension Headers : Sequence {
 
         set(header) {
             headers[field] = header
-            
+
             if field == "Content-Length" && header != nil && headers["Transfer-Encoding"] == "chunked" {
                 headers["Transfer-Encoding"] = nil
             } else if field == "Transfer-Encoding" && header == "chunked" {

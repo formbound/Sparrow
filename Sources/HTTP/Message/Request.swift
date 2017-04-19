@@ -1,7 +1,7 @@
 import Core
 import Foundation
 
-public struct Request : Message {
+public struct Request: Message {
     public enum Method {
         case delete
         case get
@@ -208,11 +208,10 @@ extension Request {
         return storage["request-connection-upgrade"] as? UpgradeConnection
     }
 
-    public mutating func upgradeConnection(_ upgrade: @escaping UpgradeConnection)  {
+    public mutating func upgradeConnection(_ upgrade: @escaping UpgradeConnection) {
         storage["request-connection-upgrade"] = upgrade
     }
 }
-
 
 extension Request : CustomStringConvertible {
     public var requestLineDescription: String {

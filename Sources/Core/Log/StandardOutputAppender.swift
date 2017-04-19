@@ -1,4 +1,4 @@
-public class StandardOutputAppender : Appender {
+public class StandardOutputAppender: Appender {
     public let name: String
     public var levels: Logger.Level
     var lastMessage: String = ""

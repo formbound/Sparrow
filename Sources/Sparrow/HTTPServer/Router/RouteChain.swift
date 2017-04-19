@@ -16,7 +16,6 @@ internal struct RouterChain {
 
         self.action = action
 
-
         var preprocessors: [Router.RequestPreprocessor] = []
 
         for route in routes {
@@ -58,7 +57,7 @@ extension RouterChain: Responder {
                 return response
             }
         }
-        
+
         return try action(requestContext)
     }
 }

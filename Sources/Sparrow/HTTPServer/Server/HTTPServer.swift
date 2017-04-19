@@ -104,18 +104,18 @@ extension HTTPServer {
             do {
                 // TODO: Add timeout parameter
                 let bytesRead = try stream.read(into: bytes, deadline: 30.seconds.fromNow())
-                
+
                 for message in try parser.parse(bytesRead) {
                     let request = message as! Request
                     let response = try responder.respond(to: request)
                     // TODO: Add timeout parameter
                     try serializer.serialize(response, deadline: 5.minutes.fromNow())
-                    
+
                     if let upgrade = response.upgradeConnection {
                         try upgrade(request, stream)
                         stream.close()
                     }
-                    
+
                     if !request.isKeepAlive {
                         stream.close()
                     }
@@ -126,7 +126,7 @@ extension HTTPServer {
                 if stream.closed {
                     break
                 }
-                
+
                 let (response, unrecoveredError) = HTTPServer.recover(error: error)
                 try serializer.serialize(response, deadline: .never)
 
@@ -145,7 +145,7 @@ extension HTTPServer {
         return (representable.response, nil)
     }
 
-    public static func log(error: Error) -> Void {
+    public static func log(error: Error) {
         print("Error: \(error)")
     }
 

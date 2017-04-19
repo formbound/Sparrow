@@ -1,8 +1,8 @@
-enum MediaTypeError : Error {
+enum MediaTypeError: Error {
     case malformedMediaTypeString
 }
 
-public struct MediaType : CustomStringConvertible {
+public struct MediaType: CustomStringConvertible {
     public let type: String
     public let subtype: String
     public let parameters: [String: String]
@@ -633,7 +633,6 @@ let fileExtensionMediaTypeMapping: [String: String] = [
 	//	"vrml": "x-world/x-vrml",
 	//	"wrl": "x-world/x-vrml",
 ]
-
 
 public func mediaType(forFileExtension fileExtension: String) -> MediaType? {
 	guard let mediaType = fileExtensionMediaTypeMapping[fileExtension] else {

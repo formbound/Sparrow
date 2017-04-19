@@ -1,6 +1,6 @@
 import Venice
 
-public final class DataStream : Stream {
+public final class DataStream: Stream {
     public private(set) var bytes: [Byte]
     public private(set) var closed = false
 

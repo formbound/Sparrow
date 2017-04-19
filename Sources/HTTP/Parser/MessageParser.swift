@@ -6,12 +6,12 @@ public typealias MessageParserError = http_errno
 
 public final class MessageParser {
     public typealias Result = Message
-    
+
     public enum Mode {
         case request
         case response
     }
-    
+
     fileprivate enum State: Int {
         case ready = 1
         case messageBegin = 2
@@ -23,17 +23,17 @@ public final class MessageParser {
         case body = 8
         case messageComplete = 9
     }
-    
+
     fileprivate class Context {
-        var method: Request.Method? = nil
-        var status: Response.Status? = nil
-        var version: Version? = nil
-        var url: URL? = nil
+        var method: Request.Method?
+        var status: Response.Status?
+        var version: Version?
+        var url: URL?
         var headers: [Header: String] = [:]
         var body: [Byte] = []
-        
-        var currentHeaderField: Header? = nil
-        
+
+        var currentHeaderField: Header?
+
         func addValueForCurrentHeaderField(_ value: String) {
             let key = currentHeaderField!
 
@@ -44,30 +44,30 @@ public final class MessageParser {
             }
         }
     }
-    
+
     public var parser: http_parser
     public var parserSettings: http_parser_settings
     public let mode: Mode
-    
+
     private var state: State = .ready
     private var context = Context()
     private var bytes: [Byte] = []
-    
+
     private var messages: [Message] = []
-    
+
     public init(mode: Mode) {
         var parser = http_parser()
-        
+
         switch mode {
         case .request:
             http_parser_init(&parser, HTTP_REQUEST)
         case .response:
             http_parser_init(&parser, HTTP_RESPONSE)
         }
-        
+
         var parserSettings = http_parser_settings()
         http_parser_settings_init(&parserSettings)
-        
+
         parserSettings.on_message_begin = http_parser_on_message_begin
         parserSettings.on_url = http_parser_on_url
         parserSettings.on_status = http_parser_on_status
@@ -76,20 +76,20 @@ public final class MessageParser {
         parserSettings.on_headers_complete = http_parser_on_headers_complete
         parserSettings.on_body = http_parser_on_body
         parserSettings.on_message_complete = http_parser_on_message_complete
-        
+
         self.parser = parser
         self.parserSettings = parserSettings
         self.mode = mode
-        
+
         self.parser.data = Unmanaged.passUnretained(self).toOpaque()
     }
-    
+
     public func parse(_ bytes: [Byte]) throws -> [Message] {
         return try bytes.withUnsafeBufferPointer { buffer in
             try self.parse(buffer)
         }
     }
-    
+
     public func parse(_ buffer: UnsafeBufferPointer<Byte>) throws -> [Message] {
         let final = buffer.isEmpty
         let needsMessage: Bool
@@ -99,7 +99,7 @@ public final class MessageParser {
         default:
             needsMessage = final
         }
-        
+
         let processedCount: Int
         if final {
             processedCount = http_parser_execute(&parser, &parserSettings, nil, 0)
@@ -108,57 +108,57 @@ public final class MessageParser {
                 return http_parser_execute(&self.parser, &self.parserSettings, $0, buffer.count)
             }
         }
-        
+
         guard processedCount == buffer.count else {
             throw MessageParserError(parser.http_errno)
         }
-        
+
         let parsed = messages
         messages = []
-        
+
         guard !parsed.isEmpty || !needsMessage else {
             throw MessageParserError(HPE_INVALID_EOF_STATE.rawValue)
         }
-        
+
         return parsed
     }
-    
+
     public func finish() throws -> [Message] {
         return try parse(UnsafeBufferPointer<Byte>())
     }
-    
+
     fileprivate func processOnMessageBegin() -> Int32 {
         return process(state: .messageBegin)
     }
-    
+
     fileprivate func processOnURL(data: UnsafePointer<Int8>, length: Int) -> Int32 {
         return process(state: .url, data: UnsafeBufferPointer<Int8>(start: data, count: length))
     }
-    
+
     fileprivate func processOnStatus(data: UnsafePointer<Int8>, length: Int) -> Int32 {
         return process(state: .status, data: UnsafeBufferPointer<Int8>(start: data, count: length))
     }
-    
+
     fileprivate func processOnHeaderField(data: UnsafePointer<Int8>, length: Int) -> Int32 {
         return process(state: .headerField, data: UnsafeBufferPointer<Int8>(start: data, count: length))
     }
-    
+
     fileprivate func processOnHeaderValue(data: UnsafePointer<Int8>, length: Int) -> Int32 {
         return process(state: .headerValue, data: UnsafeBufferPointer<Int8>(start: data, count: length))
     }
-    
+
     fileprivate func processOnHeadersComplete() -> Int32 {
         return process(state: .headersComplete)
     }
-    
+
     fileprivate func processOnBody(data: UnsafePointer<Int8>, length: Int) -> Int32 {
         return process(state: .body, data: UnsafeBufferPointer<Int8>(start: data, count: length))
     }
-    
+
     fileprivate func processOnMessageComplete() -> Int32 {
         return process(state: .messageComplete)
     }
-    
+
     fileprivate func process(state newState: State, data: UnsafeBufferPointer<Int8>? = nil) -> Int32 {
         if state != newState {
             switch state {
@@ -206,10 +206,10 @@ public final class MessageParser {
             case .body:
                 context.body = [Byte](bytes)
             }
-            
+
             bytes = []
             state = newState
-            
+
             if state == .messageComplete {
                 let message: Message
                 switch mode {
@@ -231,7 +231,7 @@ public final class MessageParser {
                             .reduce(Set<String>()) { initial, value in
                                 return initial.union(Set(value.components(separatedBy: ", ")))
                     }
-                    
+
                     let response = Response(
                         version: context.version!,
                         status: context.status!,
@@ -239,10 +239,10 @@ public final class MessageParser {
                         cookieHeaders: cookieHeaders,
                         body: .data(context.body)
                     )
-                    
+
                     message = response
                 }
-                
+
                 messages.append(message)
                 context = Context()
             }
@@ -251,7 +251,7 @@ public final class MessageParser {
         guard let data = data, data.count > 0 else {
             return 0
         }
-        
+
         data.baseAddress!.withMemoryRebound(to: UInt8.self, capacity: data.count) { ptr in
             for i in 0..<data.count {
                 self.bytes.append(ptr[i])

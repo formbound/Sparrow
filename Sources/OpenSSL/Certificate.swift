@@ -17,7 +17,7 @@ private extension X509 {
 	}
 }
 
-public enum CertificateError : Error {
+public enum CertificateError: Error {
     case certificate
     case subject
     case privateKey

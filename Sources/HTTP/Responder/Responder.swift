@@ -2,10 +2,9 @@ public protocol Responder {
     func respond(to request: Request) throws -> Response
 }
 
-
 public typealias Respond = (_ to: Request) throws -> Response
 
-public struct BasicResponder : Responder {
+public struct BasicResponder: Responder {
     let respond: Respond
 
     public init(_ respond: @escaping Respond) {

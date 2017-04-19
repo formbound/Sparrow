@@ -4,7 +4,7 @@ import IP
 import Venice
 import Powerline
 
-public enum TCPError : Error {
+public enum TCPError: Error {
     case failedToCreateSocket
     case failedToConnectSocket
     case failedToBindSocket
@@ -16,8 +16,7 @@ public enum TCPError : Error {
     case invalidFileDescriptor
 }
 
-
-public final class TCPHost : Host {
+public final class TCPHost: Host {
     private let socket: FileDescriptor
     public let ip: IP
 

@@ -1,7 +1,7 @@
 import POSIX
 import Venice
 
-public enum IPError : Error {
+public enum IPError: Error {
     case invalidPort
 }
 

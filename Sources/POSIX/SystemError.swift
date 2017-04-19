@@ -4,7 +4,7 @@
     import Darwin.C
 #endif
 
-public enum SystemError : Error {
+public enum SystemError: Error {
     case operationNotPermitted
     case noSuchFileOrDirectory
     case noSuchProcess

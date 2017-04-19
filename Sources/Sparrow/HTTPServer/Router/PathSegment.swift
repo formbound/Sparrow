@@ -14,5 +14,5 @@ extension PathSegment: CustomDebugStringConvertible {
             return "<\(name)>"
         }
     }
-    
+
 }

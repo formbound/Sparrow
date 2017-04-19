@@ -67,7 +67,7 @@ public struct Hash {
 
 	public static func hash(_ function: Function, message: DataRepresentable) throws -> [Byte] {
 		initialize()
-        
+
         let messageBuffer = message.bytes
         return try [Byte](count: function.digestLength) { bytesBuffer in
             _ = messageBuffer.withUnsafeBytes { (messageBytes: UnsafePointer<UInt8>) in
@@ -80,10 +80,10 @@ public struct Hash {
 
 	public static func hmac(_ function: Function, key: DataRepresentable, message: DataRepresentable) throws -> [Byte] {
 		initialize()
-        
+
         let keyBuffer = key.bytes
         let messageBuffer = message.bytes
-        
+
         return try [Byte](capacity: Int(EVP_MAX_MD_SIZE)) { bytesBuffer in
             return keyBuffer.withUnsafeBytes { (keyBytes: UnsafePointer<UInt8>) -> Int in
                 return messageBuffer.withUnsafeBytes { (messageBytes: UnsafePointer<UInt8>) -> Int in
@@ -100,15 +100,15 @@ public struct Hash {
             }
         }
 	}
-    
+
     // MARK: - PBKDF2
-    
+
     public static func pbkdf2(_ function: Function, password: DataRepresentable, salt: DataRepresentable, iterations: Int) throws -> [Byte] {
         initialize()
-        
+
         let passwordBuffer = password.bytes
         let saltBuffer = salt.bytes
-        
+
         return try [Byte](count: Int(function.digestLength)) { pointer in
             passwordBuffer.withUnsafeBytes { (passwordBufferPtr: UnsafePointer<Int8>) in
                 saltBuffer.withUnsafeBytes { (saltBufferPtr: UnsafePointer<UInt8>) in
@@ -134,7 +134,7 @@ public struct Hash {
 		guard ctx != nil else {
 			throw HashError.error(description: lastSSLErrorDescription)
 		}
-        
+
         let messageBuffer = message.bytes
 
         return try [Byte](capacity: Int(EVP_PKEY_size(key.key))) { bytesBuffer in

@@ -6,9 +6,8 @@
 
 import Core
 
-
 #if os(Linux)
-    public enum SocketType : RawRepresentable {
+    public enum SocketType: RawRepresentable {
         case stream
 
         public init?(rawValue: Int32) {
@@ -27,7 +26,7 @@ import Core
         }
     }
 #else
-    public enum SocketType : RawRepresentable {
+    public enum SocketType: RawRepresentable {
         case stream
 
         public init?(rawValue: Int32) {
@@ -46,7 +45,6 @@ import Core
         }
     }
 #endif
-
 
 public func socket(family: AddressFamily, type: SocketType, `protocol`: Int32) throws -> FileDescriptor {
     let fileDescriptor = socket(family.rawValue, Int32(type.rawValue), `protocol`)
@@ -104,7 +102,7 @@ public func connect(socket: FileDescriptor, address: Address) throws {
     }
 }
 
-public struct SendFlags : OptionSet {
+public struct SendFlags: OptionSet {
     public let rawValue: Int32
 
     public init(rawValue: Int32) {
@@ -129,7 +127,7 @@ public func send(socket: FileDescriptor, bytes: UnsafeRawPointer, count: Int, fl
     return result
 }
 
-public struct ReceiveFlags : OptionSet {
+public struct ReceiveFlags: OptionSet {
     public let rawValue: Int32
 
     public init(rawValue: Int32) {

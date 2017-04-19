@@ -2,7 +2,7 @@ import Core
 import OpenSSL
 import Venice
 
-public struct TCPTLSStream : Stream {
+public struct TCPTLSStream: Stream {
     public let tcpStream: TCPStream
     public let sslStream: SSLStream
 
@@ -30,7 +30,7 @@ public struct TCPTLSStream : Stream {
     public func read(into readBuffer: UnsafeMutableBufferPointer<Byte>, deadline: Deadline) throws -> UnsafeBufferPointer<Byte> {
         return try sslStream.read(into: readBuffer, deadline: deadline)
     }
-    
+
     public func write(_ buffer: UnsafeBufferPointer<Byte>, deadline: Deadline) throws {
         try sslStream.write(buffer, deadline: deadline)
     }

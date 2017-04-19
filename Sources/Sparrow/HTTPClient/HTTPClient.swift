@@ -4,14 +4,14 @@ import Foundation
 import Venice
 import TCP
 
-public enum HTTPClientError : Error {
+public enum HTTPClientError: Error {
     case invalidURIScheme
     case uriHostRequired
     case brokenConnection
     case invalidUrl
 }
 
-public final class HTTPClient : Responder {
+public final class HTTPClient: Responder {
     fileprivate let secure: Bool
 
     public let host: String
@@ -135,22 +135,22 @@ extension HTTPClient {
 
             // stream closed before we got a response out of it
             throw StreamError.closedStream
-            
+
         } catch StreamError.closedStream {
             defer {
                 self.stream = nil
             }
-            
+
             // rethrow error if request requires connect upgrade
             guard request.upgradeConnection == nil else {
                 throw StreamError.closedStream
             }
-            
+
             // try and finish the parsing
             guard let message = try parser.finish().first else {
                 throw StreamError.closedStream
             }
-            
+
             return message as! Response
         } catch let error as StreamError {
             self.stream = nil
@@ -206,7 +206,6 @@ extension HTTPClient {
         }
         return RequestSerializer(stream: stream)
     }
-
 
     private func getParser() -> MessageParser {
         if let parser = self.parser {

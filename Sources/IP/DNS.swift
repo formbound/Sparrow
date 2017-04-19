@@ -2,7 +2,7 @@ import CDNS
 import POSIX
 import Venice
 
-public enum DNSError : Error {
+public enum DNSError: Error {
     case timeout
     case unableToResolveAddress
     case unableToGetConfiguration
@@ -25,7 +25,6 @@ private enum DNS {
         var result: Int32 = 0
         return dns_hints_local(configuration, &result)!
     }()
-
 
     fileprivate static var options = dns_options()
 }

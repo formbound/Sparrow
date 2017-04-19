@@ -1,6 +1,6 @@
 import COpenSSL
 
-public enum ContextError : Error {
+public enum ContextError: Error {
     case context(description: String)
     case certificate(description: String)
     case key(description: String)
@@ -9,7 +9,7 @@ public enum ContextError : Error {
 public class Context {
 	let mode: SSLMethod.Mode
 	var context: UnsafeMutablePointer<SSL_CTX>?
-	var sniHostname: String? = nil
+	var sniHostname: String?
 
 	public init(method: SSLMethod = .sslv23, mode: SSLMethod.Mode = .client) throws {
 		self.mode = mode

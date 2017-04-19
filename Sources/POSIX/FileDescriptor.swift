@@ -4,7 +4,6 @@
     import Darwin.C
 #endif
 
-
 public typealias FileDescriptor = Int32
 
 public func statusflags(fileDescriptor: FileDescriptor) throws -> Int32 {
