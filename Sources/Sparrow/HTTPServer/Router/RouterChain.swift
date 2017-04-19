@@ -1,6 +1,6 @@
 internal struct RouterChain {
 
-    internal let preprocessors: [Router.RequestPreprocessor]
+    internal let preprocessors: [Router.RequestContextPreprocessor]
     internal let action: Router.Action
     internal let requestContext: RequestContext
 
@@ -16,7 +16,7 @@ internal struct RouterChain {
 
         self.action = action
 
-        var preprocessors: [Router.RequestPreprocessor] = []
+        var preprocessors: [Router.RequestContextPreprocessor] = []
 
         for route in routes {
             if let routeHandler = route.preprocessors[request.method] {

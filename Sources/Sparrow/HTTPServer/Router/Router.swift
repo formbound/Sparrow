@@ -3,9 +3,9 @@ import HTTP
 public class Router {
 
     public typealias Action = (RequestContext) throws -> Response
-    public typealias RequestPreprocessor = (RequestContext) throws -> RequestProcessResult
+    public typealias RequestContextPreprocessor = (RequestContext) throws -> RequestContextProcessingResult
 
-    public enum RequestProcessResult {
+    public enum RequestContextProcessingResult {
         case `continue`
         case `break`(Response)
     }
@@ -14,7 +14,7 @@ public class Router {
 
     public let pathSegment: PathSegment
 
-    internal var preprocessors: [Request.Method: RequestPreprocessor] = [:]
+    internal var preprocessors: [Request.Method: RequestContextPreprocessor] = [:]
 
     internal var actions: [Request.Method: Action] = [:]
 
@@ -65,7 +65,7 @@ public extension Router {
         actions[method] = handler
     }
 
-    public func processRequest(for methods: [Request.Method], handler: @escaping RequestPreprocessor) {
+    public func processRequest(for methods: [Request.Method], handler: @escaping RequestContextPreprocessor) {
         for method in methods {
             preprocessors[method] = handler
         }
