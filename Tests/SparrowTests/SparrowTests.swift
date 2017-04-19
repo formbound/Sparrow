@@ -10,13 +10,13 @@ public class SparrowTests : XCTestCase {
         // Router.root has path component "/"
 
         // /users
-        router.root.add(pathComponent: "users") { usersRoute in
+        router.add(pathComponent: "users") { usersRoute in
 
             usersRoute.add(parameter: "id") { route in
 
-                route.respond(to: .get) { request, pathParameters in
+                route.respond(to: .get) { context in
 
-                    guard let id: Int = pathParameters.value(for: "id") else {
+                    guard let id: Int = context.pathParameters.value(for: "id") else {
                         return Response(status: .badRequest, body: "Missing or invalid parameter for id")
                     }
 
@@ -30,8 +30,8 @@ public class SparrowTests : XCTestCase {
             // Has no actions, so will not respond with anything, but processes the request
             usersRoute.add(pathComponent: "auth") { route in
 
-                route.processRequest(for: [.get, .post]) { request, pathParameters in
-                    guard request.headers["content-type"] == "application/json" else {
+                route.processRequest(for: [.get, .post]) { context in
+                    guard context.request.headers["content-type"] == "application/json" else {
 
                         // Return a response, becase the request shouldn't fall through
                         return .break(
@@ -40,14 +40,14 @@ public class SparrowTests : XCTestCase {
                     }
 
                     // Pass the optionally modified request
-                    return .continue(request)
+                    return .continue
                 }
 
                 // /users/auth/facebook
                 // Will only be accessed if
                 route.add(pathComponent: "facebook") { route in
 
-                    route.respond(to: .get) { request, pathParameters in
+                    route.respond(to: .get) { context in
                         return Response(status: .ok, body: "Hey, it's me, Facebook")
                     }
                 }
@@ -58,39 +58,32 @@ public class SparrowTests : XCTestCase {
         try server.start()
     }
 
-    func testRoute() throws {
-        let users = Route(pathComponent: "users")
+    func testRouter() throws {
+        let users = Router(pathComponent: "users")
 
-        users.actions[.get] = { request, pathParameters in
+        users.actions[.get] = { context in
             return Response(status: .ok)
         }
 
-        let auth = Route(pathComponent: "auth")
+        let auth = Router(pathComponent: "auth")
 
-        let admin = Route(pathComponent: "admin")
+        let admin = Router(pathComponent: "admin")
 
-        let authMethod = Route(parameter: "authMethod")
+        let authMethod = Router(parameter: "authMethod")
 
-        let login = Route(pathComponent: "login")
+        let login = Router(pathComponent: "login")
 
-        login.actions[.get] = { request, pathParameters in
+        login.actions[.get] = { context in
             return Response(status: .ok)
         }
 
-        let signup = Route(pathComponent: "signup")
+        let signup = Router(pathComponent: "signup")
 
 
         authMethod.add(children: [login, signup])
         auth.add(child: authMethod)
         users.add(child: auth)
         users.add(child: admin)
-
-        print(
-            "Result:",
-            users.matchingRouteChain(for: ["users", "auth", "facebook", "login"], method: .get)?.debugDescription ?? "Null",
-            users.matchingRouteChain(for: ["users"], method: .get)?.debugDescription ?? "Null",
-            users.matchingRouteChain(for: ["users", "admin"], method: .get)?.debugDescription ?? "Null"
-        )
         
     }
 }

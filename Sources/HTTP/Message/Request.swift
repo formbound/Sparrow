@@ -213,17 +213,6 @@ extension Request {
     }
 }
 
-extension Request {
-    public var pathParameters: [String: String] {
-        get {
-            return storage["pathParameters"] as? [String: String] ?? [:]
-        }
-
-        set(pathParameters) {
-            storage["pathParameters"] = pathParameters
-        }
-    }
-}
 
 extension Request : CustomStringConvertible {
     public var requestLineDescription: String {
