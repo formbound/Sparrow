@@ -22,6 +22,8 @@ public class Router {
         return Response(status: self.actions.isEmpty ? .notFound : .methodNotAllowed)
     }
 
+    public var recovery: ((Error) -> Response)?
+
     internal init(pathSegment: PathSegment) {
         self.pathSegment = pathSegment
     }
@@ -65,7 +67,7 @@ public extension Router {
         actions[method] = handler
     }
 
-    public func processRequest(for methods: [Request.Method], handler: @escaping RequestContextPreprocessor) {
+    public func preprocess(for methods: [Request.Method], handler: @escaping RequestContextPreprocessor) {
         for method in methods {
             preprocessors[method] = handler
         }
@@ -106,11 +108,19 @@ extension Router: Responder {
 
         let pathComponents = request.url.pathComponents
 
-        guard let routeChain = matchingRouteChain(for: pathComponents, request: request) else {
-            return try fallback.respond(to: request)
-        }
+        do {
+            guard let routeChain = matchingRouteChain(for: pathComponents, request: request) else {
+                return try fallback.respond(to: request)
+            }
 
-        return try routeChain.respond(to: request)
+            return try routeChain.respond(to: request)
+        } catch {
+            guard let recovery = recovery else {
+                throw error
+            }
+
+            return recovery(error)
+        }
 
     }
 }
