@@ -180,7 +180,7 @@ public final class MessageParser {
                 }
 
                 context.status = Response.Status(
-                    statusCode: Int(parser.status_code),
+                    code: Int(parser.status_code),
                     reasonPhrase: string
                 )
             case .headerField:

@@ -3,6 +3,10 @@ import XCTest
 
 public class SparrowTests : XCTestCase {
 
+    enum OKError: Error {
+        case ok
+    }
+
     func testServer() throws {
 
         let router = Router()
@@ -11,7 +15,7 @@ public class SparrowTests : XCTestCase {
         router.add(pathComponent: "error") { router in
 
             router.respond(to: .get) { context in
-                throw HTTPError.badRequest
+                throw OKError.ok
             }
 
         }
@@ -60,36 +64,26 @@ public class SparrowTests : XCTestCase {
             }
         }
 
-        let server = try HTTPServer(port: 8181, responder: router)
+        let server = try HTTPServer(port: 8080, responder: router)
         try server.start()
     }
 
-    func testRouter() throws {
-        let users = Router(pathComponent: "users")
+    func testSomethingElse() throws {
 
-        users.actions[.get] = { context in
-            return Response(status: .ok)
-        }
+        var users = View()
 
-        let auth = Router(pathComponent: "auth")
+        try users.set(value: "David Ask", forKey: "adminName")
+        try users.set(value: [1, 2, 3, 4, 5, 6, 7, 8], forKey: "identifiers")
 
-        let admin = Router(pathComponent: "admin")
-
-        let authMethod = Router(parameter: "authMethod")
-
-        let login = Router(pathComponent: "login")
-
-        login.actions[.get] = { context in
-            return Response(status: .ok)
-        }
-
-        let signup = Router(pathComponent: "signup")
+        var view = View(dictionary: [
+            "count": 10,
+            "users": users
+            ])
 
 
-        authMethod.add(children: [login, signup])
-        auth.add(child: authMethod)
-        users.add(child: auth)
-        users.add(child: admin)
+        let value: String = try view.value(forKeyPath: "users.adminName")
+
+        print(value)
         
     }
 }

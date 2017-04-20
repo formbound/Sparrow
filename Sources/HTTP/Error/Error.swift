@@ -1,39 +1,56 @@
 import Core
 
-public enum HTTPError {}
 
-public enum ClientError: Error {
-    case badRequest(headers: Headers, body: Body)
-    case unauthorized(headers: Headers, body: Body)
-    case paymentRequired(headers: Headers, body: Body)
-    case forbidden(headers: Headers, body: Body)
-    case notFound(headers: Headers, body: Body)
-    case methodNotAllowed(headers: Headers, body: Body)
-    case notAcceptable(headers: Headers, body: Body)
-    case proxyAuthenticationRequired(headers: Headers, body: Body)
-    case requestTimeout(headers: Headers, body: Body)
-    case conflict(headers: Headers, body: Body)
-    case gone(headers: Headers, body: Body)
-    case lengthRequired(headers: Headers, body: Body)
-    case preconditionFailed(headers: Headers, body: Body)
-    case requestEntityTooLarge(headers: Headers, body: Body)
-    case requestURITooLong(headers: Headers, body: Body)
-    case unsupportedMediaType(headers: Headers, body: Body)
-    case requestedRangeNotSatisfiable(headers: Headers, body: Body)
-    case expectationFailed(headers: Headers, body: Body)
-    case imATeapot(headers: Headers, body: Body)
-    case authenticationTimeout(headers: Headers, body: Body)
-    case enhanceYourCalm(headers: Headers, body: Body)
-    case unprocessableEntity(headers: Headers, body: Body)
-    case locked(headers: Headers, body: Body)
-    case failedDependency(headers: Headers, body: Body)
-    case preconditionRequired(headers: Headers, body: Body)
-    case tooManyRequests(headers: Headers, body: Body)
-    case requestHeaderFieldsTooLarge(headers: Headers, body: Body)
+public struct HTTPError: Error {
+    public let status: Response.Status
+    public var headers: [Header: String]
+    public var reason: String
+
+    public init(clientError error: ClientErrorCode, reason: String? = nil, headers: [Header: String] = [:]) {
+        self.status = Response.Status(statusCode: error.statusCode)
+        self.reason = reason ?? error.statusCode.reasonPhrase
+        self.headers = headers
+    }
+
+    public init(serverError error: ServerErrorCode, reason: String? = nil, headers: [Header: String] = [:]) {
+        self.status = Response.Status(statusCode: error.statusCode)
+        self.reason = reason ?? error.statusCode.reasonPhrase
+        self.headers = headers
+    }
 }
 
-extension ClientError {
-    public var status: Response.Status {
+public enum ClientErrorCode {
+    case badRequest
+    case unauthorized
+    case paymentRequired
+    case forbidden
+    case notFound
+    case methodNotAllowed
+    case notAcceptable
+    case proxyAuthenticationRequired
+    case requestTimeout
+    case conflict
+    case gone
+    case lengthRequired
+    case preconditionFailed
+    case requestEntityTooLarge
+    case requestURITooLong
+    case unsupportedMediaType
+    case requestedRangeNotSatisfiable
+    case expectationFailed
+    case imATeapot
+    case authenticationTimeout
+    case enhanceYourCalm
+    case unprocessableEntity
+    case locked
+    case failedDependency
+    case preconditionRequired
+    case tooManyRequests
+    case requestHeaderFieldsTooLarge
+}
+
+extension ClientErrorCode {
+    public var statusCode: Response.Status.Code {
         switch self {
         case .badRequest: return .badRequest
         case .unauthorized: return .unauthorized
@@ -66,315 +83,22 @@ extension ClientError {
     }
 }
 
-extension ClientError : Hashable {
-    public var hashValue: Int {
-        return status.hashValue
-    }
+public enum ServerErrorCode {
+    case internalServerError
+    case notImplemented
+    case badGateway
+    case serviceUnavailable
+    case gatewayTimeout
+    case httpVersionNotSupported
+    case variantAlsoNegotiates
+    case insufficientStorage
+    case loopDetected
+    case notExtended
+    case networkAuthenticationRequired
 }
 
-extension ClientError : Equatable {}
-
-public func == (lhs: ClientError, rhs: ClientError) -> Bool {
-    return lhs.hashValue == rhs.hashValue
-}
-
-extension ClientError : ResponseRepresentable {
-    public var response: Response {
-        switch self {
-        case let .badRequest(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .unauthorized(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .paymentRequired(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .forbidden(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .notFound(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .methodNotAllowed(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .notAcceptable(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .proxyAuthenticationRequired(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .requestTimeout(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .conflict(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .gone(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .lengthRequired(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .preconditionFailed(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .requestEntityTooLarge(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .requestURITooLong(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .unsupportedMediaType(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .requestedRangeNotSatisfiable(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .expectationFailed(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .imATeapot(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .authenticationTimeout(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .enhanceYourCalm(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .unprocessableEntity(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .locked(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .failedDependency(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .preconditionRequired(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .tooManyRequests(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .requestHeaderFieldsTooLarge(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        }
-    }
-}
-
-extension HTTPError {
-    public static var badRequest: ClientError {
-        return ClientError.badRequest(headers: .empty, body: .empty)
-    }
-
-    public static var unauthorized: ClientError {
-        return ClientError.unauthorized(headers: .empty, body: .empty)
-    }
-
-    public static var paymentRequired: ClientError {
-        return ClientError.paymentRequired(headers: .empty, body: .empty)
-    }
-
-    public static var forbidden: ClientError {
-        return ClientError.forbidden(headers: .empty, body: .empty)
-    }
-
-    public static var notFound: ClientError {
-        return ClientError.notFound(headers: .empty, body: .empty)
-    }
-
-    public static var methodNotAllowed: ClientError {
-        return ClientError.methodNotAllowed(headers: .empty, body: .empty)
-    }
-
-    public static var notAcceptable: ClientError {
-        return ClientError.notAcceptable(headers: .empty, body: .empty)
-    }
-
-    public static var proxyAuthenticationRequired: ClientError {
-        return ClientError.proxyAuthenticationRequired(headers: .empty, body: .empty)
-    }
-
-    public static var requestTimeout: ClientError {
-        return ClientError.requestTimeout(headers: .empty, body: .empty)
-    }
-
-    public static var conflict: ClientError {
-        return ClientError.conflict(headers: .empty, body: .empty)
-    }
-
-    public static var gone: ClientError {
-        return ClientError.gone(headers: .empty, body: .empty)
-    }
-
-    public static var lengthRequired: ClientError {
-        return ClientError.lengthRequired(headers: .empty, body: .empty)
-    }
-
-    public static var preconditionFailed: ClientError {
-        return ClientError.preconditionFailed(headers: .empty, body: .empty)
-    }
-
-    public static var requestEntityTooLarge: ClientError {
-        return ClientError.requestEntityTooLarge(headers: .empty, body: .empty)
-    }
-
-    public static var requestURITooLong: ClientError {
-        return ClientError.requestURITooLong(headers: .empty, body: .empty)
-    }
-
-    public static var unsupportedMediaType: ClientError {
-        return ClientError.unsupportedMediaType(headers: .empty, body: .empty)
-    }
-
-    public static var requestedRangeNotSatisfiable: ClientError {
-        return ClientError.requestedRangeNotSatisfiable(headers: .empty, body: .empty)
-    }
-
-    public static var expectationFailed: ClientError {
-        return ClientError.expectationFailed(headers: .empty, body: .empty)
-    }
-
-    public static var imATeapot: ClientError {
-        return ClientError.imATeapot(headers: .empty, body: .empty)
-    }
-
-    public static var authenticationTimeout: ClientError {
-        return ClientError.authenticationTimeout(headers: .empty, body: .empty)
-    }
-
-    public static var enhanceYourCalm: ClientError {
-        return ClientError.enhanceYourCalm(headers: .empty, body: .empty)
-    }
-
-    public static var unprocessableEntity: ClientError {
-        return ClientError.unprocessableEntity(headers: .empty, body: .empty)
-    }
-
-    public static var locked: ClientError {
-        return ClientError.locked(headers: .empty, body: .empty)
-    }
-
-    public static var failedDependency: ClientError {
-        return ClientError.failedDependency(headers: .empty, body: .empty)
-    }
-
-    public static var preconditionRequired: ClientError {
-        return ClientError.preconditionRequired(headers: .empty, body: .empty)
-    }
-
-    public static var tooManyRequests: ClientError {
-        return ClientError.tooManyRequests(headers: .empty, body: .empty)
-    }
-
-    public static var requestHeaderFieldsTooLarge: ClientError {
-        return ClientError.requestHeaderFieldsTooLarge(headers: .empty, body: .empty)
-    }
-}
-
-extension HTTPError {
-    public static func badRequest(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.badRequest(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func unauthorized(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.unauthorized(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func paymentRequired(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.paymentRequired(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func forbidden(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.forbidden(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func notFound(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.notFound(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func methodNotAllowed(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.methodNotAllowed(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func notAcceptable(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.notAcceptable(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func proxyAuthenticationRequired(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.proxyAuthenticationRequired(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func requestTimeout(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.requestTimeout(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func conflict(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.conflict(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func gone(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.gone(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func lengthRequired(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.lengthRequired(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func preconditionFailed(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.preconditionFailed(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func requestEntityTooLarge(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.requestEntityTooLarge(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func requestURITooLong(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.requestURITooLong(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func unsupportedMediaType(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.unsupportedMediaType(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func requestedRangeNotSatisfiable(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.requestedRangeNotSatisfiable(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func expectationFailed(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.expectationFailed(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func imATeapot(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.imATeapot(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func authenticationTimeout(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.authenticationTimeout(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func enhanceYourCalm(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.enhanceYourCalm(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func unprocessableEntity(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.unprocessableEntity(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func locked(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.locked(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func failedDependency(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.failedDependency(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func preconditionRequired(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.preconditionRequired(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func tooManyRequests(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.tooManyRequests(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func requestHeaderFieldsTooLarge(headers: Headers = .empty, body: DataRepresentable) -> ClientError {
-        return ClientError.requestHeaderFieldsTooLarge(headers: headers, body: .data(body.bytes))
-    }
-}
-
-public enum ServerError: Error {
-    case internalServerError(headers: Headers, body: Body)
-    case notImplemented(headers: Headers, body: Body)
-    case badGateway(headers: Headers, body: Body)
-    case serviceUnavailable(headers: Headers, body: Body)
-    case gatewayTimeout(headers: Headers, body: Body)
-    case httpVersionNotSupported(headers: Headers, body: Body)
-    case variantAlsoNegotiates(headers: Headers, body: Body)
-    case insufficientStorage(headers: Headers, body: Body)
-    case loopDetected(headers: Headers, body: Body)
-    case notExtended(headers: Headers, body: Body)
-    case networkAuthenticationRequired(headers: Headers, body: Body)
-}
-
-extension ServerError {
-    public var status: Response.Status {
+extension ServerErrorCode {
+    public var statusCode: Response.Status.Code {
         switch self {
         case .internalServerError: return .internalServerError
         case .notImplemented: return .notImplemented
@@ -391,135 +115,3 @@ extension ServerError {
     }
 }
 
-extension ServerError : Hashable {
-    public var hashValue: Int {
-        return status.hashValue
-    }
-}
-
-extension ServerError : Equatable {}
-
-public func == (lhs: ServerError, rhs: ServerError) -> Bool {
-    return lhs.hashValue == rhs.hashValue
-}
-
-extension ServerError : ResponseRepresentable {
-    public var response: Response {
-        switch self {
-        case let .internalServerError(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .notImplemented(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .badGateway(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .serviceUnavailable(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .gatewayTimeout(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .httpVersionNotSupported(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .variantAlsoNegotiates(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .insufficientStorage(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .loopDetected(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .notExtended(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        case let .networkAuthenticationRequired(headers, body):
-            return Response(status: status, headers: headers, body: body)
-        }
-    }
-}
-
-extension HTTPError {
-    public static var internalServerError: ServerError {
-        return ServerError.internalServerError(headers: .empty, body: .empty)
-    }
-
-    public static var notImplemented: ServerError {
-        return ServerError.notImplemented(headers: .empty, body: .empty)
-    }
-
-    public static var badGateway: ServerError {
-        return ServerError.badGateway(headers: .empty, body: .empty)
-    }
-
-    public static var serviceUnavailable: ServerError {
-        return ServerError.serviceUnavailable(headers: .empty, body: .empty)
-    }
-
-    public static var gatewayTimeout: ServerError {
-        return ServerError.gatewayTimeout(headers: .empty, body: .empty)
-    }
-
-    public static var httpVersionNotSupported: ServerError {
-        return ServerError.httpVersionNotSupported(headers: .empty, body: .empty)
-    }
-
-    public static var variantAlsoNegotiates: ServerError {
-        return ServerError.variantAlsoNegotiates(headers: .empty, body: .empty)
-    }
-
-    public static var insufficientStorage: ServerError {
-        return ServerError.insufficientStorage(headers: .empty, body: .empty)
-    }
-
-    public static var loopDetected: ServerError {
-        return ServerError.loopDetected(headers: .empty, body: .empty)
-    }
-
-    public static var notExtended: ServerError {
-        return ServerError.notExtended(headers: .empty, body: .empty)
-    }
-
-    public static var networkAuthenticationRequired: ServerError {
-        return ServerError.networkAuthenticationRequired(headers: .empty, body: .empty)
-    }
-}
-
-extension HTTPError {
-    public static func internalServerError(headers: Headers = .empty, body: DataRepresentable) -> ServerError {
-        return ServerError.internalServerError(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func notImplemented(headers: Headers = .empty, body: DataRepresentable) -> ServerError {
-        return ServerError.notImplemented(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func badGateway(headers: Headers = .empty, body: DataRepresentable) -> ServerError {
-        return ServerError.badGateway(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func serviceUnavailable(headers: Headers = .empty, body: DataRepresentable) -> ServerError {
-        return ServerError.serviceUnavailable(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func gatewayTimeout(headers: Headers = .empty, body: DataRepresentable) -> ServerError {
-        return ServerError.gatewayTimeout(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func httpVersionNotSupported(headers: Headers = .empty, body: DataRepresentable) -> ServerError {
-        return ServerError.httpVersionNotSupported(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func variantAlsoNegotiates(headers: Headers = .empty, body: DataRepresentable) -> ServerError {
-        return ServerError.variantAlsoNegotiates(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func insufficientStorage(headers: Headers = .empty, body: DataRepresentable) -> ServerError {
-        return ServerError.insufficientStorage(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func loopDetected(headers: Headers = .empty, body: DataRepresentable) -> ServerError {
-        return ServerError.loopDetected(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func notExtended(headers: Headers = .empty, body: DataRepresentable) -> ServerError {
-        return ServerError.notExtended(headers: headers, body: .data(body.bytes))
-    }
-
-    public static func networkAuthenticationRequired(headers: Headers = .empty, body: DataRepresentable) -> ServerError {
-        return ServerError.networkAuthenticationRequired(headers: headers, body: .data(body.bytes))
-    }
-}

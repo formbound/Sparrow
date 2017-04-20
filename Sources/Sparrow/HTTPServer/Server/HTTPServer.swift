@@ -5,9 +5,13 @@ import Venice
 import POSIX
 
 public struct HTTPServer {
+
     public let tcpHost: Host
+
     public let responder: Responder
+
     public let failure: (Error) -> Void
+
 
     public let host: String
     public let port: Int
@@ -15,7 +19,15 @@ public struct HTTPServer {
 
     fileprivate let coroutineGroup = CoroutineGroup()
 
-    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, responder: Responder, failure: @escaping (Error) -> Void =  HTTPServer.log(error:)) throws {
+    public init(
+        host: String = "0.0.0.0",
+        port: Int = 8080,
+        backlog: Int = 128,
+        reusePort: Bool = false,
+        bufferSize: Int = 4096,
+        responder: Responder,
+        failure: @escaping (Error) -> Void = { error in print("\(error)") }
+    ) throws {
         self.tcpHost = try TCPHost(
             host: host,
             port: port,
@@ -29,7 +41,18 @@ public struct HTTPServer {
         self.failure = failure
     }
 
-    public init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false, bufferSize: Int = 4096, certificatePath: String, privateKeyPath: String, certificateChainPath: String? = nil, responder: Responder, failure: @escaping (Error) -> Void =  HTTPServer.log(error:)) throws {
+    public init(
+        host: String = "0.0.0.0",
+        port: Int = 8080,
+        backlog: Int = 128,
+        reusePort: Bool = false,
+        bufferSize: Int = 4096,
+        certificatePath: String,
+        privateKeyPath: String,
+        certificateChainPath: String? = nil,
+        responder: Responder,
+        failure: @escaping (Error) -> Void = { error in print("\(error)") }
+        ) throws {
         self.tcpHost = try TCPTLSHost(
             host: host,
             port: port,
@@ -48,8 +71,11 @@ public struct HTTPServer {
 }
 
 func retry(times: Int, waiting duration: Venice.TimeInterval, work: (Void) throws -> Void) throws {
+
     var failCount = 0
+    
     var lastError: Error!
+
     while failCount < times {
         do {
             try work()
@@ -66,6 +92,7 @@ func retry(times: Int, waiting duration: Venice.TimeInterval, work: (Void) throw
 }
 
 extension HTTPServer {
+
     public func start() throws {
         printHeader()
         try retry(times: 10, waiting: 5.seconds) {
@@ -127,26 +154,9 @@ extension HTTPServer {
                     break
                 }
 
-                let (response, unrecoveredError) = HTTPServer.recover(error: error)
-                try serializer.serialize(response, deadline: .never)
-
-                if let error = unrecoveredError {
-                    throw error
-                }
+                throw error
             }
         }
-    }
-
-    private static func recover(error: Error) -> (Response, Error?) {
-        guard let representable = error as? ResponseRepresentable else {
-            let body = [Byte](String(describing: error))
-            return (Response(status: .internalServerError, body: body), error)
-        }
-        return (representable.response, nil)
-    }
-
-    public static func log(error: Error) {
-        print("Error: \(error)")
     }
 
     public func printHeader() {
