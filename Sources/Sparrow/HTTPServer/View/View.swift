@@ -39,6 +39,7 @@ public indirect enum View {
     public enum Error: Swift.Error {
         case illegalNonDictionary(key: String)
         case notFound(keypath: String)
+        case illegalType(keyPath: String)
     }
 
     public struct KeyPath: RawRepresentable {
@@ -76,6 +77,14 @@ public indirect enum View {
         self = .dictionary(result)
     }
 
+    public init<T: ViewRepresentable>(array: [T]) {
+        self = .array(array.map { $0.view })
+    }
+}
+
+// MARK: Get values
+
+public extension View {
     internal func value(forKeyPath keyPath: KeyPath) -> View? {
 
         var keyPath = keyPath
@@ -112,7 +121,11 @@ public indirect enum View {
         dict[key] = value
         self = .dictionary(dict)
     }
+}
 
+// MARK: Set values
+
+public extension View {
     public mutating func set(value: ViewRepresentable, forKey key: String) throws {
         try set(value: value.view, forKey: key)
     }
@@ -135,7 +148,7 @@ public indirect enum View {
 
 // MARK: Typed accessors, optionals allowed
 
-extension View {
+public extension View {
 
     public func value(forKeyPath path: String) -> Int? {
         guard let view = value(forKeyPath: KeyPath(path: path)) else {
@@ -200,7 +213,7 @@ extension View {
 
 // MARK: - Typed accessors, throwing
 
-extension View {
+public extension View {
     public func value(forKeyPath path: String) throws -> Int {
         guard let value: Int = value(forKeyPath: path) else {
             throw Error.notFound(keypath: path)
@@ -244,7 +257,7 @@ extension View {
 
 // MARK: Typed collection accessors, optionals allowed
 
-extension View {
+public extension View {
 
     public func value(forKeyPath path: String) -> [View]? {
         guard let view = value(forKeyPath: KeyPath(path: path)) else {
@@ -273,7 +286,7 @@ extension View {
 
 // MARK: Typed collection accessors, throwing
 
-extension View {
+public extension View {
     public func value(forKeyPath path: String) throws -> [View] {
         guard let value: [View] = value(forKeyPath: path) else {
             throw Error.notFound(keypath: path)
@@ -290,6 +303,71 @@ extension View {
         return value
     }
 }
+
+// MARK: Uniformly collection accessors, throwing
+
+public extension View {
+    public func value(forKeyPath path: String) throws -> [Int] {
+        let values: [View] = try value(forKeyPath: path)
+
+        return try values.map { view in
+            guard case .int(let value) = view else {
+                throw Error.illegalType(keyPath: path)
+            }
+
+            return value
+        }
+    }
+
+    public func value(forKeyPath path: String) throws -> [String] {
+        let values: [View] = try value(forKeyPath: path)
+
+        return try values.map { view in
+            guard case .string(let value) = view else {
+                throw Error.illegalType(keyPath: path)
+            }
+
+            return value
+        }
+    }
+
+    public func value(forKeyPath path: String) throws -> [Double] {
+        let values: [View] = try value(forKeyPath: path)
+
+        return try values.map { view in
+            guard case .double(let value) = view else {
+                throw Error.illegalType(keyPath: path)
+            }
+
+            return value
+        }
+    }
+
+    public func value(forKeyPath path: String) throws -> [Float] {
+        let values: [View] = try value(forKeyPath: path)
+
+        return try values.map { view in
+            guard case .float(let value) = view else {
+                throw Error.illegalType(keyPath: path)
+            }
+
+            return value
+        }
+    }
+
+    public func value(forKeyPath path: String) throws -> [[Byte]] {
+        let values: [View] = try value(forKeyPath: path)
+
+        return try values.map { view in
+            guard case .binary(let value) = view else {
+                throw Error.illegalType(keyPath: path)
+            }
+
+            return value
+        }
+    }
+}
+
 
 extension View.KeyPath: MutableCollection, RangeReplaceableCollection {
 
@@ -332,6 +410,8 @@ extension View.Error: CustomDebugStringConvertible {
         case .notFound(let keypath):
             return "Keypath \"\(keypath)\" found"
 
+        case .illegalType(let keypath):
+            return "Type of one or more values found at \"\(keypath)\" does not correspond to the inferred type"
         }
     }
 }
