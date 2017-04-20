@@ -112,7 +112,6 @@ public extension View {
         return value(forKeyPath: KeyPath(path: path))
     }
 
-
     public mutating func set(value: View, forKey key: String) throws {
         guard case .dictionary(var dict) = self else {
             throw Error.illegalNonDictionary(key: key)
@@ -367,7 +366,6 @@ public extension View {
         }
     }
 }
-
 
 extension View.KeyPath: MutableCollection, RangeReplaceableCollection {
 

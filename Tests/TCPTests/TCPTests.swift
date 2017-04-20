@@ -3,7 +3,7 @@ import XCTest
 @testable import Core
 @testable import Venice
 
-public class TCPTests : XCTestCase {
+public class TCPTests: XCTestCase {
     func testConnectionRefused() throws {
         let connection = try TCPStream(host: "127.0.0.1", port: 1111, deadline: 1.second.fromNow())
         XCTAssertThrowsError(try connection.open(deadline: 1.second.fromNow()))

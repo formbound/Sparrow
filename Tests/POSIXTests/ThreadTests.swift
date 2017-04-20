@@ -4,7 +4,7 @@ import Foundation
 
 public class ThreadTests: XCTestCase {
     func testExecution() throws {
-        let arr = [1,2,3,4,5]
+        let arr = [1, 2, 3, 4, 5]
         var sum: Int?
 
         _ = try PThread {
@@ -17,7 +17,7 @@ public class ThreadTests: XCTestCase {
     }
 
     func testDone() throws {
-        let arr = [1,2,3,4,5]
+        let arr = [1, 2, 3, 4, 5]
         var sum: Int?
 
         let thread = try PThread {
@@ -35,7 +35,7 @@ public class ThreadTests: XCTestCase {
     }
 
     func testJoin() throws {
-        let arr = [1,2,3,4,5]
+        let arr = [1, 2, 3, 4, 5]
 
         let sum = try PThread {
             return arr.reduce(0, +)
@@ -64,7 +64,7 @@ public class ThreadTests: XCTestCase {
 }
 
 extension ThreadTests {
-    public static var allTests : [(String, (ThreadTests) -> () throws -> Void)] {
+    public static var allTests: [(String, (ThreadTests) -> () throws -> Void)] {
         return [
             ("testExecution", testExecution),
             ("testDone", testDone),

@@ -1,7 +1,7 @@
 import XCTest
 @testable import Sparrow
 
-public class SparrowTests : XCTestCase {
+public class SparrowTests: XCTestCase {
 
     enum OKError: Error {
         case ok
@@ -11,10 +11,9 @@ public class SparrowTests : XCTestCase {
 
         let router = Router()
 
-
         router.add(pathComponent: "error") { router in
 
-            router.respond(to: .get) { context in
+            router.respond(to: .get) { _ in
                 throw OKError.ok
             }
 
@@ -34,7 +33,6 @@ public class SparrowTests : XCTestCase {
                     return Response(status: .ok, body: "Hello mr \(id)")
                 }
             }
-
 
             // /users/auth
             // Has no actions, so will not respond with anything, but processes the request
@@ -57,7 +55,7 @@ public class SparrowTests : XCTestCase {
                 // Will only be accessed if
                 router.add(pathComponent: "facebook") { route in
 
-                    route.respond(to: .get) { context in
+                    route.respond(to: .get) { _ in
                         return Response(status: .ok, body: "Hey, it's me, Facebook")
                     }
                 }
@@ -80,13 +78,12 @@ public class SparrowTests : XCTestCase {
             "users": users
         ])
 
-
         let value: String = try view.value(forKeyPath: "users.developerName")
         let values: [Int] = try view.value(forKeyPath: "users.identifiers")
 
         print(value)
         print(values)
-        
+
     }
 }
 
@@ -95,7 +92,3 @@ extension SparrowTests {
         return []
     }
 }
-
-
-
-

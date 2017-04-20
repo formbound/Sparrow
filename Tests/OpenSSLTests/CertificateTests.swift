@@ -1,7 +1,7 @@
 import XCTest
 @testable import OpenSSL
 
-public class CertificateTests : XCTestCase {
+public class CertificateTests: XCTestCase {
     func testRand() throws {
         let key = Key.generate(keyLength: 2048)
         let cn = "example.com"

@@ -1,6 +1,5 @@
 import Core
 
-
 public struct HTTPError: Error {
     public let status: Response.Status
     public var headers: [Header: String]
@@ -114,4 +113,3 @@ extension ServerErrorCode {
         }
     }
 }
-

@@ -48,7 +48,7 @@ public class LockTests: XCTestCase {
 }
 
 extension LockTests {
-    public static var allTests : [(String, (LockTests) -> () throws -> Void)] {
+    public static var allTests: [(String, (LockTests) -> () throws -> Void)] {
         return [
            ("testWaitsForCondition", testWaitsForCondition),
            ("testLockEnsuresThreadSafety", testLockEnsuresThreadSafety)

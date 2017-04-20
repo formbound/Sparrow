@@ -85,26 +85,26 @@ public class RegexTests: XCTestCase {
         let string = "hello world".replace(regex, with: "bye")
         XCTAssert(string == "hello world")
     }
-    
+
     func testReplaceUTF8() throws {
         let r0 = try Regex("coffee")
         let actual0 = "Paulo loves coffee".replace(r0, with: "☕️")
         let expected0 = "Paulo loves ☕️"
         XCTAssertEqual(actual0, expected0)
-        
+
         let r1 = try Regex("☕️")
         let actual1 = actual0.replace(r1, with: "🍻")
         let expected1 = "Paulo loves 🍻"
         XCTAssertEqual(actual1, expected1)
-        
+
     }
-    
+
     func testMultipleReplacesUTF8() throws {
         let regex = try Regex("[[:digit:]]{4}")
         let actual = "1234-2345-3456-4567".replace(regex, with: "💳")
         XCTAssertEqual(actual, "💳-💳-💳-💳")
     }
-    
+
     func testBuildingWithLiteral() {
         // See the source code: building from literal cannot throw
         // so the following call will crash if the given pattern is invalid.
@@ -112,7 +112,6 @@ public class RegexTests: XCTestCase {
         let actual = "1234-2345-3456-4567".replace(regex, with: "💳")
         XCTAssertEqual(actual, "💳-💳-💳-💳")
     }
-
 
     /// MARK: - matching test
 
@@ -175,7 +174,6 @@ public class RegexTests: XCTestCase {
         // using utf8
         XCTAssertEqual(try "Paulo likes ☕️" ~* "([[:alpha:]]+).*(☕️)", ["Paulo", "☕️"])
 
-
         //: using an existing Regex instance
         let r1 = try Regex("(hel)(lo)")
 
@@ -191,7 +189,7 @@ public class RegexTests: XCTestCase {
         }
         XCTAssertEqual(actual6, ["LO"])
     }
-    
+
 }
 
 extension RegexTests {
@@ -203,10 +201,10 @@ extension RegexTests {
            ("testGroup", testGroup),
            ("testGroups", testGroups),
            ("testNoGroups", testNoGroups),
-           ("testReplaceOneOccurenceWithShorterTemplate",   testReplaceOneOccurenceWithShorterTemplate),
-           ("testReplaceOneOccurenceWithLongerTemplate",    testReplaceOneOccurenceWithLongerTemplate),
+           ("testReplaceOneOccurenceWithShorterTemplate", testReplaceOneOccurenceWithShorterTemplate),
+           ("testReplaceOneOccurenceWithLongerTemplate", testReplaceOneOccurenceWithLongerTemplate),
            ("testReplaceManyOccurencesWithShorterTemplate", testReplaceManyOccurencesWithShorterTemplate),
-           ("testReplaceManyOccurencesWithLongerTemplate",  testReplaceManyOccurencesWithLongerTemplate),
+           ("testReplaceManyOccurencesWithLongerTemplate", testReplaceManyOccurencesWithLongerTemplate),
            ("testReplaceDigits", testReplaceDigits),
            ("testReplaceNumber", testReplaceNumber),
            ("testNoReplace", testNoReplace),

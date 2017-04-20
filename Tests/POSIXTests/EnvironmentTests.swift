@@ -1,7 +1,7 @@
 import XCTest
 @testable import POSIX
 
-public class EnvironmentTests : XCTestCase {
+public class EnvironmentTests: XCTestCase {
     func testEnvironment() throws {
         environment["FOO"] = "bar"
         XCTAssertEqual(environment["FOO"], "bar")

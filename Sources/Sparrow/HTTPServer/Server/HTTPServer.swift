@@ -12,7 +12,6 @@ public struct HTTPServer {
 
     public let failure: (Error) -> Void
 
-
     public let host: String
     public let port: Int
     public let bufferSize: Int
@@ -73,7 +72,7 @@ public struct HTTPServer {
 func retry(times: Int, waiting duration: Venice.TimeInterval, work: (Void) throws -> Void) throws {
 
     var failCount = 0
-    
+
     var lastError: Error!
 
     while failCount < times {

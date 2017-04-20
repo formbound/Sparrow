@@ -57,7 +57,6 @@ extension Response.Status: Equatable {
     }
 }
 
-
 extension Response.Status {
     public enum Code: Int {
         case `continue` = 100
@@ -191,4 +190,3 @@ extension Response.Status.Code {
         }
     }
 }
-
