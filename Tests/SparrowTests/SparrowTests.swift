@@ -84,6 +84,8 @@ public class SparrowTests: XCTestCase {
         print(value)
         print(values)
 
+        print(view)
+
     }
 }
 

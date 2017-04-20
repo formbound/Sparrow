@@ -1,7 +1,7 @@
 import Core
 
 public protocol ViewIntitializable {
-    init(view: View)
+    init(view: View) throws
 }
 
 public protocol ViewRepresentable {
@@ -10,27 +10,60 @@ public protocol ViewRepresentable {
 
 public protocol ViewConvertible: ViewIntitializable, ViewRepresentable {}
 
-extension Int: ViewRepresentable {
+
+extension Int: ViewConvertible {
     public var view: View {
         return .int(self)
     }
+
+    public init(view: View) throws {
+        guard case .int(let value) = view else {
+            throw View.Error.failedViewInitialization(view)
+        }
+
+        self = value
+    }
 }
 
-extension String: ViewRepresentable {
+extension String: ViewConvertible {
     public var view: View {
         return .string(self)
     }
-}
 
-extension Float: ViewRepresentable {
-    public var view: View {
-        return .float(self)
+    public init(view: View) throws {
+        guard case .string(let value) = view else {
+            throw View.Error.failedViewInitialization(view)
+        }
+
+        self = value
     }
 }
 
-extension Double: ViewRepresentable {
+extension Float: ViewConvertible {
+    public var view: View {
+        return .float(self)
+    }
+
+    public init(view: View) throws {
+        guard case .float(let value) = view else {
+            throw View.Error.failedViewInitialization(view)
+        }
+
+        self = value
+    }
+}
+
+extension Double: ViewConvertible {
     public var view: View {
         return .double(self)
+    }
+
+    public init(view: View) throws {
+        guard case .double(let value) = view else {
+            throw View.Error.failedViewInitialization(view)
+        }
+
+        self = value
     }
 }
 
@@ -40,6 +73,7 @@ public indirect enum View {
         case illegalNonDictionary(key: String)
         case notFound(keypath: String)
         case illegalType(keyPath: String)
+        case failedViewInitialization(View)
     }
 
     public struct KeyPath: RawRepresentable {
@@ -149,52 +183,12 @@ public extension View {
 
 public extension View {
 
-    public func value(forKeyPath path: String) -> Int? {
+    public func value<T: ViewIntitializable>(forKeyPath path: String) throws -> T? {
         guard let view = value(forKeyPath: KeyPath(path: path)) else {
             return nil
         }
 
-        guard case .int(let value) = view else {
-            return nil
-        }
-
-        return value
-    }
-
-    public func value(forKeyPath path: String) -> String? {
-        guard let view = value(forKeyPath: KeyPath(path: path)) else {
-            return nil
-        }
-
-        guard case .string(let value) = view else {
-            return nil
-        }
-
-        return value
-    }
-
-    public func value(forKeyPath path: String) -> Double? {
-        guard let view = value(forKeyPath: KeyPath(path: path)) else {
-            return nil
-        }
-
-        guard case .double(let value) = view else {
-            return nil
-        }
-
-        return value
-    }
-
-    public func value(forKeyPath path: String) -> Float? {
-        guard let view = value(forKeyPath: KeyPath(path: path)) else {
-            return nil
-        }
-
-        guard case .float(let value) = view else {
-            return nil
-        }
-
-        return value
+        return try T(view: view)
     }
 
     public func value(forKeyPath path: String) -> [Byte]? {
@@ -213,32 +207,8 @@ public extension View {
 // MARK: - Typed accessors, throwing
 
 public extension View {
-    public func value(forKeyPath path: String) throws -> Int {
-        guard let value: Int = value(forKeyPath: path) else {
-            throw Error.notFound(keypath: path)
-        }
-
-        return value
-    }
-
-    public func value(forKeyPath path: String) throws -> String {
-        guard let value: String = value(forKeyPath: path) else {
-            throw Error.notFound(keypath: path)
-        }
-
-        return value
-    }
-
-    public func value(forKeyPath path: String) throws -> Double {
-        guard let value: Double = value(forKeyPath: path) else {
-            throw Error.notFound(keypath: path)
-        }
-
-        return value
-    }
-
-    public func value(forKeyPath path: String) throws -> Float {
-        guard let value: Float = value(forKeyPath: path) else {
+    public func value<T: ViewIntitializable>(forKeyPath path: String) throws -> T {
+        guard let value: T = try value(forKeyPath: path) else {
             throw Error.notFound(keypath: path)
         }
 
@@ -306,51 +276,11 @@ public extension View {
 // MARK: Uniformly collection accessors, throwing
 
 public extension View {
-    public func value(forKeyPath path: String) throws -> [Int] {
+    public func value<T: ViewIntitializable>(forKeyPath path: String) throws -> [T] {
         let values: [View] = try value(forKeyPath: path)
 
         return try values.map { view in
-            guard case .int(let value) = view else {
-                throw Error.illegalType(keyPath: path)
-            }
-
-            return value
-        }
-    }
-
-    public func value(forKeyPath path: String) throws -> [String] {
-        let values: [View] = try value(forKeyPath: path)
-
-        return try values.map { view in
-            guard case .string(let value) = view else {
-                throw Error.illegalType(keyPath: path)
-            }
-
-            return value
-        }
-    }
-
-    public func value(forKeyPath path: String) throws -> [Double] {
-        let values: [View] = try value(forKeyPath: path)
-
-        return try values.map { view in
-            guard case .double(let value) = view else {
-                throw Error.illegalType(keyPath: path)
-            }
-
-            return value
-        }
-    }
-
-    public func value(forKeyPath path: String) throws -> [Float] {
-        let values: [View] = try value(forKeyPath: path)
-
-        return try values.map { view in
-            guard case .float(let value) = view else {
-                throw Error.illegalType(keyPath: path)
-            }
-
-            return value
+            return try T(view: view)
         }
     }
 
@@ -410,6 +340,9 @@ extension View.Error: CustomDebugStringConvertible {
 
         case .illegalType(let keypath):
             return "Type of one or more values found at \"\(keypath)\" does not correspond to the inferred type"
+
+        case .failedViewInitialization(let view):
+            return "Failed to initialize value with view:\n\(view)"
         }
     }
 }
@@ -418,4 +351,51 @@ extension View: ViewRepresentable {
     public var view: View {
         return self
     }
+}
+
+extension View: CustomStringConvertible {
+    public var description: String {
+        let result: String
+
+        switch self {
+        case .int(let int):
+            result = String(int)
+
+        case .string(let string):
+            result = "\"\(string)\""
+
+        case .double(let double):
+            result = String(double)
+
+        case .float(let float):
+            result = String(float)
+
+        case .binary(let bytes):
+            result = "Binary, \(bytes.count) bytes"
+
+        case .array(let views):
+            let descriptions = views.map { view in
+                view.description
+            }.joined(separator: ", ")
+
+            return "[\(descriptions)]"
+
+        case .dictionary(let dict):
+
+            var components: [String] = []
+
+            for (key, value) in dict {
+
+                components.append(
+                    "\(key): \(value.description)"
+                )
+            }
+
+            result = "{ \(components.joined(separator: ", ")) }"
+            
+        }
+        
+        return result
+    }
+
 }
