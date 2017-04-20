@@ -16,7 +16,7 @@ public class ResponseSerializer {
         header += "."
         header += response.version.minor.description
         header += " "
-        header += response.status.code.description
+        header += response.status.statusCode.description
         header += " "
         header += response.reasonPhrase
         header += "\r\n"

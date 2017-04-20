@@ -18,10 +18,10 @@ public struct Response: Message {
 }
 
 extension Response {
-    public init(status: Status.Code = .ok, headers: Headers = [:], body: Body) {
+    public init(status: Status = .ok, headers: Headers = [:], body: Body) {
         self.init(
             version: Version(major: 1, minor: 1),
-            status: Response.Status(statusCode: status),
+            status: status,
             headers: headers,
             cookieHeaders: [],
             body: body
@@ -35,7 +35,7 @@ extension Response {
         }
     }
 
-    public init(status: Status.Code = .ok, headers: Headers = [:], body: [Byte] = []) {
+    public init(status: Status = .ok, headers: Headers = [:], body: [Byte] = []) {
         self.init(
             status: status,
             headers: headers,
@@ -43,11 +43,11 @@ extension Response {
         )
     }
 
-    public init(status: Status.Code = .ok, headers: Headers = [:], body: DataRepresentable) {
+    public init(status: Status = .ok, headers: Headers = [:], body: DataRepresentable) {
         self.init(status: status, headers: headers, body: body.bytes)
     }
 
-    public init(status: Status.Code = .ok, headers: Headers = [:], body: InputStream) {
+    public init(status: Status = .ok, headers: Headers = [:], body: InputStream) {
         self.init(
             status: status,
             headers: headers,
@@ -55,7 +55,7 @@ extension Response {
         )
     }
 
-    public init(status: Status.Code = .ok, headers: Headers = [:], body: @escaping (OutputStream) throws -> Void) {
+    public init(status: Status = .ok, headers: Headers = [:], body: @escaping (OutputStream) throws -> Void) {
         self.init(
             status: status,
             headers: headers,
@@ -65,9 +65,6 @@ extension Response {
 }
 
 extension Response {
-    public var statusCode: Int {
-        return status.code
-    }
 
     public var isInformational: Bool {
         return status.isInformational
@@ -139,7 +136,7 @@ extension Response {
 
 extension Response : CustomStringConvertible {
     public var statusLineDescription: String {
-        return "HTTP/" + String(version.major) + "." + String(version.minor) + " " + String(statusCode) + " " + reasonPhrase + "\n"
+        return "HTTP/" + String(version.major) + "." + String(version.minor) + " " + String(status.statusCode) + " " + reasonPhrase + "\n"
     }
 
     public var description: String {

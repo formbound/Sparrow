@@ -10,7 +10,6 @@ public protocol ViewRepresentable {
 
 public protocol ViewConvertible: ViewIntitializable, ViewRepresentable {}
 
-
 extension Int: ViewConvertible {
     public var view: View {
         return .int(self)
@@ -18,6 +17,20 @@ extension Int: ViewConvertible {
 
     public init(view: View) throws {
         guard case .int(let value) = view else {
+            throw View.Error.failedViewInitialization(view)
+        }
+
+        self = value
+    }
+}
+
+extension Bool: ViewConvertible {
+    public var view: View {
+        return .bool(self)
+    }
+
+    public init(view: View) throws {
+        guard case .bool(let value) = view else {
             throw View.Error.failedViewInitialization(view)
         }
 
@@ -89,6 +102,7 @@ public indirect enum View {
     }
 
     case int(Int)
+    case bool(Bool)
     case string(String)
     case double(Double)
     case float(Float)
@@ -392,9 +406,12 @@ extension View: CustomStringConvertible {
             }
 
             result = "{ \(components.joined(separator: ", ")) }"
-            
+
+        case .bool(let bool):
+            return bool ? "true" : "false"
+
         }
-        
+
         return result
     }
 

@@ -2,18 +2,18 @@ import Core
 
 public struct HTTPError: Error {
     public let status: Response.Status
-    public var headers: [Header: String]
     public var reason: String
+    public var headers: [Header: String]
 
     public init(clientError error: ClientErrorCode, reason: String? = nil, headers: [Header: String] = [:]) {
-        self.status = Response.Status(statusCode: error.statusCode)
-        self.reason = reason ?? error.statusCode.reasonPhrase
+        self.status = error.status
+        self.reason = reason ?? error.status.reasonPhrase
         self.headers = headers
     }
 
     public init(serverError error: ServerErrorCode, reason: String? = nil, headers: [Header: String] = [:]) {
-        self.status = Response.Status(statusCode: error.statusCode)
-        self.reason = reason ?? error.statusCode.reasonPhrase
+        self.status = error.status
+        self.reason = reason ?? error.status.reasonPhrase
         self.headers = headers
     }
 }
@@ -49,7 +49,7 @@ public enum ClientErrorCode {
 }
 
 extension ClientErrorCode {
-    public var statusCode: Response.Status.Code {
+    public var status: Response.Status {
         switch self {
         case .badRequest: return .badRequest
         case .unauthorized: return .unauthorized
@@ -97,7 +97,7 @@ public enum ServerErrorCode {
 }
 
 extension ServerErrorCode {
-    public var statusCode: Response.Status.Code {
+    public var status: Response.Status {
         switch self {
         case .internalServerError: return .internalServerError
         case .notImplemented: return .notImplemented

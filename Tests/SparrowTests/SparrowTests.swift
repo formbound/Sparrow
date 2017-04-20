@@ -94,3 +94,23 @@ extension SparrowTests {
         return []
     }
 }
+
+
+struct User {
+    let username: String
+    let email: String
+}
+
+extension User: ViewConvertible {
+    var view: View {
+        return View(dictionary: [
+            "username": username,
+            "email": email
+            ])
+    }
+
+    init(view: View) throws {
+        self.username = try view.value(forKeyPath: "username")
+        self.email = try view.value(forKeyPath: "email")
+    }
+}
