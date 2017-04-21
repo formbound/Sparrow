@@ -102,6 +102,7 @@ public indirect enum View {
     }
 
     case int(Int)
+    case null
     case bool(Bool)
     case string(String)
     case double(Double)
@@ -160,7 +161,7 @@ public extension View {
         return value(forKeyPath: KeyPath(path: path))
     }
 
-    public mutating func set(value: View, forKey key: String) throws {
+    public mutating func set(value: View?, forKey key: String) throws {
         guard case .dictionary(var dict) = self else {
             throw Error.illegalNonDictionary(key: key)
         }
@@ -173,23 +174,23 @@ public extension View {
 // MARK: Set values
 
 public extension View {
-    public mutating func set(value: ViewRepresentable, forKey key: String) throws {
-        try set(value: value.view, forKey: key)
+    public mutating func set(value: ViewRepresentable?, forKey key: String) throws {
+        try set(value: value?.view ?? .null, forKey: key)
     }
 
-    public mutating func set(value dictionary: [String: ViewRepresentable], forKey key: String) throws {
+    public mutating func set(value dictionary: [String: ViewRepresentable?], forKey key: String) throws {
 
         var result: [String: View] = [:]
 
         for(key, value) in dictionary {
-            result[key] = value.view
+            result[key] = value?.view ?? .null
         }
 
         try set(value: .dictionary(result), forKey: key)
     }
 
-    public mutating func set(value array: [ViewRepresentable], forKey key: String) throws {
-        try set(value: .array(array.map { $0.view }), forKey: key)
+    public mutating func set(value array: [ViewRepresentable?], forKey key: String) throws {
+        try set(value: .array(array.map { $0?.view ?? .null }), forKey: key)
     }
 }
 
@@ -199,6 +200,10 @@ public extension View {
 
     public func value<T: ViewIntitializable>(forKeyPath path: String) throws -> T? {
         guard let view = value(forKeyPath: KeyPath(path: path)) else {
+            return nil
+        }
+
+        if case .null = view {
             return nil
         }
 
@@ -367,6 +372,12 @@ extension View: ViewRepresentable {
     }
 }
 
+extension View: ExpressibleByNilLiteral {
+    public init(nilLiteral: ()) {
+        self = .null
+    }
+}
+
 extension View: CustomStringConvertible {
     public var description: String {
         let result: String
@@ -410,6 +421,8 @@ extension View: CustomStringConvertible {
         case .bool(let bool):
             return bool ? "true" : "false"
 
+        case .null:
+            return "<null>"
         }
 
         return result

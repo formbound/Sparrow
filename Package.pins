@@ -32,6 +32,12 @@
       "version": "0.15.0"
     },
     {
+      "package": "CYAJL",
+      "reason": null,
+      "repositoryURL": "https://github.com/Zewo/CYAJL.git",
+      "version": "0.14.0"
+    },
+    {
       "package": "Powerline",
       "reason": null,
       "repositoryURL": "https://github.com/formbound/Powerline.git",

@@ -1,5 +1,6 @@
 import XCTest
 @testable import Sparrow
+@testable import Core
 
 public class SparrowTests: XCTestCase {
 
@@ -14,51 +15,11 @@ public class SparrowTests: XCTestCase {
         router.add(pathComponent: "error") { router in
 
             router.respond(to: .get) { _ in
-                throw OKError.ok
-            }
 
-        }
-
-        // /users
-        router.add(pathComponent: "users") { usersRouter in
-
-            usersRouter.add(parameter: "id") { router in
-
-                router.respond(to: .get) { context in
-
-                    guard let id: Int = context.pathParameters.value(for: "id") else {
-                        return Response(status: .badRequest, body: "Missing or invalid parameter for id")
-                    }
-
-                    return Response(status: .ok, body: "Hello mr \(id)")
-                }
-            }
-
-            // /users/auth
-            // Has no actions, so will not respond with anything, but processes the request
-            usersRouter.add(pathComponent: "auth") { router in
-
-                router.preprocess(for: [.get, .post]) { context in
-                    guard context.request.headers["content-type"] == "application/json" else {
-
-                        // Return a response, becase the request shouldn't fall through
-                        return .break(
-                            Response(status: .badRequest, body: "I only accept json")
-                        )
-                    }
-
-                    // Pass the optionally modified request
-                    return .continue
-                }
-
-                // /users/auth/facebook
-                // Will only be accessed if
-                router.add(pathComponent: "facebook") { route in
-
-                    route.respond(to: .get) { _ in
-                        return Response(status: .ok, body: "Hey, it's me, Facebook")
-                    }
-                }
+                return Router.ViewResponse(
+                    status: .ok,
+                    view: View(dictionary: ["Hello": "Matey"])
+                )
             }
         }
 

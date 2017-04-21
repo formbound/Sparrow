@@ -1,13 +1,32 @@
 import HTTP
+import Core
+
+public struct Present {
+    let status: Response.Status
+    let headers: Headers
+    let view: View
+
+    init(status: Response.Status = .ok, headers: Headers = [:], view: View) {
+        self.status = status
+        self.headers = headers
+        self.view = view
+    }
+}
 
 public class Router {
 
-    public typealias Action = (RequestContext) throws -> Response
+    public typealias ViewAction = (RequestContext) throws -> Present
+    public typealias ResponseAction = (RequestContext) throws -> Response
     public typealias RequestContextPreprocessor = (RequestContext) throws -> RequestContextProcessingResult
 
     public enum RequestContextProcessingResult {
         case `continue`
         case `break`(Response)
+    }
+
+    public enum Action {
+        case view((RequestContext) throws -> Present)
+        case response((RequestContext) throws -> Response)
     }
 
     fileprivate(set) public var children: [Router] = []
@@ -63,8 +82,16 @@ public class Router {
 
 public extension Router {
 
-    public func respond(to method: Request.Method, handler: @escaping Action) {
+    internal func respond(to method: Request.Method, handler: Action) {
         actions[method] = handler
+    }
+
+    internal func respond(to method: Request.Method, handler: @escaping ViewAction) {
+        actions[method] = .view(handler)
+    }
+
+    internal func respond(to method: Request.Method, handler: @escaping ResponseAction) {
+        actions[method] = .response(handler)
     }
 
     public func preprocess(for methods: [Request.Method], handler: @escaping RequestContextPreprocessor) {
@@ -76,7 +103,12 @@ public extension Router {
 
 internal extension Router {
 
-    internal func matchingRouteChain(for pathComponents: [String], depth: Array<String>.Index = 0, request: HTTP.Request, parents: [Router] = []) -> RouterChain? {
+    internal func matchingRouteChain(
+        for pathComponents: [String],
+        depth: Array<String>.Index = 0,
+        request: HTTP.Request,
+        parents: [Router] = []
+    ) -> RouterChain? {
 
         guard pathComponents.count > depth else {
             return nil
@@ -89,11 +121,20 @@ internal extension Router {
         }
 
         guard depth != pathComponents.index(before: pathComponents.endIndex) else {
-            return RouterChain(request: request, routes: parents + [self], pathComponents: pathComponents)
+            return RouterChain(
+                request: request,
+                routes: parents + [self],
+                pathComponents: pathComponents
+            )
         }
 
         for child in children {
-            guard let matching = child.matchingRouteChain(for: pathComponents, depth: depth.advanced(by: 1), request: request, parents: parents + [self]) else {
+            guard let matching = child.matchingRouteChain(
+                for: pathComponents,
+                depth: depth.advanced(by: 1),
+                request: request,
+                parents: parents + [self]
+            ) else {
                 continue
             }
             return matching
@@ -113,7 +154,28 @@ extension Router: Responder {
                 return try fallback.respond(to: request)
             }
 
-            return try routeChain.respond(to: request)
+
+            for handler in routeChain.preprocessors {
+                switch try handler(routeChain.requestContext) {
+
+                case .continue:
+                    break
+
+                case .break(let response):
+                    return response
+                }
+            }
+
+            switch routeChain.action {
+
+            case .view(let handler):
+                let viewResponse = try handler(routeChain.requestContext)
+                fatalError()
+                
+            case .response(let handler):
+                return try handler(routeChain.requestContext)
+            }
+
         } catch {
             guard let recovery = recovery else {
                 throw error

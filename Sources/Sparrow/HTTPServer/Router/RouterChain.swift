@@ -1,3 +1,6 @@
+import Core
+import HTTP
+
 internal struct RouterChain {
 
     internal let preprocessors: [Router.RequestContextPreprocessor]
@@ -40,24 +43,5 @@ internal struct RouterChain {
             request: request,
             pathParameters:  PathParameters(contents: parametersByName)
         )
-    }
-}
-
-extension RouterChain: Responder {
-
-    public func respond(to request: Request) throws -> Response {
-
-        for handler in preprocessors {
-            switch try handler(requestContext) {
-
-            case .continue:
-                break
-
-            case .break(let response):
-                return response
-            }
-        }
-
-        return try action(requestContext)
     }
 }

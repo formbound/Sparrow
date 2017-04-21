@@ -90,6 +90,11 @@ public func == (lhs: MediaType, rhs: MediaType) -> Bool {
     return lhs.hashValue == lhs.hashValue
 }
 
+public extension MediaType {
+    static let json = MediaType(type: "application", subtype: "json", parameters: ["charset": "utf-8"])
+    static let plainText = MediaType(type: "text", subtype: "plain", parameters: ["charset": "utf-8"])
+}
+
 let fileExtensionMediaTypeMapping: [String: String] = [
 	"ez": "application/andrew-inset",
 	"anx": "application/annodex",

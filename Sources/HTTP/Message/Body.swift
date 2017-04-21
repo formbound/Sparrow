@@ -44,7 +44,7 @@ extension Body {
 }
 
 extension Body {
-    public mutating func becomeBuffer(deadline: Deadline) throws -> [Byte] {
+    public mutating func becomeBytes(deadline: Deadline) throws -> [Byte] {
         switch self {
         case .data(let bytes):
             return bytes

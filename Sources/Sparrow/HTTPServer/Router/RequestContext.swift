@@ -5,7 +5,7 @@ public class RequestContext {
     public let storage: [String: Any] = [:]
     public let pathParameters: PathParameters
 
-    init(request: Request, pathParameters: PathParameters) {
+    internal init(request: Request, pathParameters: PathParameters) {
         self.request = request
         self.pathParameters = pathParameters
     }
