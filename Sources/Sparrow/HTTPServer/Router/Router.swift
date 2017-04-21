@@ -129,10 +129,13 @@ extension Router {
             return response
         case .view(let status, let headers, let view):
 
+            let (body, mediaType) = try contentNegotiator.serialize(view: view, mediaTypes: mediaTypes, deadline: .never)
+            var headers = headers
+            headers[Header.contentType] = mediaType.description
             return Response(
                 status: status,
                 headers: headers,
-                body: try contentNegotiator.serialize(view: view, mediaTypes: mediaTypes, deadline: .never)
+                body: body
             )
         }
     }
@@ -240,10 +243,15 @@ extension Router: Responder {
             // Catch thrown HTTP errors – they should be presented with the content negotiator
         } catch let error as HTTPError {
 
+            let (body, mediaType) = try contentNegotiator.serialize(error: error, mediaTypes: context.request.accept, deadline: .never)
+
+            var headers = error.headers
+            headers[Header.contentType] = mediaType.description
+
             return Response(
                 status: error.status,
-                headers: error.headers,
-                body: try contentNegotiator.serialize(error: error, mediaTypes: context.request.accept, deadline: .never)
+                headers: headers,
+                body: body
             )
 
             // Catch content negotiator unsupported media types error

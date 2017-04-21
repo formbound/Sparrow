@@ -10,7 +10,7 @@ public protocol ContentNegotiator: class {
 
     func parse(body: Body, mediaType: MediaType, deadline: Deadline) throws -> View
 
-    func serialize(view: View, mediaType: MediaType, deadline: Deadline) throws -> Body
+    func serialize(view: View, mediaType: MediaType, deadline: Deadline) throws -> (Body, MediaType)
 
     func view(for error: HTTPError) -> View
 }
@@ -28,19 +28,19 @@ public extension ContentNegotiator {
         throw ContentNegotiatorError.unsupportedMediaTypes(mediaTypes)
     }
 
-    public func serialize(view: View, mediaTypes: [MediaType], deadline: Deadline) throws -> Body {
+    public func serialize(view: View, mediaTypes: [MediaType], deadline: Deadline) throws -> (Body, MediaType) {
         for mediaType in mediaTypes {
-            guard let view = try? serialize(view: view, mediaType: mediaType, deadline: deadline) else {
+            guard let result = try? serialize(view: view, mediaType: mediaType, deadline: deadline) else {
                 continue
             }
 
-            return view
+            return result
         }
 
         throw ContentNegotiatorError.unsupportedMediaTypes(mediaTypes)
     }
 
-    public func serialize(error: HTTPError, mediaTypes: [MediaType], deadline: Deadline) throws -> Body {
+    public func serialize(error: HTTPError, mediaTypes: [MediaType], deadline: Deadline) throws -> (Body, MediaType) {
         return try serialize(view: view(for: error), mediaTypes: mediaTypes, deadline: deadline)
     }
 }
@@ -53,11 +53,11 @@ public class StandardContentNegotiator: ContentNegotiator {
         ]
     }
 
-    public func serialize(view: View, mediaType: MediaType, deadline: Deadline) throws -> Body {
+    public func serialize(view: View, mediaType: MediaType, deadline: Deadline) throws -> (Body, MediaType) {
 
         switch mediaType {
         case MediaType.json:
-            return try .data(JSONSerializer.serialize(view))
+            return (try .data(JSONSerializer.serialize(view)), mediaType)
         default:
             throw ContentNegotiatorError.unsupportedMediaTypes([mediaType])
         }
