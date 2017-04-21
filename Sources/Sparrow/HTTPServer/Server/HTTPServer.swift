@@ -168,7 +168,7 @@ extension HTTPServer {
                             response = Response(
                                 status: httpError.status,
                                 headers: httpError.headers,
-                                body: try contentNegotiator.serialize(view: ["error": httpError.reason], mediaTypes: context.request.accept, deadline: .never)
+                                body: try contentNegotiator.serialize(error: httpError, mediaTypes: context.request.accept, deadline: .never)
                             )
                         } else {
                             throw error

@@ -11,6 +11,8 @@ public protocol ContentNegotiator: class {
     func parse(body: Body, mediaType: MediaType, deadline: Deadline) throws -> View
 
     func serialize(view: View, mediaType: MediaType, deadline: Deadline) throws -> Body
+
+    func view(for error: HTTPError) -> View
 }
 
 public extension ContentNegotiator {
@@ -37,9 +39,19 @@ public extension ContentNegotiator {
 
         throw ContentNegotiatorError.unsupportedMediaTypes(mediaTypes)
     }
+
+    public func serialize(error: HTTPError, mediaTypes: [MediaType], deadline: Deadline) throws -> Body {
+        return try serialize(view: view(for: error), mediaTypes: mediaTypes, deadline: deadline)
+    }
 }
 
 public class StandardContentNegotiator: ContentNegotiator {
+
+    public func view(for error: HTTPError) -> View {
+        return [
+            "error": error.reason
+        ]
+    }
 
     public func serialize(view: View, mediaType: MediaType, deadline: Deadline) throws -> Body {
 
