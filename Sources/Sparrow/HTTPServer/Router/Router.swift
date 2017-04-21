@@ -34,6 +34,8 @@ public class Router {
 
     fileprivate(set) public var children: [Router] = []
 
+    public let contentNegotiator: ContentNegotiator
+
     public let pathSegment: PathSegment
 
     internal var preprocessors: [Request.Method: RequestContextPreprocessor] = [:]
@@ -46,44 +48,49 @@ public class Router {
 
     public var recovery: ((Error) -> Payload)?
 
-    internal init(pathSegment: PathSegment) {
+    internal init(pathSegment: PathSegment, contentNegotiator: ContentNegotiator) {
         self.pathSegment = pathSegment
+        self.contentNegotiator = contentNegotiator
     }
 
-    public convenience init() {
-        self.init(pathComponent: "/")
+    public convenience init(contentNegotiator: ContentNegotiator = StandardContentNegotiator()) {
+        self.init(pathComponent: "/", contentNegotiator: contentNegotiator)
     }
 
-    public convenience init(pathComponent: String) {
-        self.init(pathSegment: .literal(pathComponent))
+    public convenience init(pathComponent: String, contentNegotiator: ContentNegotiator) {
+        self.init(pathSegment: .literal(pathComponent), contentNegotiator: contentNegotiator)
     }
 
-    public convenience init(parameter parameterName: String) {
-        self.init(pathSegment: .parameter(parameterName))
+    public convenience init(parameter parameterName: String, contentNegotiator: ContentNegotiator) {
+        self.init(pathSegment: .parameter(parameterName), contentNegotiator: contentNegotiator)
     }
 
-    public func add(child route: Router) {
-        self.children.append(route)
+    public func add(router: Router) {
+        self.children.append(router)
     }
 
-    public func add(children routes: [Router]) {
-        self.children += routes
+    public func add(routers: [Router]) {
+        self.children += routers
+    }
+
+    public func add(pathComponent: String, resource: Resource) {
+        resource.add(to: self, pathComponent: pathComponent)
     }
 
     public func add(pathComponent: String, builder: (Router) -> Void) {
-        let route = Router(pathComponent: pathComponent)
-        builder(route)
-        add(child: route)
+        let router = Router(pathComponent: pathComponent, contentNegotiator: contentNegotiator)
+        builder(router)
+        add(router: router)
     }
 
     public func add(parameter: String, builder: (Router) -> Void) {
-        let route = Router(parameter: parameter)
-        builder(route)
-        add(child: route)
+        let router = Router(parameter: parameter, contentNegotiator: contentNegotiator)
+        builder(router)
+        add(router: router)
     }
 }
 
-public extension Router {
+extension Router {
 
     public func respond(to method: Request.Method, handler: @escaping PayloadResponder) {
         actions[method] = handler
@@ -96,7 +103,20 @@ public extension Router {
     }
 }
 
-internal extension Router {
+extension Router {
+
+    internal func response(from payload: Payload, for mediaTypes: [MediaType]) throws -> Response {
+        switch payload {
+        case .response(let response):
+            return response
+        case .view(let status, let headers, let view):
+            return Response(
+                status: status,
+                headers: headers,
+                body: try contentNegotiator.serialize(view: view, mediaTypes: mediaTypes, deadline: .never)
+            )
+        }
+    }
 
     internal func matchingRouterChain(
         for pathComponents: [String],
@@ -135,8 +155,17 @@ internal extension Router {
     }
 }
 
-extension Router {
-    internal func respond(to context: RequestContext) throws -> Payload {
+extension Router: Responder {
+    public func respond(to request: Request) throws -> Response {
+
+        let context = RequestContext(request: request)
+
+        if
+            let contentLength = context.request.contentLength,
+            contentLength > 0,
+            let contentType = context.request.contentType {
+            context.payload = try contentNegotiator.parse(body: context.request.body, mediaType: contentType, deadline: .never)
+        }
 
         let pathComponents = context.request.url.pathComponents
 
@@ -149,7 +178,7 @@ extension Router {
                 !routers.isEmpty,
                 let action = routers.last?.actions[context.request.method]
                 else {
-                    return try fallback(context)
+                    return try response(from: try fallback(context), for: context.request.accept)
             }
 
             var preprocessors: [Router.RequestContextPreprocessor] = []
@@ -182,19 +211,32 @@ extension Router {
                 case .continue:
                     break
 
-                case .break(let response):
-                    return response
+                case .break(let breakingPayload):
+                    return try response(from: breakingPayload, for: context.request.accept)
                 }
             }
 
-            return try action(context)
+            do {
+                return try response(from: action(context), for: context.request.accept)
+
+            } catch {
+                if let httpError = error as? HTTPError {
+                    return Response(
+                        status: httpError.status,
+                        headers: httpError.headers,
+                        body: try contentNegotiator.serialize(error: httpError, mediaTypes: context.request.accept, deadline: .never)
+                    )
+                } else {
+                    throw error
+                }
+            }
 
         } catch {
             guard let recovery = recovery else {
                 throw error
             }
 
-            return recovery(error)
+            return try response(from: recovery(error), for: context.request.accept)
         }
     }
 }

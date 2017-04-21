@@ -8,11 +8,9 @@ public struct HTTPServer {
 
     public let tcpHost: Host
 
-    public let router: Router
+    public let responder: Responder
 
     public let failure: (Error) -> Void
-
-    public let contentNegotiator: ContentNegotiator
 
     public let host: String
     public let port: Int
@@ -26,8 +24,7 @@ public struct HTTPServer {
         backlog: Int = 128,
         reusePort: Bool = false,
         bufferSize: Int = 4096,
-        router: Router,
-        contentNegotiator: ContentNegotiator = StandardContentNegotiator(),
+        responder: Responder,
         failure: @escaping (Error) -> Void = { error in print("\(error)") }
     ) throws {
         self.tcpHost = try TCPHost(
@@ -39,9 +36,8 @@ public struct HTTPServer {
         self.host = host
         self.port = port
         self.bufferSize = bufferSize
-        self.router = router
+        self.responder = responder
         self.failure = failure
-        self.contentNegotiator = contentNegotiator
     }
 
     public init(
@@ -53,8 +49,7 @@ public struct HTTPServer {
         certificatePath: String,
         privateKeyPath: String,
         certificateChainPath: String? = nil,
-        router: Router,
-        contentNegotiator: ContentNegotiator = StandardContentNegotiator(),
+        responder: Responder,
         failure: @escaping (Error) -> Void = { error in print("\(error)") }
         ) throws {
         self.tcpHost = try TCPTLSHost(
@@ -69,9 +64,8 @@ public struct HTTPServer {
         self.host = host
         self.port = port
         self.bufferSize = bufferSize
-        self.router = router
+        self.responder = responder
         self.failure = failure
-        self.contentNegotiator = contentNegotiator
     }
 }
 
@@ -138,59 +132,22 @@ extension HTTPServer {
                 let bytesRead = try stream.read(into: bytes, deadline: 30.seconds.fromNow())
 
                 for message in try parser.parse(bytesRead) {
-                    let context = RequestContext(request: message as! Request)
-
-                    if
-                        let contentLength = context.request.contentLength,
-                        contentLength > 0,
-                        let contentType = context.request.contentType {
-                        context.payload = try contentNegotiator.parse(body: context.request.body, mediaType: contentType, deadline: .never)
-                    }
-
-                    var response: Response
-
-                    do {
-                        let payload = try router.respond(to: context)
-
-                        switch payload {
-                        case .response(let payloadResponse):
-                            response = payloadResponse
-                        case .view(let status, let headers, let view):
-                            response = try Response(
-                                status: status,
-                                headers: headers,
-                                body: contentNegotiator.serialize(view: view, mediaTypes: context.request.accept, deadline: .never)
-                            )
-                        }
-
-                    } catch {
-                        if let httpError = error as? HTTPError {
-                            response = Response(
-                                status: httpError.status,
-                                headers: httpError.headers,
-                                body: try contentNegotiator.serialize(error: httpError, mediaTypes: context.request.accept, deadline: .never)
-                            )
-                        } else {
-                            throw error
-                        }
-                    }
-
+                    let request = message as! Request
+                    let response = try responder.respond(to: request)
+                    // TODO: Add timeout parameter
                     try serializer.serialize(response, deadline: 5.minutes.fromNow())
 
                     if let upgrade = response.upgradeConnection {
-                        try upgrade(context.request, stream)
+                        try upgrade(request, stream)
                         stream.close()
                     }
 
-                    if !context.request.isKeepAlive {
+                    if !request.isKeepAlive {
                         stream.close()
                     }
-
                 }
             } catch SystemError.brokenPipe {
                 break
-            } catch ContentNegotiatorError.unsupportedMediaTypes {
-                try serializer.serialize(Response(status: .unsupportedMediaType), deadline: .never) // TODO: Not good
             } catch {
                 if stream.closed {
                     break

@@ -12,6 +12,8 @@ public class SparrowTests: XCTestCase {
 
         let router = Router()
 
+        router.add(pathComponent: "resource", resource: TestResource())
+
         router.add(pathComponent: "error") { router in
 
             router.respond(to: .get) { context in
@@ -42,7 +44,7 @@ public class SparrowTests: XCTestCase {
             }
         }
 
-        let server = try HTTPServer(port: 8080, router: router)
+        let server = try HTTPServer(port: 8080, responder: router)
         try server.start()
     }
 }
@@ -50,6 +52,12 @@ public class SparrowTests: XCTestCase {
 extension SparrowTests {
     public static var allTests: [(String, (SparrowTests) -> () throws -> Void)] {
         return []
+    }
+}
+
+struct TestResource: Resource {
+    func get(context: RequestContext) throws -> Payload {
+        return Payload(status: .ok, message: "Resource")
     }
 }
 
