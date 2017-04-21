@@ -2,23 +2,23 @@ import HTTP
 
 public protocol Resource {
 
-    func delete(context: RequestContext) throws -> Payload
+    func delete(context: RequestContext) throws -> ResponseContext
 
-    func get(context: RequestContext) throws -> Payload
+    func get(context: RequestContext) throws -> ResponseContext
 
-    func head(context: RequestContext) throws -> Payload
+    func head(context: RequestContext) throws -> ResponseContext
 
-    func post(context: RequestContext) throws -> Payload
+    func post(context: RequestContext) throws -> ResponseContext
 
-    func put(context: RequestContext) throws -> Payload
+    func put(context: RequestContext) throws -> ResponseContext
 
-    func options(context: RequestContext) throws -> Payload
+    func options(context: RequestContext) throws -> ResponseContext
 
-    func patch(context: RequestContext) throws -> Payload
+    func patch(context: RequestContext) throws -> ResponseContext
 }
 
 extension Resource {
-    internal func respond(to context: RequestContext) throws -> Payload {
+    internal func respond(to context: RequestContext) throws -> ResponseContext {
         switch context.request.method {
         case .delete:
             return try delete(context: context)
@@ -48,31 +48,31 @@ extension Resource {
 
 extension Resource {
 
-    public func delete(context: RequestContext) throws -> Payload {
+    public func delete(context: RequestContext) throws -> ResponseContext {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func get(context: RequestContext) throws -> Payload {
+    public func get(context: RequestContext) throws -> ResponseContext {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func head(context: RequestContext) throws -> Payload {
+    public func head(context: RequestContext) throws -> ResponseContext {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func post(context: RequestContext) throws -> Payload {
+    public func post(context: RequestContext) throws -> ResponseContext {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func put(context: RequestContext) throws -> Payload {
+    public func put(context: RequestContext) throws -> ResponseContext {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func options(context: RequestContext) throws -> Payload {
+    public func options(context: RequestContext) throws -> ResponseContext {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func patch(context: RequestContext) throws -> Payload {
+    public func patch(context: RequestContext) throws -> ResponseContext {
         throw HTTPError(error: .methodNotAllowed)
     }
 }

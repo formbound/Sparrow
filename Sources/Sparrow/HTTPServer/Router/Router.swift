@@ -1,35 +1,14 @@
 import HTTP
 import Core
 
-public enum Payload {
-    case view(Response.Status, Headers, View)
-    case response(Response)
-
-    public init(response: Response) {
-        self = .response(response)
-    }
-
-    public init(status: Response.Status, headers: Headers = [:], view: View) {
-        self = .view(status, headers, view)
-    }
-
-    public init(status: Response.Status, headers: Headers = [:], message: String) {
-        self.init(status: status, headers: headers, view: ["message": message])
-    }
-
-    public init(status: Response.Status, headers: Headers = [:], view: ViewRepresentable) {
-        self.init(status: status, headers: headers, view: view.view)
-    }
-}
-
 public class Router {
 
-    public typealias PayloadResponder = (RequestContext) throws -> Payload
+    public typealias ResponseContextResponder = (RequestContext) throws -> ResponseContext
     public typealias RequestContextPreprocessor = (RequestContext) throws -> RequestContextProcessingResult
 
     public enum RequestContextProcessingResult {
         case `continue`
-        case `break`(Payload)
+        case `break`(ResponseContext)
     }
 
     fileprivate(set) public var children: [Router] = []
@@ -40,13 +19,13 @@ public class Router {
 
     internal var preprocessors: [Request.Method: RequestContextPreprocessor] = [:]
 
-    internal var actions: [Request.Method: PayloadResponder] = [:]
+    internal var actions: [Request.Method: ResponseContextResponder] = [:]
 
-    public lazy var fallback: PayloadResponder = { _ in
+    public lazy var fallback: ResponseContextResponder = { _ in
         return .response(Response(status: self.actions.isEmpty ? .notFound : .methodNotAllowed))
     }
 
-    public var recovery: ((Error) -> Payload)?
+    public var recovery: ((Error) -> ResponseContext)?
 
     internal init(pathSegment: PathSegment, contentNegotiator: ContentNegotiator) {
         self.pathSegment = pathSegment
@@ -110,7 +89,7 @@ public class Router {
 
 extension Router {
 
-    public func respond(to method: Request.Method, handler: @escaping PayloadResponder) {
+    public func respond(to method: Request.Method, handler: @escaping ResponseContextResponder) {
         actions[method] = handler
     }
 
@@ -123,7 +102,7 @@ extension Router {
 
 extension Router {
 
-    internal func response(from payload: Payload, for mediaTypes: [MediaType]) throws -> Response {
+    internal func response(from payload: ResponseContext, for mediaTypes: [MediaType]) throws -> Response {
         switch payload {
         case .response(let response):
             return response
@@ -233,8 +212,8 @@ extension Router: Responder {
                 case .continue:
                     break
 
-                case .break(let breakingPayload):
-                    return try response(from: breakingPayload, for: context.request.accept)
+                case .break(let breakingResponseContext):
+                    return try response(from: breakingResponseContext, for: context.request.accept)
                 }
             }
 
