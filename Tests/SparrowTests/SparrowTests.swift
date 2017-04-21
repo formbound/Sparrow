@@ -57,7 +57,10 @@ extension SparrowTests {
 
 struct TestResource: Resource {
     func get(context: RequestContext) throws -> Payload {
-        return Payload(status: .ok, message: "Resource")
+        return Payload(
+            status: .ok,
+            view: User(username: "davidask", email: "david@formbound.com")
+        )
     }
 }
 

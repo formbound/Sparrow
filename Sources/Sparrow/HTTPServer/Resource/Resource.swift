@@ -44,21 +44,6 @@ extension Resource {
             throw HTTPError(error: .methodNotAllowed)
         }
     }
-
-    internal func add(to router: Router, pathComponent: String) {
-
-        router.add(pathComponent: pathComponent) { router in
-
-            router.respond(to: .delete, handler: delete(context:))
-            router.respond(to: .get, handler: get(context:))
-            router.respond(to: .head, handler: head(context:))
-            router.respond(to: .post, handler: post(context:))
-            router.respond(to: .put, handler: put(context:))
-            router.respond(to: .options, handler: options(context:))
-            router.respond(to: .patch, handler: patch(context:))
-
-        }
-    }
 }
 
 extension Resource {

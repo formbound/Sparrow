@@ -73,20 +73,38 @@ public class Router {
         self.children += routers
     }
 
-    public func add(pathComponent: String, resource: Resource) {
-        resource.add(to: self, pathComponent: pathComponent)
+    internal func add(pathSegment: PathSegment, builder: (Router) -> Void) {
+        let router = Router(pathSegment: pathSegment, contentNegotiator: contentNegotiator)
+        builder(router)
+        add(router: router)
     }
 
     public func add(pathComponent: String, builder: (Router) -> Void) {
-        let router = Router(pathComponent: pathComponent, contentNegotiator: contentNegotiator)
-        builder(router)
-        add(router: router)
+        add(pathSegment: .literal(pathComponent), builder: builder)
     }
 
     public func add(parameter: String, builder: (Router) -> Void) {
-        let router = Router(parameter: parameter, contentNegotiator: contentNegotiator)
-        builder(router)
-        add(router: router)
+        add(pathSegment: .parameter(parameter), builder: builder)
+    }
+
+    internal func add(pathSegment: PathSegment, resource: Resource) {
+        add(pathSegment: pathSegment) { router in
+            router.respond(to: .delete, handler: resource.delete(context:))
+            router.respond(to: .get, handler: resource.get(context:))
+            router.respond(to: .head, handler: resource.head(context:))
+            router.respond(to: .post, handler: resource.post(context:))
+            router.respond(to: .put, handler: resource.put(context:))
+            router.respond(to: .options, handler: resource.options(context:))
+            router.respond(to: .patch, handler: resource.patch(context:))
+        }
+    }
+
+    public func add(pathComponent: String, resource: Resource) {
+        add(pathSegment: .literal(pathComponent), resource: resource)
+    }
+
+    public func add(parameter: String, resource: Resource) {
+        add(pathSegment: .parameter(parameter), resource: resource)
     }
 }
 
@@ -110,6 +128,7 @@ extension Router {
         case .response(let response):
             return response
         case .view(let status, let headers, let view):
+
             return Response(
                 status: status,
                 headers: headers,
@@ -123,7 +142,7 @@ extension Router {
         depth: Array<String>.Index = 0,
         context: RequestContext,
         parents: [Router] = []
-    ) -> [Router]? {
+        ) -> [Router]? {
 
         guard pathComponents.count > depth else {
             return nil
@@ -145,8 +164,8 @@ extension Router {
                 depth: depth.advanced(by: 1),
                 context: context,
                 parents: parents + [self]
-            ) else {
-                continue
+                ) else {
+                    continue
             }
             return matching
         }
@@ -160,16 +179,16 @@ extension Router: Responder {
 
         let context = RequestContext(request: request)
 
-        if
-            let contentLength = context.request.contentLength,
-            contentLength > 0,
-            let contentType = context.request.contentType {
-            context.payload = try contentNegotiator.parse(body: context.request.body, mediaType: contentType, deadline: .never)
-        }
-
         let pathComponents = context.request.url.pathComponents
 
         do {
+            // Extract the body, and parse if, if needed
+            if
+                let contentLength = context.request.contentLength,
+                contentLength > 0,
+                let contentType = context.request.contentType {
+                context.payload = try contentNegotiator.parse(body: context.request.body, mediaType: contentType, deadline: .never)
+            }
 
             // Validate chain of routers making sure that the chain isn't empty,
             // and that the last router has an action associated with the request's method
@@ -216,27 +235,49 @@ extension Router: Responder {
                 }
             }
 
-            do {
-                return try response(from: action(context), for: context.request.accept)
+            return try response(from: action(context), for: context.request.accept)
 
-            } catch {
-                if let httpError = error as? HTTPError {
-                    return Response(
-                        status: httpError.status,
-                        headers: httpError.headers,
-                        body: try contentNegotiator.serialize(error: httpError, mediaTypes: context.request.accept, deadline: .never)
-                    )
-                } else {
-                    throw error
-                }
+            // Catch thrown HTTP errors – they should be presented with the content negotiator
+        } catch let error as HTTPError {
+
+            return Response(
+                status: error.status,
+                headers: error.headers,
+                body: try contentNegotiator.serialize(error: error, mediaTypes: context.request.accept, deadline: .never)
+            )
+
+            // Catch content negotiator unsupported media types error
+        } catch ContentNegotiatorError.unsupportedMediaTypes(let mediaTypes) {
+
+            switch mediaTypes.count {
+            case 0:
+                return Response(
+                    status: .badRequest,
+                    body: "Accept header missing, or does not supply accepted media types"
+                )
+            case 1:
+                return Response(
+                    status: .badRequest,
+                    body: "Media type \"\(mediaTypes[0])\" is unsupported"
+                )
+            default:
+                let mediaTypesString = mediaTypes.map({ "\"\($0.description)\"" }).joined(separator: ", ")
+
+                return Response(
+                    status: .badRequest,
+                    body: "None of the accepted media types (\(mediaTypesString)) are supported"
+                )
             }
-
         } catch {
+            // Run a recovery, if exists
             guard let recovery = recovery else {
+
+                // Lastly, throw the error as it's undhandled
                 throw error
             }
 
             return try response(from: recovery(error), for: context.request.accept)
         }
+
     }
 }
