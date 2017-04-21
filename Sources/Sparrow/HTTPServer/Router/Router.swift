@@ -1,42 +1,31 @@
 import HTTP
 import Core
 
-public enum Present {
+public enum Payload {
     case view(Response.Status, Headers, View)
     case response(Response)
 
-    init(response: Response) {
+    public init(response: Response) {
         self = .response(response)
     }
 
-    init(status: Response.Status, headers: Headers = [:], view: View) {
+    public init(status: Response.Status, headers: Headers = [:], view: View) {
         self = .view(status, headers, view)
     }
 
-    init(status: Response.Status, headers: Headers = [:], view: ViewRepresentable) {
+    public init(status: Response.Status, headers: Headers = [:], view: ViewRepresentable) {
         self.init(status: status, headers: headers, view: view.view)
-    }
-}
-
-public protocol RouterResponseRepresentable {
-    var routerResponse: Present { get }
-}
-
-extension Response: RouterResponseRepresentable {
-    public var routerResponse: Present {
-        return Present(response: self)
     }
 }
 
 public class Router {
 
-    public typealias RepresentableResponder = (RequestContext) throws -> RouterResponseRepresentable
-    public typealias Responder = (RequestContext) throws -> Present
+    public typealias PayloadResponder = (RequestContext) throws -> Payload
     public typealias RequestContextPreprocessor = (RequestContext) throws -> RequestContextProcessingResult
 
     public enum RequestContextProcessingResult {
         case `continue`
-        case `break`(Present)
+        case `break`(Payload)
     }
 
     fileprivate(set) public var children: [Router] = []
@@ -45,13 +34,13 @@ public class Router {
 
     internal var preprocessors: [Request.Method: RequestContextPreprocessor] = [:]
 
-    internal var actions: [Request.Method: Responder] = [:]
+    internal var actions: [Request.Method: PayloadResponder] = [:]
 
-    public lazy var fallback: Responder = { _ in
+    public lazy var fallback: PayloadResponder = { _ in
         return .response(Response(status: self.actions.isEmpty ? .notFound : .methodNotAllowed))
     }
 
-    public var recovery: ((Error) -> Present)?
+    public var recovery: ((Error) -> Payload)?
 
     internal init(pathSegment: PathSegment) {
         self.pathSegment = pathSegment
@@ -92,14 +81,8 @@ public class Router {
 
 public extension Router {
 
-    public func respond(to method: Request.Method, handler: @escaping Responder) {
+    public func respond(to method: Request.Method, handler: @escaping PayloadResponder) {
         actions[method] = handler
-    }
-
-    public func respond(to method: Request.Method, handler: @escaping RepresentableResponder) {
-        actions[method] = { context in
-            try handler(context).routerResponse
-        }
     }
 
     public func preprocess(for methods: [Request.Method], handler: @escaping RequestContextPreprocessor) {
@@ -149,7 +132,7 @@ internal extension Router {
 }
 
 extension Router {
-    public func respond(to context: RequestContext) throws -> Present {
+    internal func respond(to context: RequestContext) throws -> Payload {
 
         let pathComponents = context.request.url.pathComponents
 
@@ -185,10 +168,8 @@ extension Router {
                 parametersByName[name] = pathComponent
             }
 
-
             // Update context
-            context.pathParameters = PathParameters(contents: parametersByName)
-            
+            context.pathParameters = Parameters(contents: parametersByName)
 
             // Execute all preprocessors in order
             for handler in preprocessors {

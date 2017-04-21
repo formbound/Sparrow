@@ -313,7 +313,7 @@ extension Response.Status {
         case .notExtended:                   return "Not Extended"
         case .networkAuthenticationRequired: return "Network Authentication Required"
         case .other(_, let reasonPhrase): return reasonPhrase
-    
+
         }
     }
 }

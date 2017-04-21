@@ -115,12 +115,12 @@ public indirect enum View {
         self = represented.view
     }
 
-    public init(dictionary: [String: ViewRepresentable] = [:]) {
+    public init(dictionary: [String: ViewRepresentable?] = [:]) {
 
         var result: [String: View] = [:]
 
         for(key, value) in dictionary {
-            result[key] = value.view
+            result[key] = value?.view ?? .null
         }
 
         self = .dictionary(result)
@@ -379,11 +379,11 @@ extension View: ExpressibleByNilLiteral {
 }
 
 extension View: ExpressibleByDictionaryLiteral {
-    public init(dictionaryLiteral elements: (String, ViewRepresentable)...) {
+    public init(dictionaryLiteral elements: (String, ViewRepresentable?)...) {
         var result: [String: View] = [:]
 
         for (key, value) in elements {
-            result[key] = value.view
+            result[key] = value?.view ?? .null
         }
 
         self.init(dictionary: result)

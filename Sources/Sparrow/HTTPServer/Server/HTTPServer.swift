@@ -138,46 +138,59 @@ extension HTTPServer {
                 let bytesRead = try stream.read(into: bytes, deadline: 30.seconds.fromNow())
 
                 for message in try parser.parse(bytesRead) {
-                    let request = message as! Request
+                    let context = RequestContext(request: message as! Request)
+
+                    if
+                        let contentLength = context.request.contentLength,
+                        contentLength > 0,
+                        let contentType = context.request.contentType {
+                        context.payload = try contentNegotiator.parse(body: context.request.body, mediaType: contentType, deadline: .never)
+                    }
 
                     var response: Response
 
-                    if let mediaType = request.contentType {
-                        let present = try router.respond(to: RequestContext(request: request))
-                        // TODO: Add timeout parameter
+                    do {
+                        let payload = try router.respond(to: context)
 
-                        switch present {
+                        switch payload {
+                        case .response(let payloadResponse):
+                            response = payloadResponse
                         case .view(let status, let headers, let view):
-
-                            response = Response(
+                            response = try Response(
                                 status: status,
                                 headers: headers,
-                                body: try contentNegotiator.serialize(view: view, mediaType: mediaType, deadline: .never)
+                                body: contentNegotiator.serialize(view: view, mediaTypes: context.request.accept, deadline: .never)
                             )
-
-                            break
-                        case .response(let r):
-                            response = r
-                            break
                         }
-                    }
-                    else {
-                        response = Response(status: .unsupportedMediaType)
+
+                    } catch {
+                        if let httpError = error as? HTTPError {
+                            response = Response(
+                                status: httpError.status,
+                                headers: httpError.headers,
+                                body: try contentNegotiator.serialize(view: ["error": httpError.reason], mediaTypes: context.request.accept, deadline: .never)
+                            )
+                        } else {
+                            throw error
+                        }
                     }
 
                     try serializer.serialize(response, deadline: 5.minutes.fromNow())
 
                     if let upgrade = response.upgradeConnection {
-                        try upgrade(request, stream)
+                        try upgrade(context.request, stream)
                         stream.close()
                     }
 
-                    if !request.isKeepAlive {
+                    if !context.request.isKeepAlive {
                         stream.close()
                     }
+
                 }
             } catch SystemError.brokenPipe {
                 break
+            } catch ContentNegotiatorError.unsupportedMediaTypes {
+                try serializer.serialize(Response(status: .unsupportedMediaType), deadline: .never) // TODO: Not good
             } catch {
                 if stream.closed {
                     break

@@ -1,6 +1,6 @@
 import Venice
 
-public enum ViewSerializerError : Error {
+public enum ViewSerializerError: Error {
     case invalidInput
 }
 

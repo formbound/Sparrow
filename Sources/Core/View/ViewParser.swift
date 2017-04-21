@@ -1,6 +1,6 @@
 import Venice
 
-public enum ViewParserError : Error {
+public enum ViewParserError: Error {
     case invalidInput
 }
 

@@ -3,22 +3,16 @@ import Core
 public struct HTTPError: Error {
     public let status: Response.Status
     public var reason: String
-    public var headers: [Header: String]
+    public var headers: Headers
 
-    public init(clientError error: ClientErrorCode, reason: String? = nil, headers: [Header: String] = [:]) {
-        self.status = error.status
-        self.reason = reason ?? error.status.reasonPhrase
-        self.headers = headers
-    }
-
-    public init(serverError error: ServerErrorCode, reason: String? = nil, headers: [Header: String] = [:]) {
+    public init(error: HTTPErrorCode, reason: String? = nil, headers: Headers = [:]) {
         self.status = error.status
         self.reason = reason ?? error.status.reasonPhrase
         self.headers = headers
     }
 }
 
-public enum ClientErrorCode {
+public enum HTTPErrorCode {
     case badRequest
     case unauthorized
     case paymentRequired
@@ -46,9 +40,21 @@ public enum ClientErrorCode {
     case preconditionRequired
     case tooManyRequests
     case requestHeaderFieldsTooLarge
+
+    case internalServerError
+    case notImplemented
+    case badGateway
+    case serviceUnavailable
+    case gatewayTimeout
+    case httpVersionNotSupported
+    case variantAlsoNegotiates
+    case insufficientStorage
+    case loopDetected
+    case notExtended
+    case networkAuthenticationRequired
 }
 
-extension ClientErrorCode {
+extension HTTPErrorCode {
     public var status: Response.Status {
         switch self {
         case .badRequest: return .badRequest
@@ -78,27 +84,7 @@ extension ClientErrorCode {
         case .preconditionRequired: return .preconditionRequired
         case .tooManyRequests: return .tooManyRequests
         case .requestHeaderFieldsTooLarge: return .requestHeaderFieldsTooLarge
-        }
-    }
-}
 
-public enum ServerErrorCode {
-    case internalServerError
-    case notImplemented
-    case badGateway
-    case serviceUnavailable
-    case gatewayTimeout
-    case httpVersionNotSupported
-    case variantAlsoNegotiates
-    case insufficientStorage
-    case loopDetected
-    case notExtended
-    case networkAuthenticationRequired
-}
-
-extension ServerErrorCode {
-    public var status: Response.Status {
-        switch self {
         case .internalServerError: return .internalServerError
         case .notImplemented: return .notImplemented
         case .badGateway: return .badGateway

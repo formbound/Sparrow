@@ -14,12 +14,29 @@ public class SparrowTests: XCTestCase {
 
         router.add(pathComponent: "error") { router in
 
-            router.respond(to: .get) { _ in
+            router.respond(to: .get) { context in
 
-                return Present(
+                if let shouldThrow: Bool = context.queryParameters.value(for: "throw") {
+                    if shouldThrow {
+                        throw HTTPError(error: .badRequest, reason: "Error")
+                    }
+                }
+                return Payload(
+                    status: .ok,
+                    view: ["message": "Success"]
+                )
+            }
+        }
+
+        router.add(pathComponent: "echo") { router in
+
+            router.respond(to: .post) { context in
+
+                return Payload(
                     status: .ok,
                     view: [
-                        "message": "Hello world!"
+                        "message": "Hello world!",
+                        "echo": context.payload
                     ]
                 )
             }

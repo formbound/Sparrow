@@ -26,9 +26,19 @@ public struct Request: Message {
         self.method = method
         self.url = url
         self.version = version
-        self.headers = headers
         self.body = body
         self.storage = [:]
+
+        var headers = headers
+
+        switch body {
+        case let .data(body):
+            headers["Content-Length"] = body.count.description
+        default:
+            headers["Transfer-Encoding"] = "chunked"
+        }
+
+        self.headers = headers
     }
 }
 
@@ -41,13 +51,6 @@ extension Request {
             headers: headers,
             body: body
         )
-
-        switch body {
-        case let .data(body):
-            self.headers["Content-Length"] = body.count.description
-        default:
-            self.headers["Transfer-Encoding"] = "chunked"
-        }
     }
 
     public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: [Byte] = []) {

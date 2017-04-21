@@ -6,8 +6,7 @@
 
 import CYAJL
 
-
-public struct JSONParserError : Error, CustomStringConvertible {
+public struct JSONParserError: Error, CustomStringConvertible {
     let reason: String
 
     public var description: String {
@@ -15,9 +14,9 @@ public struct JSONParserError : Error, CustomStringConvertible {
     }
 }
 
-public final class JSONParser : ViewParser {
+public final class JSONParser: ViewParser {
 
-    public struct Options : OptionSet {
+    public struct Options: OptionSet {
         public let rawValue: Int
         public static let allowComments = Options(rawValue: 1 << 0)
         public static let dontValidateStrings = Options(rawValue: 1 << 1)
@@ -38,7 +37,7 @@ public final class JSONParser : ViewParser {
     fileprivate let bufferCapacity = 8*1024
     fileprivate let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: 8*1024)
 
-    fileprivate var result: View? = nil
+    fileprivate var result: View?
 
     fileprivate var handle: yajl_handle!
 
@@ -112,7 +111,6 @@ public final class JSONParser : ViewParser {
 
         return .continue
     }
-
 
     fileprivate func appendNull() -> Int32 {
         return state.appendNull()

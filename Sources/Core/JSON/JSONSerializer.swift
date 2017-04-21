@@ -7,8 +7,7 @@
 import CYAJL
 import Venice
 
-
-public struct JSONSerializerError : Error, CustomStringConvertible {
+public struct JSONSerializerError: Error, CustomStringConvertible {
     let reason: String
 
     public var description: String {
@@ -16,7 +15,7 @@ public struct JSONSerializerError : Error, CustomStringConvertible {
     }
 }
 
-public final class JSONSerializer : ViewSerializer {
+public final class JSONSerializer: ViewSerializer {
 
     private var ordering: Bool
     private var buffer: String = ""
