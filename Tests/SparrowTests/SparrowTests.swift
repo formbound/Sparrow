@@ -23,7 +23,7 @@ public class SparrowTests: XCTestCase {
                 }
                 return Payload(
                     status: .ok,
-                    view: ["message": "Success"]
+                    message: "Not throwing"
                 )
             }
         }
