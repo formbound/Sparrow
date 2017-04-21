@@ -8,9 +8,11 @@ public struct HTTPServer {
 
     public let tcpHost: Host
 
-    public let responder: Responder
+    public let router: Router
 
     public let failure: (Error) -> Void
+
+    public let contentNegotiator: ContentNegotiator
 
     public let host: String
     public let port: Int
@@ -24,7 +26,8 @@ public struct HTTPServer {
         backlog: Int = 128,
         reusePort: Bool = false,
         bufferSize: Int = 4096,
-        responder: Responder,
+        router: Router,
+        contentNegotiator: ContentNegotiator = StandardContentNegotiator(),
         failure: @escaping (Error) -> Void = { error in print("\(error)") }
     ) throws {
         self.tcpHost = try TCPHost(
@@ -36,8 +39,9 @@ public struct HTTPServer {
         self.host = host
         self.port = port
         self.bufferSize = bufferSize
-        self.responder = responder
+        self.router = router
         self.failure = failure
+        self.contentNegotiator = contentNegotiator
     }
 
     public init(
@@ -49,7 +53,8 @@ public struct HTTPServer {
         certificatePath: String,
         privateKeyPath: String,
         certificateChainPath: String? = nil,
-        responder: Responder,
+        router: Router,
+        contentNegotiator: ContentNegotiator = StandardContentNegotiator(),
         failure: @escaping (Error) -> Void = { error in print("\(error)") }
         ) throws {
         self.tcpHost = try TCPTLSHost(
@@ -64,8 +69,9 @@ public struct HTTPServer {
         self.host = host
         self.port = port
         self.bufferSize = bufferSize
-        self.responder = responder
+        self.router = router
         self.failure = failure
+        self.contentNegotiator = contentNegotiator
     }
 }
 
@@ -133,8 +139,32 @@ extension HTTPServer {
 
                 for message in try parser.parse(bytesRead) {
                     let request = message as! Request
-                    let response = try responder.respond(to: request)
-                    // TODO: Add timeout parameter
+
+                    var response: Response
+
+                    if let mediaType = request.contentType {
+                        let present = try router.respond(to: RequestContext(request: request))
+                        // TODO: Add timeout parameter
+
+                        switch present {
+                        case .view(let status, let headers, let view):
+
+                            response = Response(
+                                status: status,
+                                headers: headers,
+                                body: try contentNegotiator.serialize(view: view, mediaType: mediaType, deadline: .never)
+                            )
+
+                            break
+                        case .response(let r):
+                            response = r
+                            break
+                        }
+                    }
+                    else {
+                        response = Response(status: .unsupportedMediaType)
+                    }
+
                     try serializer.serialize(response, deadline: 5.minutes.fromNow())
 
                     if let upgrade = response.upgradeConnection {

@@ -11,7 +11,7 @@ public enum HTTPClientError: Error {
     case invalidUrl
 }
 
-public final class HTTPClient: Responder {
+public final class HTTPClient {
     fileprivate let secure: Bool
 
     public let host: String
@@ -75,13 +75,8 @@ public final class HTTPClient: Responder {
 }
 
 extension HTTPClient {
-    public func request(_ request: Request) throws -> Response {
-        var request = request
-        addHeaders(to: &request)
-        return try respond(to: request)
-    }
 
-    public func respond(to request: Request) throws -> Response {
+    public func request(_ request: Request) throws -> Response {
         var request = request
         addHeaders(to: &request)
 

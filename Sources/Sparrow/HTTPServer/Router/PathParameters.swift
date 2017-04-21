@@ -3,7 +3,7 @@ import HTTP
 public struct PathParameters {
     private let contents: [String: String]
 
-    internal init(contents: [String: String]) {
+    internal init(contents: [String: String] = [:]) {
         self.contents = contents
     }
 

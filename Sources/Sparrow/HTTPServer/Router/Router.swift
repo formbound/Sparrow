@@ -1,32 +1,42 @@
 import HTTP
 import Core
 
-public struct Present {
-    let status: Response.Status
-    let headers: Headers
-    let view: View
+public enum Present {
+    case view(Response.Status, Headers, View)
+    case response(Response)
 
-    init(status: Response.Status = .ok, headers: Headers = [:], view: View) {
-        self.status = status
-        self.headers = headers
-        self.view = view
+    init(response: Response) {
+        self = .response(response)
+    }
+
+    init(status: Response.Status, headers: Headers = [:], view: View) {
+        self = .view(status, headers, view)
+    }
+
+    init(status: Response.Status, headers: Headers = [:], view: ViewRepresentable) {
+        self.init(status: status, headers: headers, view: view.view)
+    }
+}
+
+public protocol RouterResponseRepresentable {
+    var routerResponse: Present { get }
+}
+
+extension Response: RouterResponseRepresentable {
+    public var routerResponse: Present {
+        return Present(response: self)
     }
 }
 
 public class Router {
 
-    public typealias ViewAction = (RequestContext) throws -> Present
-    public typealias ResponseAction = (RequestContext) throws -> Response
+    public typealias RepresentableResponder = (RequestContext) throws -> RouterResponseRepresentable
+    public typealias Responder = (RequestContext) throws -> Present
     public typealias RequestContextPreprocessor = (RequestContext) throws -> RequestContextProcessingResult
 
     public enum RequestContextProcessingResult {
         case `continue`
-        case `break`(Response)
-    }
-
-    public enum Action {
-        case view((RequestContext) throws -> Present)
-        case response((RequestContext) throws -> Response)
+        case `break`(Present)
     }
 
     fileprivate(set) public var children: [Router] = []
@@ -35,13 +45,13 @@ public class Router {
 
     internal var preprocessors: [Request.Method: RequestContextPreprocessor] = [:]
 
-    internal var actions: [Request.Method: Action] = [:]
+    internal var actions: [Request.Method: Responder] = [:]
 
-    public lazy var fallback: Responder = BasicResponder { _ in
-        return Response(status: self.actions.isEmpty ? .notFound : .methodNotAllowed)
+    public lazy var fallback: Responder = { _ in
+        return .response(Response(status: self.actions.isEmpty ? .notFound : .methodNotAllowed))
     }
 
-    public var recovery: ((Error) -> Response)?
+    public var recovery: ((Error) -> Present)?
 
     internal init(pathSegment: PathSegment) {
         self.pathSegment = pathSegment
@@ -82,16 +92,14 @@ public class Router {
 
 public extension Router {
 
-    internal func respond(to method: Request.Method, handler: Action) {
+    public func respond(to method: Request.Method, handler: @escaping Responder) {
         actions[method] = handler
     }
 
-    internal func respond(to method: Request.Method, handler: @escaping ViewAction) {
-        actions[method] = .view(handler)
-    }
-
-    internal func respond(to method: Request.Method, handler: @escaping ResponseAction) {
-        actions[method] = .response(handler)
+    public func respond(to method: Request.Method, handler: @escaping RepresentableResponder) {
+        actions[method] = { context in
+            try handler(context).routerResponse
+        }
     }
 
     public func preprocess(for methods: [Request.Method], handler: @escaping RequestContextPreprocessor) {
@@ -103,12 +111,12 @@ public extension Router {
 
 internal extension Router {
 
-    internal func matchingRouteChain(
+    internal func matchingRouterChain(
         for pathComponents: [String],
         depth: Array<String>.Index = 0,
-        request: HTTP.Request,
+        context: RequestContext,
         parents: [Router] = []
-    ) -> RouterChain? {
+    ) -> [Router]? {
 
         guard pathComponents.count > depth else {
             return nil
@@ -121,18 +129,14 @@ internal extension Router {
         }
 
         guard depth != pathComponents.index(before: pathComponents.endIndex) else {
-            return RouterChain(
-                request: request,
-                routes: parents + [self],
-                pathComponents: pathComponents
-            )
+            return parents + [self]
         }
 
         for child in children {
-            guard let matching = child.matchingRouteChain(
+            guard let matching = child.matchingRouterChain(
                 for: pathComponents,
                 depth: depth.advanced(by: 1),
-                request: request,
+                context: context,
                 parents: parents + [self]
             ) else {
                 continue
@@ -144,19 +148,51 @@ internal extension Router {
     }
 }
 
-extension Router: Responder {
-    public func respond(to request: Request) throws -> Response {
+extension Router {
+    public func respond(to context: RequestContext) throws -> Present {
 
-        let pathComponents = request.url.pathComponents
+        let pathComponents = context.request.url.pathComponents
 
         do {
-            guard let routeChain = matchingRouteChain(for: pathComponents, request: request) else {
-                return try fallback.respond(to: request)
+
+            // Validate chain of routers making sure that the chain isn't empty,
+            // and that the last router has an action associated with the request's method
+            guard
+                let routers = matchingRouterChain(for: pathComponents, context: context),
+                !routers.isEmpty,
+                let action = routers.last?.actions[context.request.method]
+                else {
+                    return try fallback(context)
+            }
+
+            var preprocessors: [Router.RequestContextPreprocessor] = []
+
+            // Extract all preprocessors
+            for router in routers {
+                if let routeHandler = router.preprocessors[context.request.method] {
+                    preprocessors.append(routeHandler)
+                }
+            }
+
+            // Extract path parameters from the router chain
+            var parametersByName: [String: String] = [:]
+
+            for (pathSegment, pathComponent) in zip(routers.map { $0.pathSegment }, pathComponents) {
+                guard case .parameter(let name) = pathSegment else {
+                    continue
+                }
+
+                parametersByName[name] = pathComponent
             }
 
 
-            for handler in routeChain.preprocessors {
-                switch try handler(routeChain.requestContext) {
+            // Update context
+            context.pathParameters = PathParameters(contents: parametersByName)
+            
+
+            // Execute all preprocessors in order
+            for handler in preprocessors {
+                switch try handler(context) {
 
                 case .continue:
                     break
@@ -166,15 +202,7 @@ extension Router: Responder {
                 }
             }
 
-            switch routeChain.action {
-
-            case .view(let handler):
-                let viewResponse = try handler(routeChain.requestContext)
-                fatalError()
-                
-            case .response(let handler):
-                return try handler(routeChain.requestContext)
-            }
+            return try action(context)
 
         } catch {
             guard let recovery = recovery else {
@@ -183,6 +211,5 @@ extension Router: Responder {
 
             return recovery(error)
         }
-
     }
 }

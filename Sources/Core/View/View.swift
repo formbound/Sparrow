@@ -378,6 +378,18 @@ extension View: ExpressibleByNilLiteral {
     }
 }
 
+extension View: ExpressibleByDictionaryLiteral {
+    public init(dictionaryLiteral elements: (String, ViewRepresentable)...) {
+        var result: [String: View] = [:]
+
+        for (key, value) in elements {
+            result[key] = value.view
+        }
+
+        self.init(dictionary: result)
+    }
+}
+
 extension View: CustomStringConvertible {
     public var description: String {
         let result: String

@@ -86,8 +86,10 @@ extension MediaType : Hashable {
     }
 }
 
-public func == (lhs: MediaType, rhs: MediaType) -> Bool {
-    return lhs.hashValue == lhs.hashValue
+extension MediaType: Equatable {
+    public static func == (lhs: MediaType, rhs: MediaType) -> Bool {
+        return lhs.hashValue == rhs.hashValue
+    }
 }
 
 public extension MediaType {

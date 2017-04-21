@@ -16,37 +16,17 @@ public class SparrowTests: XCTestCase {
 
             router.respond(to: .get) { _ in
 
-                return Router.ViewResponse(
+                return Present(
                     status: .ok,
-                    view: View(dictionary: ["Hello": "Matey"])
+                    view: [
+                        "message": "Hello world!"
+                    ]
                 )
             }
         }
 
-        let server = try HTTPServer(port: 8080, responder: router)
+        let server = try HTTPServer(port: 8080, router: router)
         try server.start()
-    }
-
-    func testSomethingElse() throws {
-
-        var users = View()
-
-        try users.set(value: "David Ask", forKey: "developerName")
-        try users.set(value: [1, 2, 3, 4, 5, 6, 7, 8], forKey: "identifiers")
-
-        var view = View(dictionary: [
-            "count": 10,
-            "users": users
-        ])
-
-        let value: String = try view.value(forKeyPath: "users.developerName")
-        let values: [Int] = try view.value(forKeyPath: "users.identifiers")
-
-        print(value)
-        print(values)
-
-        print(view)
-
     }
 }
 
