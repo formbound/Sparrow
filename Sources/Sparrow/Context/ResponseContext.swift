@@ -5,7 +5,7 @@ public class ResponseContext {
     public var content: Content?
     public var headers: Headers
 
-    public init(status: Response.Status, headers: Headers = [:], content: Content) {
+    public init(status: Response.Status, headers: Headers = [:], content: Content? = nil) {
         self.response = Response(status: status, headers: headers)
         self.headers = headers
         self.content = content

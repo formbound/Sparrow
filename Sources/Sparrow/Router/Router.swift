@@ -251,6 +251,8 @@ extension Router: Responder {
 
         let context = RequestContext(request: request, logger: logger)
 
+        logger.debug(request.description)
+
         let pathComponents = context.request.url.pathComponents
 
         do {
@@ -340,27 +342,20 @@ extension Router: Responder {
             }
 
             guard !errorContent.isEmpty else {
-                return Response(
-                    status: error.status
+                return try response(
+                    from: ResponseContext(status: error.status),
+                    processors: [],
+                    for: context.request.accept
                 )
             }
 
             var content = Content()
             try content.set(value: errorContent, forKey: "error")
 
-            let (body, mediaType) = try contentNegotiator.serialize(
-                content: content,
-                mediaTypes: context.request.accept,
-                deadline: .never
-            )
-
-            var headers = error.headers
-            headers[Header.contentType] = mediaType.description
-
-            return Response(
-                status: error.status,
-                headers: headers,
-                body: body
+            return try response(
+                from: ResponseContext(status: error.status, content: content),
+                processors: [],
+                for: context.request.accept
             )
 
             // Catch content negotiator unsupported media types error

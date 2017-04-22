@@ -1,11 +1,21 @@
 import Core
 
 public struct Response: Message {
+
     public var version: Version
+
     public var status: Status
+
     public var headers: Headers
+
     public var cookieHeaders: Set<String>
-    public var body: Body
+
+    public var body: Body {
+        didSet {
+            updateHeadersForNewBody()
+        }
+    }
+
     public var storage: [String: Any] = [:]
 
     public init(version: Version, status: Status, headers: Headers, cookieHeaders: Set<String>, body: Body) {
@@ -14,6 +24,17 @@ public struct Response: Message {
         self.headers = headers
         self.cookieHeaders = cookieHeaders
         self.body = body
+
+        updateHeadersForNewBody()
+    }
+
+    private mutating func updateHeadersForNewBody() {
+        switch body {
+        case let .data(body):
+            headers["Content-Length"] = body.count.description
+        default:
+            headers["Transfer-Encoding"] = "chunked"
+        }
     }
 }
 
@@ -26,13 +47,6 @@ extension Response {
             cookieHeaders: [],
             body: body
         )
-
-        switch body {
-        case let .data(body):
-            self.headers["Content-Length"] = body.count.description
-        default:
-            self.headers["Transfer-Encoding"] = "chunked"
-        }
     }
 
     public init(status: Status = .ok, headers: Headers = [:], body: [Byte] = []) {

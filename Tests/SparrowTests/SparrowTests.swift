@@ -38,7 +38,7 @@ public class SparrowTests: XCTestCase {
                     status: .ok,
                     content: [
                         "message": "Hello world!",
-                        "echo": context.payload
+                        "echo": context.content
                     ]
                 )
             }
@@ -51,8 +51,6 @@ public class SparrowTests: XCTestCase {
     func testHelloWorld() throws {
 
         let router = Router()
-
-        router.add(processor: LoggerPrepocessor(), for: .get)
 
         router.get { _ in
 
