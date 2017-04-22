@@ -2,76 +2,112 @@ import Core
 import Venice
 import HTTP
 
-public enum ContentNegotiatorError: Error {
-    case unsupportedMediaTypes([MediaType])
+
+
+public class ContentNegotiator {
+
+    fileprivate(set) public var accepts: Set<Support>
+    fileprivate(set) public var produces: Set<Support>
+
+    public lazy var errorTransformer: (HTTPError) -> Content = { error in
+        return Content(
+            dictionary: ["error": error.reason ?? "An unexpected error occurred"]
+        )
+    }
+
+    public enum Support {
+        case json
+
+        public static var all: Set<Support> {
+            return [.json]
+        }
+    }
+
+    public enum Error: Swift.Error {
+        case unsupportedMediaTypes([MediaType])
+    }
+
+    public convenience init(supportedTypes: Set<Support> = Support.all) {
+        self.init(accepts: supportedTypes, produces: supportedTypes)
+    }
+
+    public init(accepts: Set<Support>, produces: Set<Support>) {
+        self.accepts = accepts
+        self.produces = produces
+    }
 }
 
-public protocol ContentNegotiator: class {
-
-    func parse(body: Body, mediaType: MediaType, deadline: Deadline) throws -> View
-
-    func serialize(view: View, mediaType: MediaType, deadline: Deadline) throws -> (Body, MediaType)
-
-    func view(for error: HTTPError) -> View
+extension ContentNegotiator.Support {
+    init?(mediaType: MediaType) {
+        switch mediaType {
+        case MediaType.json:
+            self = .json
+        default:
+            return nil
+        }
+    }
 }
 
 public extension ContentNegotiator {
-    public func parse(body: Body, mediaTypes: [MediaType], deadline: Deadline) throws -> View {
-        for mediaType in mediaTypes {
-            guard let view = try? parse(body: body, mediaType: mediaType, deadline: deadline) else {
-                continue
-            }
-
-            return view
-        }
-
-        throw ContentNegotiatorError.unsupportedMediaTypes(mediaTypes)
-    }
-
-    public func serialize(view: View, mediaTypes: [MediaType], deadline: Deadline) throws -> (Body, MediaType) {
-        for mediaType in mediaTypes {
-            guard let result = try? serialize(view: view, mediaType: mediaType, deadline: deadline) else {
-                continue
-            }
-
-            return result
-        }
-
-        throw ContentNegotiatorError.unsupportedMediaTypes(mediaTypes)
-    }
-
-    public func serialize(error: HTTPError, mediaTypes: [MediaType], deadline: Deadline) throws -> (Body, MediaType) {
-        return try serialize(view: view(for: error), mediaTypes: mediaTypes, deadline: deadline)
-    }
-}
-
-public class StandardContentNegotiator: ContentNegotiator {
-
-    public func view(for error: HTTPError) -> View {
+    public func content(for error: HTTPError) -> Content {
         return [
             "error": error.reason
         ]
     }
 
-    public func serialize(view: View, mediaType: MediaType, deadline: Deadline) throws -> (Body, MediaType) {
+    public func serialize(content: Content, mediaType: MediaType, deadline: Deadline) throws -> (Body, MediaType) {
 
-        switch mediaType {
-        case MediaType.json:
-            return (try .data(JSONSerializer.serialize(view)), mediaType)
-        default:
-            throw ContentNegotiatorError.unsupportedMediaTypes([mediaType])
+        guard let supportedMediaType = Support(mediaType: mediaType), produces.contains(supportedMediaType) else {
+            throw Error.unsupportedMediaTypes([mediaType])
+        }
+
+        switch supportedMediaType {
+        case .json:
+            return (try .data(JSONSerializer.serialize(content)), mediaType)
         }
     }
 
-    public func parse(body: Body, mediaType: MediaType, deadline: Deadline) throws -> View {
+    public func parse(body: Body, mediaType: MediaType, deadline: Deadline) throws -> Content {
+
+        guard let supportedMediaType = Support(mediaType: mediaType), accepts.contains(supportedMediaType) else {
+            throw Error.unsupportedMediaTypes([mediaType])
+        }
 
         var body = body
 
-        switch mediaType {
-        case MediaType.json:
+        switch supportedMediaType {
+        case .json:
             return try JSONParser.parse(stream: body.becomeReader(), options: [], deadline: deadline)
-        default:
-            throw ContentNegotiatorError.unsupportedMediaTypes([mediaType])
         }
     }
+}
+
+extension ContentNegotiator {
+public func parse(body: Body, mediaTypes: [MediaType], deadline: Deadline) throws -> Content {
+    for mediaType in mediaTypes {
+        guard let content = try? parse(body: body, mediaType: mediaType, deadline: deadline) else {
+            continue
+        }
+
+        return content
+    }
+
+    throw Error.unsupportedMediaTypes(mediaTypes)
+}
+
+public func serialize(content: Content, mediaTypes: [MediaType], deadline: Deadline) throws -> (Body, MediaType) {
+    for mediaType in mediaTypes {
+        guard let result = try? serialize(content: content, mediaType: mediaType, deadline: deadline) else {
+            continue
+        }
+
+        return result
+    }
+
+    throw Error.unsupportedMediaTypes(mediaTypes)
+}
+
+public func serialize(error: HTTPError, mediaTypes: [MediaType], deadline: Deadline) throws -> (Body, MediaType) {
+    return try serialize(content: content(for: error), mediaTypes: mediaTypes, deadline: deadline)
+}
 }

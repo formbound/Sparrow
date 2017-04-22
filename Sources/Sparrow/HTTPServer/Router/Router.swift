@@ -32,7 +32,7 @@ public class Router {
         self.contentNegotiator = contentNegotiator
     }
 
-    public convenience init(contentNegotiator: ContentNegotiator = StandardContentNegotiator()) {
+    public convenience init(contentNegotiator: ContentNegotiator = ContentNegotiator()) {
         self.init(pathComponent: "/", contentNegotiator: contentNegotiator)
     }
 
@@ -106,9 +106,9 @@ extension Router {
         switch payload {
         case .response(let response):
             return response
-        case .view(let status, let headers, let view):
+        case .content(let status, let headers, let content):
 
-            let (body, mediaType) = try contentNegotiator.serialize(view: view, mediaTypes: mediaTypes, deadline: .never)
+            let (body, mediaType) = try contentNegotiator.serialize(content: content, mediaTypes: mediaTypes, deadline: .never)
             var headers = headers
             headers[Header.contentType] = mediaType.description
             return Response(
@@ -234,7 +234,7 @@ extension Router: Responder {
             )
 
             // Catch content negotiator unsupported media types error
-        } catch ContentNegotiatorError.unsupportedMediaTypes(let mediaTypes) {
+        } catch ContentNegotiator.Error.unsupportedMediaTypes(let mediaTypes) {
 
             switch mediaTypes.count {
             case 0:

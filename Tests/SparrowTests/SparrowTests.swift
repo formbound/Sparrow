@@ -23,7 +23,7 @@ public class SparrowTests: XCTestCase {
                         throw HTTPError(error: .badRequest, reason: "Error")
                     }
                 }
-                return Payload(
+                return ResponseContext(
                     status: .ok,
                     message: "Not throwing"
                 )
@@ -34,9 +34,9 @@ public class SparrowTests: XCTestCase {
 
             router.respond(to: .post) { context in
 
-                return Payload(
+                return ResponseContext(
                     status: .ok,
-                    view: [
+                    content: [
                         "message": "Hello world!",
                         "echo": context.payload
                     ]
@@ -56,10 +56,10 @@ extension SparrowTests {
 }
 
 struct TestResource: Resource {
-    func get(context: RequestContext) throws -> Payload {
-        return Payload(
+    func get(context: RequestContext) throws -> ResponseContext {
+        return ResponseContext(
             status: .ok,
-            view: User(username: "davidask", email: "david@formbound.com")
+            content: User(username: "davidask", email: "david@formbound.com")
         )
     }
 }
@@ -69,16 +69,16 @@ struct User {
     let email: String
 }
 
-extension User: ViewConvertible {
-    var view: View {
-        return View(dictionary: [
+extension User: ContentConvertible {
+    var content: Content {
+        return Content(dictionary: [
             "username": username,
             "email": email
             ])
     }
 
-    init(view: View) throws {
-        self.username = try view.value(forKeyPath: "username")
-        self.email = try view.value(forKeyPath: "email")
+    init(content: Content) throws {
+        self.username = try content.value(forKeyPath: "username")
+        self.email = try content.value(forKeyPath: "email")
     }
 }

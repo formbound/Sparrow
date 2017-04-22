@@ -15,7 +15,7 @@ public struct JSONSerializerError: Error, CustomStringConvertible {
     }
 }
 
-public final class JSONSerializer: ViewSerializer {
+public final class JSONSerializer: ContentSerializer {
 
     private var ordering: Bool
     private var buffer: String = ""
@@ -36,14 +36,14 @@ public final class JSONSerializer: ViewSerializer {
         yajl_gen_free(handle)
     }
 
-    public func serialize(_ map: View, bufferSize: Int = 4096, body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
+    public func serialize(_ map: Content, bufferSize: Int = 4096, body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
         yajl_gen_reset(handle, nil)
         self.bufferSize = bufferSize
         try generate(map, body: body)
         try write(body: body)
     }
 
-    private func generate(_ value: View, body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
+    private func generate(_ value: Content, body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
         switch value {
         case .null:
             try generateNull()
@@ -66,7 +66,7 @@ public final class JSONSerializer: ViewSerializer {
         try write(highwater: bufferSize, body: body)
     }
 
-    private func generate(_ dictionary: [String: View], body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
+    private func generate(_ dictionary: [String: Content], body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
         var status = yajl_gen_status_ok
 
         status = yajl_gen_map_open(handle)
@@ -88,7 +88,7 @@ public final class JSONSerializer: ViewSerializer {
         try check(status: status)
     }
 
-    private func generate(_ array: [View], body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
+    private func generate(_ array: [Content], body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
         var status = yajl_gen_status_ok
 
         status = yajl_gen_array_open(handle)

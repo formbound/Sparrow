@@ -5,7 +5,7 @@ public class RequestContext {
     public let request: HTTP.Request
     public let storage: [String: Any] = [:]
     internal(set) public var pathParameters: Parameters
-    internal(set) public var payload: View
+    internal(set) public var payload: Content
 
     internal init(request: Request, pathParameters: Parameters = .init()) {
         self.request = request

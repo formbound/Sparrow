@@ -1,15 +1,15 @@
 import Venice
 
-public enum ViewParserError: Error {
+public enum ContentParserError: Error {
     case invalidInput
 }
 
-public enum ViewParserResult {
+public enum ContentParserResult {
     case `continue`
-    case done(View)
+    case done(Content)
 }
 
-public protocol ViewParser {
+public protocol ContentParser {
     associatedtype Options: OptionSet
     init(options: Options)
 
@@ -37,39 +37,39 @@ public protocol ViewParser {
     ///
     /// - returns: Returns `nil` if the parser was not able to produce a result yet.
     ///   Otherwise returns the parsed value.
-    @discardableResult func parse(buffer: UnsafeBufferPointer<Byte>) throws -> ViewParserResult
-    func finish() throws -> View
+    @discardableResult func parse(buffer: UnsafeBufferPointer<Byte>) throws -> ContentParserResult
+    func finish() throws -> Content
 }
 
-extension ViewParser {
-    public func finish() throws -> View {
+extension ContentParser {
+    public func finish() throws -> Content {
 
         guard case .done(let view) = try parse(buffer: UnsafeBufferPointer()) else {
-            throw ViewParserError.invalidInput
+            throw ContentParserError.invalidInput
         }
 
         return view
     }
 
-    @discardableResult func parse(buffer: UnsafeBufferPointer<Byte>) throws -> View {
+    @discardableResult func parse(buffer: UnsafeBufferPointer<Byte>) throws -> Content {
         guard case .done(let view) = try parse(buffer: buffer) else {
-            throw ViewParserError.invalidInput
+            throw ContentParserError.invalidInput
         }
 
         return view
     }
 
-    public func parse(bytes: [Byte]) throws -> View {
+    public func parse(bytes: [Byte]) throws -> Content {
         return try bytes.withUnsafeBufferPointer { buffer in
             try parse(buffer: buffer)
         }
     }
 
-    public func parse(data: DataRepresentable) throws -> View {
+    public func parse(data: DataRepresentable) throws -> Content {
         return try parse(bytes: data.bytes)
     }
 
-    public func parse(stream: InputStream, bufferSize: Int = 4096, deadline: Deadline) throws -> View {
+    public func parse(stream: InputStream, bufferSize: Int = 4096, deadline: Deadline) throws -> Content {
         let buffer = UnsafeMutableBufferPointer<Byte>(capacity: bufferSize)
         defer { buffer.deallocate(capacity: bufferSize) }
 
@@ -86,24 +86,24 @@ extension ViewParser {
     }
 }
 
-extension ViewParser {
-    public static func parse(buffer: UnsafeBufferPointer<Byte>, options: Options = []) throws -> View {
+extension ContentParser {
+    public static func parse(buffer: UnsafeBufferPointer<Byte>, options: Options = []) throws -> Content {
         let parser = Self(options: options)
 
         guard case .done(let view) = try parser.parse(buffer: buffer) else {
-            throw ViewParserError.invalidInput
+            throw ContentParserError.invalidInput
         }
 
         return view
     }
 
-    public static func parse(stream: InputStream, bufferSize: Int = 4096, options: Options, deadline: Deadline) throws -> View {
+    public static func parse(stream: InputStream, bufferSize: Int = 4096, options: Options, deadline: Deadline) throws -> Content {
         let parser = Self(options: options)
 
         return try parser.parse(stream: stream, bufferSize: bufferSize, deadline: deadline)
     }
 
-    public static func parse(bytes: [Byte], options: Options = []) throws -> View {
+    public static func parse(bytes: [Byte], options: Options = []) throws -> Content {
         return try bytes.withUnsafeBufferPointer {
             try self.parse(buffer: $0, options: options)
         }

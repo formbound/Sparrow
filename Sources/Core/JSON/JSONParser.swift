@@ -14,7 +14,7 @@ public struct JSONParserError: Error, CustomStringConvertible {
     }
 }
 
-public final class JSONParser: ViewParser {
+public final class JSONParser: ContentParser {
 
     public struct Options: OptionSet {
         public let rawValue: Int
@@ -37,7 +37,7 @@ public final class JSONParser: ViewParser {
     fileprivate let bufferCapacity = 8*1024
     fileprivate let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: 8*1024)
 
-    fileprivate var result: View?
+    fileprivate var result: Content?
 
     fileprivate var handle: yajl_handle!
 
@@ -66,7 +66,7 @@ public final class JSONParser: ViewParser {
         buffer.deallocate(capacity: bufferCapacity)
     }
 
-    public func parse(buffer: UnsafeBufferPointer<Byte>) throws -> ViewParserResult {
+    public func parse(buffer: UnsafeBufferPointer<Byte>) throws -> ContentParserResult {
         let final = buffer.isEmpty
 
         if let result = result {
@@ -93,7 +93,7 @@ public final class JSONParser: ViewParser {
         }
 
         if stack.count == 0 || final {
-            switch state.view {
+            switch state.content {
             case .dictionary(let value):
                 result = value["root"]
             default:
@@ -148,7 +148,7 @@ public final class JSONParser: ViewParser {
             return 0
         }
         var previousState = stack.removeLast()
-        let result: Int32 = previousState.append(state.view)
+        let result: Int32 = previousState.append(state.content)
         state = previousState
         return result
     }
@@ -164,7 +164,7 @@ public final class JSONParser: ViewParser {
             return 0
         }
         var previousState = stack.removeLast()
-        let result: Int32 = previousState.append(state.view)
+        let result: Int32 = previousState.append(state.content)
         state = previousState
         return result
     }
@@ -175,7 +175,7 @@ fileprivate struct JSONParserState {
     let isDictionary: Bool
     var dictionaryKey: String = ""
 
-    var view: View {
+    var content: Content {
         if isDictionary {
             return .dictionary(dictionary)
         } else {
@@ -183,13 +183,13 @@ fileprivate struct JSONParserState {
         }
     }
 
-    private var dictionary: [String: View]
-    private var array: [View]
+    private var dictionary: [String: Content]
+    private var array: [Content]
 
     init(dictionary: Bool) {
         self.isDictionary = dictionary
         if dictionary {
-            self.dictionary = Dictionary<String, View>(minimumCapacity: 32)
+            self.dictionary = Dictionary<String, Content>(minimumCapacity: 32)
             self.array = []
         } else {
             self.dictionary = [:]
@@ -243,7 +243,7 @@ fileprivate struct JSONParserState {
         return 1
     }
 
-    mutating func append(_ value: View) -> Int32 {
+    mutating func append(_ value: Content) -> Int32 {
         if isDictionary {
             dictionary[dictionaryKey] = value
         } else {

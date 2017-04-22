@@ -1,92 +1,92 @@
 import Core
 
-public protocol ViewIntitializable {
-    init(view: View) throws
+public protocol ContentIntitializable {
+    init(content: Content) throws
 }
 
-public protocol ViewRepresentable {
-    var view: View { get }
+public protocol ContentRepresentable {
+    var content: Content { get }
 }
 
-public protocol ViewConvertible: ViewIntitializable, ViewRepresentable {}
+public protocol ContentConvertible: ContentIntitializable, ContentRepresentable {}
 
-extension Int: ViewConvertible {
-    public var view: View {
+extension Int: ContentConvertible {
+    public var content: Content {
         return .int(self)
     }
 
-    public init(view: View) throws {
-        guard case .int(let value) = view else {
-            throw View.Error.failedViewInitialization(view)
+    public init(content: Content) throws {
+        guard case .int(let value) = content else {
+            throw Content.Error.failedContentInitialization(content)
         }
 
         self = value
     }
 }
 
-extension Bool: ViewConvertible {
-    public var view: View {
+extension Bool: ContentConvertible {
+    public var content: Content {
         return .bool(self)
     }
 
-    public init(view: View) throws {
-        guard case .bool(let value) = view else {
-            throw View.Error.failedViewInitialization(view)
+    public init(content: Content) throws {
+        guard case .bool(let value) = content else {
+            throw Content.Error.failedContentInitialization(content)
         }
 
         self = value
     }
 }
 
-extension String: ViewConvertible {
-    public var view: View {
+extension String: ContentConvertible {
+    public var content: Content {
         return .string(self)
     }
 
-    public init(view: View) throws {
-        guard case .string(let value) = view else {
-            throw View.Error.failedViewInitialization(view)
+    public init(content: Content) throws {
+        guard case .string(let value) = content else {
+            throw Content.Error.failedContentInitialization(content)
         }
 
         self = value
     }
 }
 
-extension Float: ViewConvertible {
-    public var view: View {
+extension Float: ContentConvertible {
+    public var content: Content {
         return .float(self)
     }
 
-    public init(view: View) throws {
-        guard case .float(let value) = view else {
-            throw View.Error.failedViewInitialization(view)
+    public init(content: Content) throws {
+        guard case .float(let value) = content else {
+            throw Content.Error.failedContentInitialization(content)
         }
 
         self = value
     }
 }
 
-extension Double: ViewConvertible {
-    public var view: View {
+extension Double: ContentConvertible {
+    public var content: Content {
         return .double(self)
     }
 
-    public init(view: View) throws {
-        guard case .double(let value) = view else {
-            throw View.Error.failedViewInitialization(view)
+    public init(content: Content) throws {
+        guard case .double(let value) = content else {
+            throw Content.Error.failedContentInitialization(content)
         }
 
         self = value
     }
 }
 
-public indirect enum View {
+public indirect enum Content {
 
     public enum Error: Swift.Error {
         case illegalNonDictionary(key: String)
         case notFound(keypath: String)
         case illegalType(keyPath: String)
-        case failedViewInitialization(View)
+        case failedContentInitialization(Content)
     }
 
     public struct KeyPath: RawRepresentable {
@@ -107,34 +107,34 @@ public indirect enum View {
     case string(String)
     case double(Double)
     case float(Float)
-    case array([View])
-    case dictionary([String: View])
+    case array([Content])
+    case dictionary([String: Content])
     case binary([Byte])
 
-    internal init(_ represented: ViewRepresentable) {
-        self = represented.view
+    internal init(_ represented: ContentRepresentable) {
+        self = represented.content
     }
 
-    public init(dictionary: [String: ViewRepresentable?] = [:]) {
+    public init(dictionary: [String: ContentRepresentable?] = [:]) {
 
-        var result: [String: View] = [:]
+        var result: [String: Content] = [:]
 
         for(key, value) in dictionary {
-            result[key] = value?.view ?? .null
+            result[key] = value?.content ?? .null
         }
 
         self = .dictionary(result)
     }
 
-    public init<T: ViewRepresentable>(array: [T]) {
-        self = .array(array.map { $0.view })
+    public init<T: ContentRepresentable>(array: [T]) {
+        self = .array(array.map { $0.content })
     }
 }
 
 // MARK: Get values
 
-public extension View {
-    internal func value(forKeyPath keyPath: KeyPath) -> View? {
+public extension Content {
+    internal func value(forKeyPath keyPath: KeyPath) -> Content? {
 
         var keyPath = keyPath
 
@@ -157,11 +157,11 @@ public extension View {
         return value.value(forKeyPath: keyPath)
     }
 
-    public func value(forKeyPath path: String) -> View? {
+    public func value(forKeyPath path: String) -> Content? {
         return value(forKeyPath: KeyPath(path: path))
     }
 
-    public mutating func set(value: View?, forKey key: String) throws {
+    public mutating func set(value: Content?, forKey key: String) throws {
         guard case .dictionary(var dict) = self else {
             throw Error.illegalNonDictionary(key: key)
         }
@@ -173,49 +173,49 @@ public extension View {
 
 // MARK: Set values
 
-public extension View {
-    public mutating func set(value: ViewRepresentable?, forKey key: String) throws {
-        try set(value: value?.view ?? .null, forKey: key)
+public extension Content {
+    public mutating func set(value: ContentRepresentable?, forKey key: String) throws {
+        try set(value: value?.content ?? .null, forKey: key)
     }
 
-    public mutating func set(value dictionary: [String: ViewRepresentable?], forKey key: String) throws {
+    public mutating func set(value dictionary: [String: ContentRepresentable?], forKey key: String) throws {
 
-        var result: [String: View] = [:]
+        var result: [String: Content] = [:]
 
         for(key, value) in dictionary {
-            result[key] = value?.view ?? .null
+            result[key] = value?.content ?? .null
         }
 
         try set(value: .dictionary(result), forKey: key)
     }
 
-    public mutating func set(value array: [ViewRepresentable?], forKey key: String) throws {
-        try set(value: .array(array.map { $0?.view ?? .null }), forKey: key)
+    public mutating func set(value array: [ContentRepresentable?], forKey key: String) throws {
+        try set(value: .array(array.map { $0?.content ?? .null }), forKey: key)
     }
 }
 
 // MARK: Typed accessors, optionals allowed
 
-public extension View {
+public extension Content {
 
-    public func value<T: ViewIntitializable>(forKeyPath path: String) throws -> T? {
-        guard let view = value(forKeyPath: KeyPath(path: path)) else {
+    public func value<T: ContentIntitializable>(forKeyPath path: String) throws -> T? {
+        guard let content = value(forKeyPath: KeyPath(path: path)) else {
             return nil
         }
 
-        if case .null = view {
+        if case .null = content {
             return nil
         }
 
-        return try T(view: view)
+        return try T(content: content)
     }
 
     public func value(forKeyPath path: String) -> [Byte]? {
-        guard let view = value(forKeyPath: KeyPath(path: path)) else {
+        guard let content = value(forKeyPath: KeyPath(path: path)) else {
             return nil
         }
 
-        guard case .binary(let value) = view else {
+        guard case .binary(let value) = content else {
             return nil
         }
 
@@ -225,8 +225,8 @@ public extension View {
 
 // MARK: - Typed accessors, throwing
 
-public extension View {
-    public func value<T: ViewIntitializable>(forKeyPath path: String) throws -> T {
+public extension Content {
+    public func value<T: ContentIntitializable>(forKeyPath path: String) throws -> T {
         guard let value: T = try value(forKeyPath: path) else {
             throw Error.notFound(keypath: path)
         }
@@ -245,26 +245,26 @@ public extension View {
 
 // MARK: Typed collection accessors, optionals allowed
 
-public extension View {
+public extension Content {
 
-    public func value(forKeyPath path: String) -> [View]? {
-        guard let view = value(forKeyPath: KeyPath(path: path)) else {
+    public func value(forKeyPath path: String) -> [Content]? {
+        guard let content = value(forKeyPath: KeyPath(path: path)) else {
             return nil
         }
 
-        guard case .array(let array) = view else {
+        guard case .array(let array) = content else {
             return nil
         }
 
         return array
     }
 
-    public func value(forKeyPath path: String) -> [String: View]? {
-        guard let view = value(forKeyPath: KeyPath(path: path)) else {
+    public func value(forKeyPath path: String) -> [String: Content]? {
+        guard let content = value(forKeyPath: KeyPath(path: path)) else {
             return nil
         }
 
-        guard case .dictionary(let dictionary) = view else {
+        guard case .dictionary(let dictionary) = content else {
             return nil
         }
 
@@ -274,17 +274,17 @@ public extension View {
 
 // MARK: Typed collection accessors, throwing
 
-public extension View {
-    public func value(forKeyPath path: String) throws -> [View] {
-        guard let value: [View] = value(forKeyPath: path) else {
+public extension Content {
+    public func value(forKeyPath path: String) throws -> [Content] {
+        guard let value: [Content] = value(forKeyPath: path) else {
             throw Error.notFound(keypath: path)
         }
 
         return value
     }
 
-    public func value(forKeyPath path: String) throws -> [String: View] {
-        guard let value: [String: View] = value(forKeyPath: path) else {
+    public func value(forKeyPath path: String) throws -> [String: Content] {
+        guard let value: [String: Content] = value(forKeyPath: path) else {
             throw Error.notFound(keypath: path)
         }
 
@@ -294,20 +294,20 @@ public extension View {
 
 // MARK: Uniformly collection accessors, throwing
 
-public extension View {
-    public func value<T: ViewIntitializable>(forKeyPath path: String) throws -> [T] {
-        let values: [View] = try value(forKeyPath: path)
+public extension Content {
+    public func value<T: ContentIntitializable>(forKeyPath path: String) throws -> [T] {
+        let values: [Content] = try value(forKeyPath: path)
 
-        return try values.map { view in
-            return try T(view: view)
+        return try values.map { content in
+            return try T(content: content)
         }
     }
 
     public func value(forKeyPath path: String) throws -> [[Byte]] {
-        let values: [View] = try value(forKeyPath: path)
+        let values: [Content] = try value(forKeyPath: path)
 
-        return try values.map { view in
-            guard case .binary(let value) = view else {
+        return try values.map { content in
+            guard case .binary(let value) = content else {
                 throw Error.illegalType(keyPath: path)
             }
 
@@ -316,7 +316,7 @@ public extension View {
     }
 }
 
-extension View.KeyPath: MutableCollection, RangeReplaceableCollection {
+extension Content.KeyPath: MutableCollection, RangeReplaceableCollection {
 
     public mutating func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C) where C : Collection, C.Iterator.Element == String {
         rawValue.replaceSubrange(subrange, with: newElements)
@@ -349,48 +349,48 @@ extension View.KeyPath: MutableCollection, RangeReplaceableCollection {
 
 }
 
-extension View.Error: CustomDebugStringConvertible {
+extension Content.Error: CustomDebugStringConvertible {
     public var debugDescription: String {
         switch self {
         case .illegalNonDictionary(let key):
-            return "Setting values for key(\"\(key)\"), illegal on non-dictionary view"
+            return "Setting values for key(\"\(key)\"), illegal on non-dictionary content"
         case .notFound(let keypath):
             return "Keypath \"\(keypath)\" found"
 
         case .illegalType(let keypath):
             return "Type of one or more values found at \"\(keypath)\" does not correspond to the inferred type"
 
-        case .failedViewInitialization(let view):
-            return "Failed to initialize value with view:\n\(view)"
+        case .failedContentInitialization(let content):
+            return "Failed to initialize value with content:\n\(content)"
         }
     }
 }
 
-extension View: ViewRepresentable {
-    public var view: View {
+extension Content: ContentRepresentable {
+    public var content: Content {
         return self
     }
 }
 
-extension View: ExpressibleByNilLiteral {
+extension Content: ExpressibleByNilLiteral {
     public init(nilLiteral: ()) {
         self = .null
     }
 }
 
-extension View: ExpressibleByDictionaryLiteral {
-    public init(dictionaryLiteral elements: (String, ViewRepresentable?)...) {
-        var result: [String: View] = [:]
+extension Content: ExpressibleByDictionaryLiteral {
+    public init(dictionaryLiteral elements: (String, ContentRepresentable?)...) {
+        var result: [String: Content] = [:]
 
         for (key, value) in elements {
-            result[key] = value?.view ?? .null
+            result[key] = value?.content ?? .null
         }
 
         self.init(dictionary: result)
     }
 }
 
-extension View: CustomStringConvertible {
+extension Content: CustomStringConvertible {
     public var description: String {
         let result: String
 
@@ -410,9 +410,9 @@ extension View: CustomStringConvertible {
         case .binary(let bytes):
             result = "Binary, \(bytes.count) bytes"
 
-        case .array(let views):
-            let descriptions = views.map { view in
-                view.description
+        case .array(let content):
+            let descriptions = content.map { content in
+                content.description
             }.joined(separator: ", ")
 
             return "[\(descriptions)]"
