@@ -1,5 +1,3 @@
-import Core
-
 public protocol ContentIntitializable {
     init(content: Content) throws
 }

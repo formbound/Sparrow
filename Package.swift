@@ -13,6 +13,7 @@ let package = Package(
                 "HTTP",
                 "IP",
                 "TCP",
+                "HTTPServer"
             ]
         ),
 
@@ -22,6 +23,8 @@ let package = Package(
         Target(name: "HTTP", dependencies: ["Core"]),
         Target(name: "IP", dependencies: ["Core", "POSIX"]),
         Target(name: "TCP", dependencies: ["IP", "OpenSSL", "POSIX"]),
+        Target(name: "HTTPServer", dependencies: ["HTTP", "OpenSSL", "POSIX"]),
+        Target(name: "HTTPClient", dependencies: ["HTTP", "OpenSSL", "POSIX"]),
         ],
     dependencies: [
         .Package(url: "https://github.com/formbound/Venice.git", majorVersion: 0),
