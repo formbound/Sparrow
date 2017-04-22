@@ -18,7 +18,7 @@ public class SparrowTests: XCTestCase {
 
             router.respond(to: .get) { context in
 
-                if let shouldThrow: Bool = context.queryParameters.value(for: "throw") {
+                if let shouldThrow: Bool = try context.queryParameters.value(for: "throw") {
                     if shouldThrow {
                         throw TestError.test
                     }
@@ -32,8 +32,7 @@ public class SparrowTests: XCTestCase {
 
         router.add(pathComponent: "echo") { router in
 
-            router.respond(to: .post) { context in
-
+            router.post { context in
                 return ResponseContext(
                     status: .ok,
                     content: [
@@ -51,9 +50,18 @@ public class SparrowTests: XCTestCase {
     func testHelloWorld() throws {
 
         let router = Router()
-
+        router.add(pathComponent: "greeting") { router in
+            router.add(parameterName: "name") { router in
+                router.get { context in
+                    return try ResponseContext(
+                        status: .ok,
+                        message: "Hello " + context.pathParameters.value(for: "name")
+                    )
+                }
+            }
+        }
+        // GET /
         router.get { _ in
-
             return ResponseContext(
                 status: .ok,
                 message: "Hello world!"

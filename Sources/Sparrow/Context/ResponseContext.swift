@@ -19,11 +19,11 @@ public class ResponseContext {
         )
     }
 
-    public convenience init(status: Response.Status, headers: Headers = [:], content: ContentRepresentable) {
+    public convenience init(status: Response.Status, headers: Headers = [:], content: ContentRepresentable?) {
         self.init(
             status: status,
             headers: headers,
-            content: content.content
+            content: content?.content
         )
     }
 }

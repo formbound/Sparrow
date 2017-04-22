@@ -15,28 +15,6 @@ public protocol ContentParser {
 
     var options: Options { get }
 
-    /// Use `parse` for incremental parsing. `parse` should be called
-    /// many times with partial chunks of the source data. Send an empty buffer
-    /// to signal you don't have any more chunks to send.
-    ///
-    /// The following example shows how you can implement incremental parsing:
-    ///
-    ///     let parser = JSONParser()
-    ///
-    ///     while true {
-    ///         let buffer = try stream.read(upTo: bufferSize)
-    ///         if let json = try parser.parse(buffer) {
-    ///             return json
-    ///         }
-    ///     }
-    ///
-    /// - parameter buffer: `UnsafeBufferPointer` that points to the chunk
-    ///   used to update the state of the parser.
-    ///
-    /// - throws: Throws when `buffer` is an invalid input for the given parser.
-    ///
-    /// - returns: Returns `nil` if the parser was not able to produce a result yet.
-    ///   Otherwise returns the parsed value.
     @discardableResult func parse(buffer: UnsafeBufferPointer<Byte>) throws -> ContentParserResult
     func finish() throws -> Content
 }

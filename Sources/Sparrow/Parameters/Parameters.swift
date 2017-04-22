@@ -1,5 +1,10 @@
 import HTTP
 
+enum ParametersError: Error {
+    case missingValue(String)
+    case conversionFailed(String)
+}
+
 public struct Parameters {
     private let contents: [String: String]
 
@@ -7,12 +12,26 @@ public struct Parameters {
         self.contents = contents
     }
 
-    public func value<T: ParameterInitializable>(for key: String) -> T? {
+    public func value<T: ParameterInitializable>(for key: String) throws -> T? {
         guard let string = contents[key] else {
             return nil
         }
 
-        return try? T(pathParameter: string)
+        do {
+            return try T(pathParameter: string)
+        } catch ParameterConversionError.conversionFailed {
+            throw ParametersError.conversionFailed(key)
+        } catch {
+            throw error
+        }
+    }
+
+    public func value<T: ParameterInitializable>(for key: String) throws -> T {
+        guard let value: T = try value(for: key) else {
+            throw ParametersError.missingValue(key)
+        }
+
+        return value
     }
 
     public var isEmpty: Bool {
@@ -40,10 +59,14 @@ extension String : ParameterConvertible {
     }
 }
 
+public enum ParameterConversionError: Error {
+    case conversionFailed
+}
+
 extension Int : ParameterConvertible {
     public init(pathParameter: String) throws {
         guard let int = Int(pathParameter) else {
-            throw HTTPError(error: .badRequest, reason: "Invalid parameter")
+            throw ParameterConversionError.conversionFailed
         }
         self.init(int)
     }
@@ -58,8 +81,10 @@ extension Bool : ParameterInitializable {
         switch pathParameter.lowercased() {
         case "true", "1", "t":
             self = true
-        default:
+        case "false", "0", "f":
             self = false
+        default:
+            throw ParameterConversionError.conversionFailed
         }
     }
 }
