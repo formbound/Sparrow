@@ -89,14 +89,48 @@ public class Router {
 
 extension Router {
 
+    public func get(handler: @escaping ResponseContextResponder) {
+        respond(to: .get, handler: handler)
+    }
+
+    public func post(handler: @escaping ResponseContextResponder) {
+        respond(to: .post, handler: handler)
+    }
+
+    public func put(handler: @escaping ResponseContextResponder) {
+        respond(to: .put, handler: handler)
+    }
+
+    public func patch(handler: @escaping ResponseContextResponder) {
+        respond(to: .patch, handler: handler)
+    }
+
+    public func delete(handler: @escaping ResponseContextResponder) {
+        respond(to: .delete, handler: handler)
+    }
+
+}
+
+extension Router {
+
+    public func respond(to methods: [Request.Method], handler: @escaping ResponseContextResponder) {
+        for method  in methods {
+            actions[method] = handler
+        }
+    }
+
     public func respond(to method: Request.Method, handler: @escaping ResponseContextResponder) {
-        actions[method] = handler
+        respond(to: [method], handler: handler)
     }
 
     public func preprocess(for methods: [Request.Method], handler: @escaping RequestContextPreprocessor) {
         for method in methods {
             preprocessors[method] = handler
         }
+    }
+
+    public func preprocess(for method: Request.Method, handler: @escaping RequestContextPreprocessor) {
+        preprocess(for: [method], handler: handler)
     }
 }
 

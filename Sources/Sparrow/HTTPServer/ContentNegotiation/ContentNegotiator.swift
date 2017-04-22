@@ -6,8 +6,8 @@ import HTTP
 
 public class ContentNegotiator {
 
-    fileprivate(set) public var accepts: Set<Support>
-    fileprivate(set) public var produces: Set<Support>
+    fileprivate(set) public var accepts: [Support]
+    fileprivate(set) public var produces: [Support]
 
     public lazy var errorTransformer: (HTTPError) -> ContentRepresentable = { error in
         return Content(
@@ -18,7 +18,7 @@ public class ContentNegotiator {
     public enum Support {
         case json
 
-        public static var all: Set<Support> {
+        public static var all: [Support] {
             return [.json]
         }
 
@@ -34,26 +34,16 @@ public class ContentNegotiator {
         case unsupportedMediaTypes([MediaType])
     }
 
-    public convenience init(supportedTypes: Set<Support> = Support.all) {
+    public convenience init(supportedTypes: [Support] = Support.all) {
         self.init(accepts: supportedTypes, produces: supportedTypes)
     }
 
-    public init(accepts: Set<Support>, produces: Set<Support>) {
+    public init(accepts: [Support], produces: [Support]) {
         self.accepts = accepts
         self.produces = produces
     }
 }
 
-extension ContentNegotiator.Support {
-    init?(mediaType: MediaType) {
-        switch mediaType {
-        case MediaType.json:
-            self = .json
-        default:
-            return nil
-        }
-    }
-}
 
 public extension ContentNegotiator {
     public func content(for error: HTTPError) -> Content {
@@ -64,7 +54,9 @@ public extension ContentNegotiator {
 
     public func serialize(content: Content, mediaType: MediaType, deadline: Deadline) throws -> (Body, MediaType) {
 
-        guard let supportedMediaType = Support(mediaType: mediaType), produces.contains(supportedMediaType) else {
+        guard let supportedMediaType = produces.filter({
+            $0.mediaType.matches(other: mediaType)
+        }).first else {
             throw Error.unsupportedMediaTypes([mediaType])
         }
 
@@ -76,10 +68,12 @@ public extension ContentNegotiator {
 
     public func parse(body: Body, mediaType: MediaType, deadline: Deadline) throws -> Content {
 
-        guard let supportedMediaType = Support(mediaType: mediaType), accepts.contains(supportedMediaType) else {
+        guard let supportedMediaType = accepts.filter({
+            $0.mediaType.matches(other: mediaType)
+        }).first else {
             throw Error.unsupportedMediaTypes([mediaType])
         }
-
+        
         var body = body
 
         switch supportedMediaType {

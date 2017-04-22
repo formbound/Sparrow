@@ -47,6 +47,24 @@ public class SparrowTests: XCTestCase {
         let server = try HTTPServer(port: 8080, responder: router)
         try server.start()
     }
+
+    func testHelloWorld() throws {
+
+        let router = Router()
+
+        router.get {
+            context in
+
+            return ResponseContext(
+                status: .ok,
+                message: "Hello world!"
+            )
+        }
+
+
+        let server = try HTTPServer(port: 8080, responder: router)
+        try server.start()
+    }
 }
 
 extension SparrowTests {
