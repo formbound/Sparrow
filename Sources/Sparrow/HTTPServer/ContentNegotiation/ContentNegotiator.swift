@@ -9,7 +9,7 @@ public class ContentNegotiator {
     fileprivate(set) public var accepts: Set<Support>
     fileprivate(set) public var produces: Set<Support>
 
-    public lazy var errorTransformer: (HTTPError) -> Content = { error in
+    public lazy var errorTransformer: (HTTPError) -> ContentRepresentable = { error in
         return Content(
             dictionary: ["error": error.reason ?? "An unexpected error occurred"]
         )
@@ -20,6 +20,13 @@ public class ContentNegotiator {
 
         public static var all: Set<Support> {
             return [.json]
+        }
+
+        var mediaType: MediaType {
+            switch self {
+            case .json:
+                return .json
+            }
         }
     }
 
@@ -63,7 +70,7 @@ public extension ContentNegotiator {
 
         switch supportedMediaType {
         case .json:
-            return (try .data(JSONSerializer.serialize(content)), mediaType)
+            return (try .data(JSONSerializer.serialize(content)), supportedMediaType.mediaType)
         }
     }
 
@@ -83,31 +90,52 @@ public extension ContentNegotiator {
 }
 
 extension ContentNegotiator {
-public func parse(body: Body, mediaTypes: [MediaType], deadline: Deadline) throws -> Content {
-    for mediaType in mediaTypes {
-        guard let content = try? parse(body: body, mediaType: mediaType, deadline: deadline) else {
-            continue
+    public func parse(body: Body, mediaTypes: [MediaType], deadline: Deadline) throws -> Content {
+
+        var mediaTypes = mediaTypes
+
+        if mediaTypes.isEmpty {
+            mediaTypes = Support.all.map { $0.mediaType }
         }
 
-        return content
-    }
+        for mediaType in mediaTypes {
+            guard let content = try? parse(body: body, mediaType: mediaType, deadline: deadline) else {
+                continue
+            }
 
-    throw Error.unsupportedMediaTypes(mediaTypes)
-}
-
-public func serialize(content: Content, mediaTypes: [MediaType], deadline: Deadline) throws -> (Body, MediaType) {
-    for mediaType in mediaTypes {
-        guard let result = try? serialize(content: content, mediaType: mediaType, deadline: deadline) else {
-            continue
+            return content
         }
 
-        return result
+        throw Error.unsupportedMediaTypes(mediaTypes)
     }
 
-    throw Error.unsupportedMediaTypes(mediaTypes)
-}
+    public func serialize(content: Content, mediaTypes: [MediaType], deadline: Deadline) throws -> (Body, MediaType) {
 
-public func serialize(error: HTTPError, mediaTypes: [MediaType], deadline: Deadline) throws -> (Body, MediaType) {
-    return try serialize(content: content(for: error), mediaTypes: mediaTypes, deadline: deadline)
-}
+        var mediaTypes = mediaTypes
+
+        if mediaTypes.isEmpty {
+            mediaTypes = Support.all.map { $0.mediaType }
+        }
+
+        for mediaType in mediaTypes {
+            guard let result = try? serialize(content: content, mediaType: mediaType, deadline: deadline) else {
+                continue
+            }
+
+            return result
+        }
+
+        throw Error.unsupportedMediaTypes(mediaTypes)
+    }
+    
+    public func serialize(error: HTTPError, mediaTypes: [MediaType], deadline: Deadline) throws -> (Body, MediaType) {
+
+        var mediaTypes = mediaTypes
+
+        if mediaTypes.isEmpty {
+            mediaTypes = Support.all.map { $0.mediaType }
+        }
+
+        return try serialize(content: content(for: error), mediaTypes: mediaTypes, deadline: deadline)
+    }
 }
