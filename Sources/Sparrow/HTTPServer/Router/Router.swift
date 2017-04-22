@@ -13,11 +13,13 @@ public class Router {
 
     internal var responsePreprocessors: [(Request.Method, ResponseContextPreprocessor)] = []
 
-    internal var actions: [Request.Method: RequestContextResponder] = [:]
+    internal var requestContextResponders: [Request.Method: RequestContextResponder] = [:]
 
     public let logger: Logger
 
-    public var recovery: ((Error) -> ResponseContext)?
+    lazy public var recovery: ((Error) -> ResponseContext) = { _ in
+        return ResponseContext(status: .internalServerError, message: "An unexpected error occurred")
+    }
 
     internal init(pathSegment: PathSegment, contentNegotiator: ContentNegotiator, logger: Logger) {
         self.pathSegment = pathSegment
@@ -108,7 +110,7 @@ extension Router {
 
     public func respond(to methods: [Request.Method], handler: @escaping (RequestContext) throws -> ResponseContext) {
         for method  in methods {
-            actions[method] = BasicRequestContextResponder(handler: handler)
+            requestContextResponders[method] = BasicRequestContextResponder(handler: handler)
         }
     }
 
@@ -257,9 +259,20 @@ extension Router: Responder {
             guard
                 let routers = matchingRouterChain(for: pathComponents, context: context),
                 !routers.isEmpty,
-                let responder = routers.last?.actions[context.request.method]
+                let endpointRouter = routers.last
                 else {
                     throw HTTPError(error: .notFound)
+            }
+
+            guard let requestContextResponder = endpointRouter.requestContextResponders[context.request.method] else {
+
+                if endpointRouter.requestContextResponders.isEmpty {
+                    throw HTTPError(error: .notFound)
+                }
+                else {
+                    let validMethodsString = endpointRouter.requestContextResponders.keys.map({ $0.description }).joined(separator: ", ")
+                    throw HTTPError(error: .methodNotAllowed, reason: "Unsupported method \(context.request.method.description). Supported methods: \(validMethodsString)")
+                }
             }
 
             var requestProcessors: [RequestContextPreprocessor] = []
@@ -303,7 +316,7 @@ extension Router: Responder {
                 }
             }
 
-            return try response(from: responder.respond(to: context), processors: responseProcessors, for: context.request.accept)
+            return try response(from: requestContextResponder.respond(to: context), processors: responseProcessors, for: context.request.accept)
 
             // Catch thrown HTTP errors – they should be presented with the content negotiator
         } catch let error as HTTPError {
@@ -365,13 +378,7 @@ extension Router: Responder {
                 )
             }
         } catch {
-            // Run a recovery, if exists
-            guard let recovery = recovery else {
-
-                // Lastly, throw the error as it's undhandled
-                throw error
-            }
-
+            // Run a recovery
             return try response(from: recovery(error), processors: [], for: context.request.accept)
         }
 

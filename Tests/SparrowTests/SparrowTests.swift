@@ -4,8 +4,8 @@ import XCTest
 
 public class SparrowTests: XCTestCase {
 
-    enum OKError: Error {
-        case ok
+    enum TestError: Error {
+        case test
     }
 
     func testServer() throws {
@@ -20,7 +20,7 @@ public class SparrowTests: XCTestCase {
 
                 if let shouldThrow: Bool = context.queryParameters.value(for: "throw") {
                     if shouldThrow {
-                        throw HTTPError(error: .badRequest, reason: "Error")
+                        throw TestError.test
                     }
                 }
                 return ResponseContext(
