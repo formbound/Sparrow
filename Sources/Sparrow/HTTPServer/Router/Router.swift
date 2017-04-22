@@ -3,45 +3,38 @@ import Core
 
 public class Router {
 
-    public typealias ResponseContextResponder = (RequestContext) throws -> ResponseContext
-    public typealias RequestContextPreprocessor = (RequestContext) throws -> RequestContextProcessingResult
-
-    public enum RequestContextProcessingResult {
-        case `continue`
-        case `break`(ResponseContext)
-    }
-
     fileprivate(set) public var children: [Router] = []
 
     public let contentNegotiator: ContentNegotiator
 
     public let pathSegment: PathSegment
 
-    internal var preprocessors: [Request.Method: RequestContextPreprocessor] = [:]
+    internal var requestPreprocessors: [(Request.Method, RequestContextPreprocessor)] = []
 
-    internal var actions: [Request.Method: ResponseContextResponder] = [:]
+    internal var responsePreprocessors: [(Request.Method, ResponseContextPreprocessor)] = []
 
-    public lazy var fallback: ResponseContextResponder = { _ in
-        return .response(Response(status: self.actions.isEmpty ? .notFound : .methodNotAllowed))
-    }
+    internal var actions: [Request.Method: RequestContextResponder] = [:]
+
+    public let logger: Logger
 
     public var recovery: ((Error) -> ResponseContext)?
 
-    internal init(pathSegment: PathSegment, contentNegotiator: ContentNegotiator) {
+    internal init(pathSegment: PathSegment, contentNegotiator: ContentNegotiator, logger: Logger) {
         self.pathSegment = pathSegment
         self.contentNegotiator = contentNegotiator
+        self.logger = logger
     }
 
-    public convenience init(contentNegotiator: ContentNegotiator = ContentNegotiator()) {
-        self.init(pathComponent: "/", contentNegotiator: contentNegotiator)
+    public convenience init(contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
+        self.init(pathComponent: "/", contentNegotiator: contentNegotiator, logger: logger)
     }
 
-    public convenience init(pathComponent: String, contentNegotiator: ContentNegotiator) {
-        self.init(pathSegment: .literal(pathComponent), contentNegotiator: contentNegotiator)
+    public convenience init(pathComponent: String, contentNegotiator: ContentNegotiator, logger: Logger =  Logger()) {
+        self.init(pathSegment: .literal(pathComponent), contentNegotiator: contentNegotiator, logger: logger)
     }
 
-    public convenience init(parameter parameterName: String, contentNegotiator: ContentNegotiator) {
-        self.init(pathSegment: .parameter(parameterName), contentNegotiator: contentNegotiator)
+    public convenience init(parameter parameterName: String, contentNegotiator: ContentNegotiator, logger: Logger =  Logger()) {
+        self.init(pathSegment: .parameter(parameterName), contentNegotiator: contentNegotiator, logger: logger)
     }
 
     public func add(router: Router) {
@@ -53,7 +46,7 @@ public class Router {
     }
 
     internal func add(pathSegment: PathSegment, builder: (Router) -> Void) {
-        let router = Router(pathSegment: pathSegment, contentNegotiator: contentNegotiator)
+        let router = Router(pathSegment: pathSegment, contentNegotiator: contentNegotiator, logger: logger)
         builder(router)
         add(router: router)
     }
@@ -89,23 +82,23 @@ public class Router {
 
 extension Router {
 
-    public func get(handler: @escaping ResponseContextResponder) {
+    public func get(handler: @escaping (RequestContext) throws -> ResponseContext) {
         respond(to: .get, handler: handler)
     }
 
-    public func post(handler: @escaping ResponseContextResponder) {
+    public func post(handler: @escaping (RequestContext) throws -> ResponseContext) {
         respond(to: .post, handler: handler)
     }
 
-    public func put(handler: @escaping ResponseContextResponder) {
+    public func put(handler: @escaping (RequestContext) throws -> ResponseContext) {
         respond(to: .put, handler: handler)
     }
 
-    public func patch(handler: @escaping ResponseContextResponder) {
+    public func patch(handler: @escaping (RequestContext) throws -> ResponseContext) {
         respond(to: .patch, handler: handler)
     }
 
-    public func delete(handler: @escaping ResponseContextResponder) {
+    public func delete(handler: @escaping (RequestContext) throws -> ResponseContext) {
         respond(to: .delete, handler: handler)
     }
 
@@ -113,31 +106,82 @@ extension Router {
 
 extension Router {
 
-    public func respond(to methods: [Request.Method], handler: @escaping ResponseContextResponder) {
+    public func respond(to methods: [Request.Method], handler: @escaping (RequestContext) throws -> ResponseContext) {
         for method  in methods {
-            actions[method] = handler
+            actions[method] = BasicRequestContextResponder(handler: handler)
         }
     }
 
-    public func respond(to method: Request.Method, handler: @escaping ResponseContextResponder) {
+    public func respond(to method: Request.Method, handler: @escaping (RequestContext) throws -> ResponseContext) {
         respond(to: [method], handler: handler)
-    }
-
-    public func preprocess(for methods: [Request.Method], handler: @escaping RequestContextPreprocessor) {
-        for method in methods {
-            preprocessors[method] = handler
-        }
-    }
-
-    public func preprocess(for method: Request.Method, handler: @escaping RequestContextPreprocessor) {
-        preprocess(for: [method], handler: handler)
     }
 }
 
 extension Router {
 
-    internal func response(from payload: ResponseContext, for mediaTypes: [MediaType]) throws -> Response {
-        switch payload {
+    public func processRequest(for methods: [Request.Method], handler: @escaping (RequestContext) throws -> RequestContextProcessingResult) {
+        for method in methods {
+            requestPreprocessors.append((method, BasicRequestContextPreprocessor(handler: handler)))
+        }
+    }
+
+    public func processRequest(for method: Request.Method, handler: @escaping (RequestContext) throws -> RequestContextProcessingResult) {
+        processRequest(for: [method], handler: handler)
+    }
+
+    func add(processor: RequestContextPreprocessor, for methods: [Request.Method]) {
+        processRequest(for: methods, handler: processor.process)
+    }
+
+    func add(processor: RequestContextPreprocessor, for method: Request.Method) {
+        processRequest(for: method, handler: processor.process)
+    }
+}
+
+extension Router {
+
+    public func processResponse(for methods: [Request.Method], handler: @escaping (ResponseContext) throws -> ResponseContext) {
+        for method in methods {
+            responsePreprocessors.append((method, BasicResponseContextPreprocessor(handler: handler)))
+        }
+    }
+
+    public func processResponse(for method: Request.Method, handler: @escaping (ResponseContext) throws -> ResponseContext) {
+        processResponse(for: [method], handler: handler)
+    }
+
+    func add(processor: ResponseContextPreprocessor, for methods: [Request.Method]) {
+        processResponse(for: methods, handler: processor.process)
+    }
+
+    func add(processor: ResponseContextPreprocessor, for method: Request.Method) {
+        processResponse(for: method, handler: processor.process)
+    }
+}
+
+extension Router {
+    func add(processor: ContextPreprocessor, for methods: [Request.Method]) {
+        processRequest(for: methods, handler: processor.process)
+        processResponse(for: methods, handler: processor.process)
+    }
+
+    func add(processor: ContextPreprocessor, for method: Request.Method) {
+        processRequest(for: method, handler: processor.process)
+        processResponse(for: method, handler: processor.process)
+    }
+}
+
+extension Router {
+
+    internal func response(from responseContext: ResponseContext, processors: [ResponseContextPreprocessor], for mediaTypes: [MediaType]) throws -> Response {
+
+        var responseContext = responseContext
+
+        for processor in processors {
+            responseContext = try processor.process(responseContext: responseContext)
+        }
+
+        switch responseContext {
         case .response(let response):
             return response
         case .content(let status, let headers, let content):
@@ -145,6 +189,7 @@ extension Router {
             let (body, mediaType) = try contentNegotiator.serialize(content: content, mediaTypes: mediaTypes, deadline: .never)
             var headers = headers
             headers[Header.contentType] = mediaType.description
+
             return Response(
                 status: status,
                 headers: headers,
@@ -193,11 +238,12 @@ extension Router {
 extension Router: Responder {
     public func respond(to request: Request) throws -> Response {
 
-        let context = RequestContext(request: request)
+        let context = RequestContext(request: request, logger: logger)
 
         let pathComponents = context.request.url.pathComponents
 
         do {
+
             // Extract the body, and parse if, if needed
             if
                 let contentLength = context.request.contentLength,
@@ -211,18 +257,24 @@ extension Router: Responder {
             guard
                 let routers = matchingRouterChain(for: pathComponents, context: context),
                 !routers.isEmpty,
-                let action = routers.last?.actions[context.request.method]
+                let responder = routers.last?.actions[context.request.method]
                 else {
-                    return try response(from: try fallback(context), for: context.request.accept)
+                    throw HTTPError(error: .notFound)
             }
 
-            var preprocessors: [Router.RequestContextPreprocessor] = []
+            var requestProcessors: [RequestContextPreprocessor] = []
+            var responseProcessors: [ResponseContextPreprocessor] = []
 
             // Extract all preprocessors
             for router in routers {
-                if let routeHandler = router.preprocessors[context.request.method] {
-                    preprocessors.append(routeHandler)
-                }
+
+                requestProcessors += router.requestPreprocessors.filter { method, _ in
+                    method == context.request.method
+                }.map { $0.1 }
+
+                responseProcessors += router.responsePreprocessors.filter { method, _ in
+                    method == context.request.method
+                    }.map { $0.1 }
             }
 
             // Extract path parameters from the router chain
@@ -240,23 +292,46 @@ extension Router: Responder {
             context.pathParameters = Parameters(contents: parametersByName)
 
             // Execute all preprocessors in order
-            for handler in preprocessors {
-                switch try handler(context) {
+            for requestProcessor in requestProcessors {
+                switch try requestProcessor.process(requestContext: context) {
 
                 case .continue:
                     break
 
                 case .break(let breakingResponseContext):
-                    return try response(from: breakingResponseContext, for: context.request.accept)
+                    return try response(from: breakingResponseContext, processors: responseProcessors, for: context.request.accept)
                 }
             }
 
-            return try response(from: action(context), for: context.request.accept)
+            return try response(from: responder.respond(to: context), processors: responseProcessors, for: context.request.accept)
 
             // Catch thrown HTTP errors – they should be presented with the content negotiator
         } catch let error as HTTPError {
 
-            let (body, mediaType) = try contentNegotiator.serialize(error: error, mediaTypes: context.request.accept, deadline: .never)
+            var errorContent = Content()
+
+            if let reason = error.reason {
+                try errorContent.set(value: reason, forKey: "message")
+            }
+
+            if let code = error.code {
+                try errorContent.set(value: code, forKey: "code")
+            }
+
+            guard !errorContent.isEmpty else {
+                return Response(
+                    status: error.status
+                )
+            }
+
+            var content = Content()
+            try content.set(value: errorContent, forKey: "error")
+
+            let (body, mediaType) = try contentNegotiator.serialize(
+                content: content,
+                mediaTypes: context.request.accept,
+                deadline: .never
+            )
 
             var headers = error.headers
             headers[Header.contentType] = mediaType.description
@@ -297,7 +372,7 @@ extension Router: Responder {
                 throw error
             }
 
-            return try response(from: recovery(error), for: context.request.accept)
+            return try response(from: recovery(error), processors: [], for: context.request.accept)
         }
 
     }

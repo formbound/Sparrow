@@ -52,15 +52,15 @@ public class SparrowTests: XCTestCase {
 
         let router = Router()
 
-        router.get {
-            context in
+        router.add(processor: LoggerPrepocessor(), for: .get)
+
+        router.get { _ in
 
             return ResponseContext(
                 status: .ok,
                 message: "Hello world!"
             )
         }
-
 
         let server = try HTTPServer(port: 8080, responder: router)
         try server.start()

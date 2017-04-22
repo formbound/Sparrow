@@ -112,6 +112,12 @@ extension Headers : CustomStringConvertible {
     }
 }
 
+extension Header: CustomStringConvertible {
+    public var description: String {
+        return rawValue
+    }
+}
+
 extension Headers : Equatable {}
 
 public func == (lhs: Headers, rhs: Headers) -> Bool {

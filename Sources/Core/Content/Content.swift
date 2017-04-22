@@ -115,6 +115,10 @@ public indirect enum Content {
         self = represented.content
     }
 
+    public init() {
+        self.init(dictionary: [:])
+    }
+
     public init(dictionary: [String: ContentRepresentable?] = [:]) {
 
         var result: [String: Content] = [:]
@@ -128,6 +132,19 @@ public indirect enum Content {
 
     public init<T: ContentRepresentable>(array: [T]) {
         self = .array(array.map { $0.content })
+    }
+}
+
+extension Content {
+    public var isEmpty: Bool {
+        switch self {
+        case .array(let content):
+            return content.isEmpty
+        case .dictionary(let dict):
+            return dict.isEmpty
+        default:
+            return false
+        }
     }
 }
 
@@ -160,6 +177,11 @@ public extension Content {
     public func value(forKeyPath path: String) -> Content? {
         return value(forKeyPath: KeyPath(path: path))
     }
+}
+
+// MARK: Set values
+
+public extension Content {
 
     public mutating func set(value: Content?, forKey key: String) throws {
         guard case .dictionary(var dict) = self else {
@@ -169,11 +191,7 @@ public extension Content {
         dict[key] = value
         self = .dictionary(dict)
     }
-}
 
-// MARK: Set values
-
-public extension Content {
     public mutating func set(value: ContentRepresentable?, forKey key: String) throws {
         try set(value: value?.content ?? .null, forKey: key)
     }

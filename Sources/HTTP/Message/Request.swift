@@ -33,7 +33,7 @@ public struct Request: Message {
 
         switch body {
         case let .data(body):
-            headers["Content-Length"] = body.count.description
+            headers["Content-Length"] = String(body.count)
         default:
             headers["Transfer-Encoding"] = "chunked"
         }

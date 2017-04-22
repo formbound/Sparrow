@@ -3,10 +3,12 @@ import Core
 public struct HTTPError: Error {
     public let status: Response.Status
     public var reason: String?
+    public var code: Int?
     public var headers: Headers
 
-    public init(error: HTTPErrorCode, reason: String? = nil, headers: Headers = [:]) {
+    public init(error: HTTPErrorCode, reason: String? = nil, code: Int? = nil, headers: Headers = [:]) {
         self.status = error.status
+        self.code = code
         self.reason = reason
         self.headers = headers
     }

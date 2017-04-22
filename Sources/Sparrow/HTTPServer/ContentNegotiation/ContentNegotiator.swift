@@ -2,18 +2,10 @@ import Core
 import Venice
 import HTTP
 
-
-
 public class ContentNegotiator {
 
     fileprivate(set) public var accepts: [Support]
     fileprivate(set) public var produces: [Support]
-
-    public lazy var errorTransformer: (HTTPError) -> ContentRepresentable = { error in
-        return Content(
-            dictionary: ["error": error.reason ?? "An unexpected error occurred"]
-        )
-    }
 
     public enum Support {
         case json
@@ -44,13 +36,7 @@ public class ContentNegotiator {
     }
 }
 
-
 public extension ContentNegotiator {
-    public func content(for error: HTTPError) -> Content {
-        return [
-            "error": error.reason
-        ]
-    }
 
     public func serialize(content: Content, mediaType: MediaType, deadline: Deadline) throws -> (Body, MediaType) {
 
@@ -73,7 +59,7 @@ public extension ContentNegotiator {
         }).first else {
             throw Error.unsupportedMediaTypes([mediaType])
         }
-        
+
         var body = body
 
         switch supportedMediaType {
@@ -120,16 +106,5 @@ extension ContentNegotiator {
         }
 
         throw Error.unsupportedMediaTypes(mediaTypes)
-    }
-    
-    public func serialize(error: HTTPError, mediaTypes: [MediaType], deadline: Deadline) throws -> (Body, MediaType) {
-
-        var mediaTypes = mediaTypes
-
-        if mediaTypes.isEmpty {
-            mediaTypes = Support.all.map { $0.mediaType }
-        }
-
-        return try serialize(content: content(for: error), mediaTypes: mediaTypes, deadline: deadline)
     }
 }
