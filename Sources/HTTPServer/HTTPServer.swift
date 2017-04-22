@@ -6,18 +6,30 @@ import POSIX
 
 public struct HTTPServer {
 
+    /// TCP host of the HTTP server
     public let tcpHost: Host
 
+    /// First responder of the HTTP server
+    /// For example, a `Router` is a type of responder.
+    /// You can also write your own responders, implementing the `Responder` protocol
     public let responder: Responder
 
-    public let failure: (Error) -> Void
+    /// Error handler of the HTTP server
+    /// If the responder throws an error,
+    public var errorHandler: (Error) -> Void
 
+    /// Server host
     public let host: String
+
+    /// Server port
     public let port: Int
+
+    /// Server buffer size
     public let bufferSize: Int
 
     fileprivate let coroutineGroup = CoroutineGroup()
 
+    /// Creates a new HTTP server
     public init(
         host: String = "0.0.0.0",
         port: Int = 8080,
@@ -25,7 +37,7 @@ public struct HTTPServer {
         reusePort: Bool = false,
         bufferSize: Int = 4096,
         responder: Responder,
-        failure: @escaping (Error) -> Void = { error in print("\(error)") }
+        errorHandler: @escaping (Error) -> Void = { error in print("\(error)") }
     ) throws {
         self.tcpHost = try TCPHost(
             host: host,
@@ -37,9 +49,10 @@ public struct HTTPServer {
         self.port = port
         self.bufferSize = bufferSize
         self.responder = responder
-        self.failure = failure
+        self.errorHandler = errorHandler
     }
 
+    /// Creates a new HTTPS server
     public init(
         host: String = "0.0.0.0",
         port: Int = 8080,
@@ -50,7 +63,7 @@ public struct HTTPServer {
         privateKeyPath: String,
         certificateChainPath: String? = nil,
         responder: Responder,
-        failure: @escaping (Error) -> Void = { error in print("\(error)") }
+        errorHandler: @escaping (Error) -> Void = { error in print("\(error)") }
         ) throws {
         self.tcpHost = try TCPTLSHost(
             host: host,
@@ -65,7 +78,7 @@ public struct HTTPServer {
         self.port = port
         self.bufferSize = bufferSize
         self.responder = responder
-        self.failure = failure
+        self.errorHandler = errorHandler
     }
 }
 
@@ -102,7 +115,7 @@ extension HTTPServer {
                     do {
                         try self.process(stream: stream)
                     } catch {
-                        self.failure(error)
+                        self.errorHandler(error)
                     }
                 }
             }
@@ -114,7 +127,7 @@ extension HTTPServer {
             do {
                 try self.start()
             } catch {
-                self.failure(error)
+                self.errorHandler(error)
             }
         }
     }

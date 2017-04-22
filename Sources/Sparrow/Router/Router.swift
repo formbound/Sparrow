@@ -10,6 +10,7 @@ public class Router {
 
     fileprivate(set) public var children: [Router] = []
 
+    /// Content negotiator of the router
     public let contentNegotiator: ContentNegotiator
 
     internal let pathSegment: PathSegment
@@ -20,6 +21,7 @@ public class Router {
 
     internal var requestContextResponders: [Request.Method: RequestContextResponder] = [:]
 
+    /// Logger used by the router
     public let logger: Logger
 
     lazy public var recovery: ((Error) -> ResponseContext) = { _ in
@@ -32,6 +34,11 @@ public class Router {
         self.logger = logger
     }
 
+    /// Creates a new router with path component "/"
+    ///
+    /// - Parameters:
+    ///   - contentNegotiator: Content negotiator
+    ///   - logger: Logger
     public convenience init(contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
         self.init(pathComponent: "/", contentNegotiator: contentNegotiator, logger: logger)
     }
@@ -188,21 +195,18 @@ extension Router {
             responseContext = try processor.process(responseContext: responseContext)
         }
 
-        switch responseContext {
-        case .response(let response):
-            return response
-        case .content(let status, let headers, let content):
-
-            let (body, mediaType) = try contentNegotiator.serialize(content: content, mediaTypes: mediaTypes, deadline: .never)
-            var headers = headers
-            headers[Header.contentType] = mediaType.description
-
-            return Response(
-                status: status,
-                headers: headers,
-                body: body
-            )
+        guard let content = responseContext.content else {
+            return responseContext.response
         }
+
+        let (body, mediaType) = try contentNegotiator.serialize(content: content, mediaTypes: mediaTypes, deadline: .never)
+        var headers = responseContext.response.headers
+        headers[Header.contentType] = mediaType.description
+
+        responseContext.response.headers = headers
+        responseContext.response.body = body
+
+        return responseContext.response
     }
 
     internal func matchingRouterChain(
@@ -256,7 +260,7 @@ extension Router: Responder {
                 let contentLength = context.request.contentLength,
                 contentLength > 0,
                 let contentType = context.request.contentType {
-                context.payload = try contentNegotiator.parse(body: context.request.body, mediaType: contentType, deadline: .never)
+                context.content = try contentNegotiator.parse(body: context.request.body, mediaType: contentType, deadline: .never)
             }
 
             // Validate chain of routers making sure that the chain isn't empty,
@@ -273,8 +277,7 @@ extension Router: Responder {
 
                 if endpointRouter.requestContextResponders.isEmpty {
                     throw HTTPError(error: .notFound)
-                }
-                else {
+                } else {
                     let validMethodsString = endpointRouter.requestContextResponders.keys.map({ $0.description }).joined(separator: ", ")
                     throw HTTPError(error: .methodNotAllowed, reason: "Unsupported method \(context.request.method.description). Supported methods: \(validMethodsString)")
                 }
