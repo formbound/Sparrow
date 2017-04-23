@@ -5,6 +5,10 @@ enum ParametersError: Error {
     case conversionFailed(String)
 }
 
+public protocol ParametersInitializable {
+    init(parameters: Parameters) throws
+}
+
 public struct Parameters {
     private let contents: [String: String]
 
@@ -65,10 +69,36 @@ public enum ParameterConversionError: Error {
 
 extension Int : ParameterConvertible {
     public init(pathParameter: String) throws {
-        guard let int = Int(pathParameter) else {
+        guard let value = Int(pathParameter) else {
             throw ParameterConversionError.conversionFailed
         }
-        self.init(int)
+        self.init(value)
+    }
+
+    public var pathParameter: String {
+        return String(self)
+    }
+}
+
+extension Double : ParameterConvertible {
+    public init(pathParameter: String) throws {
+        guard let value = Double(pathParameter) else {
+            throw ParameterConversionError.conversionFailed
+        }
+        self.init(value)
+    }
+
+    public var pathParameter: String {
+        return String(self)
+    }
+}
+
+extension Float : ParameterConvertible {
+    public init(pathParameter: String) throws {
+        guard let value = Float(pathParameter) else {
+            throw ParameterConversionError.conversionFailed
+        }
+        self.init(value)
     }
 
     public var pathParameter: String {

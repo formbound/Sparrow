@@ -1,5 +1,7 @@
 import HTTP
 
+
+
 public protocol Resource {
 
     func delete(context: RequestContext) throws -> ResponseContext
@@ -18,31 +20,18 @@ public protocol Resource {
 }
 
 extension Resource {
-    internal func respond(to context: RequestContext) throws -> ResponseContext {
-        switch context.request.method {
-        case .delete:
-            return try delete(context: context)
-        case .get:
-            return try get(context: context)
+    internal func makeRouter(pathComponent: Router.PathComponent) -> Router {
+        let router = Router()
 
-        case .head:
-            return try head(context: context)
+        router.respond(to: .delete, handler: delete)
+        router.respond(to: .get, handler: get)
+        router.respond(to: .head, handler: head)
+        router.respond(to: .post, handler: post)
+        router.respond(to: .put, handler: put)
+        router.respond(to: .options, handler: options)
+        router.respond(to: .patch, handler: patch)
 
-        case .post:
-            return try post(context: context)
-
-        case .put:
-            return try put(context: context)
-
-        case .options:
-            return try options(context: context)
-
-        case .patch:
-            return try patch(context: context)
-
-        default:
-            throw HTTPError(error: .methodNotAllowed)
-        }
+        return router
     }
 }
 

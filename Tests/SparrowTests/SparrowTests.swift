@@ -58,6 +58,20 @@ public class SparrowTests: XCTestCase {
                         message: "Hello " + context.pathParameters.value(for: "name")
                     )
                 }
+
+                router.add(parameterName: "age") { router in
+
+                    router.get { context in
+
+                        let parameters = try NameAndAgeParameters(parameters: context.pathParameters)
+
+                        return ResponseContext(
+                            status: .ok,
+                            message: "Hello " + parameters.name + ". Your age is " + String(parameters.age)
+                        )
+                    }
+
+                }
             }
         }
         // GET /
@@ -76,6 +90,17 @@ public class SparrowTests: XCTestCase {
 extension SparrowTests {
     public static var allTests: [(String, (SparrowTests) -> () throws -> Void)] {
         return []
+    }
+}
+
+struct NameAndAgeParameters: ParametersInitializable {
+
+    let age: Int
+    let name: String
+
+    init(parameters: Parameters) throws {
+        age = try parameters.value(for: "age")
+        name = try parameters.value(for: "name")
     }
 }
 

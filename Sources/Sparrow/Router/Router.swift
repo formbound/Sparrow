@@ -10,8 +10,10 @@ import Core
 ///
 ///     let router = Router()
 ///
-///     router.add(pathComponent: "greeting") { router in
+///     // /greeting
+///     router.add(pathLiteral: "greeting") { router in
 ///
+///         // /greeting/:name
 ///         router.add(parameterName: "name") { router in
 ///             router.get { context in
 ///                 return try ResponseContext(
@@ -32,7 +34,7 @@ import Core
 ///     }
 public class Router {
 
-    internal enum PathSegment {
+    internal enum PathComponent {
         case literal(String)
         case parameter(String)
     }
@@ -42,7 +44,7 @@ public class Router {
     /// Content negotiator of the router
     public let contentNegotiator: ContentNegotiator
 
-    internal let pathSegment: PathSegment
+    internal let pathComponent: PathComponent
 
     internal var requestPreprocessors: [(Request.Method, RequestContextPreprocessor)] = []
 
@@ -57,8 +59,8 @@ public class Router {
         return ResponseContext(status: .internalServerError, message: "An unexpected error occurred")
     }
 
-    internal init(pathSegment: PathSegment, contentNegotiator: ContentNegotiator, logger: Logger) {
-        self.pathSegment = pathSegment
+    internal init(pathComponent: PathComponent, contentNegotiator: ContentNegotiator, logger: Logger) {
+        self.pathComponent = pathComponent
         self.contentNegotiator = contentNegotiator
         self.logger = logger
     }
@@ -69,7 +71,7 @@ public class Router {
     ///   - contentNegotiator: Content negotiator for the router to create. Defaults to the standard content negotiator
     ///   - logger: Logger used by the router. Defaults to the stanard logger, printing to standard out
     public convenience init(contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
-        self.init(pathComponent: "/", contentNegotiator: contentNegotiator, logger: logger)
+        self.init(pathLiteral: "/", contentNegotiator: contentNegotiator, logger: logger)
     }
 
     /// Creates a new router with specified path component
@@ -77,8 +79,8 @@ public class Router {
     /// - Parameters:
     ///   - contentNegotiator: Content negotiator for the router to create. Defaults to the standard content negotiator
     ///   - logger: Logger used by the router. Defaults to the stanard logger, printing to standard out
-    public convenience init(pathComponent: String, contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
-        self.init(pathSegment: .literal(pathComponent), contentNegotiator: contentNegotiator, logger: logger)
+    public convenience init(pathLiteral: String, contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
+        self.init(pathComponent: .literal(pathLiteral), contentNegotiator: contentNegotiator, logger: logger)
     }
 
     /// Creates a new router with specified path parameter name
@@ -87,7 +89,7 @@ public class Router {
     ///   - contentNegotiator: Content negotiator for the router to create. Defaults to the standard content negotiator
     ///   - logger: Logger used by the router. Defaults to the stanard logger, printing to standard out
     public convenience init(parameterName: String, contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
-        self.init(pathSegment: .parameter(parameterName), contentNegotiator: contentNegotiator, logger: logger)
+        self.init(pathComponent: .parameter(parameterName), contentNegotiator: contentNegotiator, logger: logger)
     }
 
     /// Adds a router as a subrouter of this router
@@ -104,8 +106,8 @@ public class Router {
         self.children += routers
     }
 
-    internal func add(pathSegment: PathSegment, builder: (Router) -> Void) {
-        let router = Router(pathSegment: pathSegment, contentNegotiator: contentNegotiator, logger: logger)
+    internal func add(pathComponent: PathComponent, builder: (Router) -> Void) {
+        let router = Router(pathComponent: pathComponent, contentNegotiator: contentNegotiator, logger: logger)
         builder(router)
         add(router: router)
     }
@@ -115,10 +117,10 @@ public class Router {
     /// - Note: The subrouter will inherit the parent's content negotiator and logger by default
     ///
     /// - Parameters:
-    ///   - pathComponent: Path component of the subrouter
+    ///   - pathLiteral: Path component literal of the subrouter
     ///   - builder: Handler used to configure the subrouter
-    public func add(pathComponent: String, builder: (Router) -> Void) {
-        add(pathSegment: .literal(pathComponent), builder: builder)
+    public func add(pathLiteral: String, builder: (Router) -> Void) {
+        add(pathComponent: .literal(pathLiteral), builder: builder)
     }
 
     /// Creates and adds a new subrouter of this router, with a path parameter, using a construction handler
@@ -129,31 +131,25 @@ public class Router {
     ///   - parameterName: Parameter name of the subrouter
     ///   - builder: Handler used to configure the subrouter
     public func add(parameterName: String, builder: (Router) -> Void) {
-        add(pathSegment: .parameter(parameterName), builder: builder)
+        add(pathComponent: .parameter(parameterName), builder: builder)
     }
 
-    internal func add(pathSegment: PathSegment, resource: Resource) {
-        add(pathSegment: pathSegment) { router in
-            router.respond(to: .delete, handler: resource.delete(context:))
-            router.respond(to: .get, handler: resource.get(context:))
-            router.respond(to: .head, handler: resource.head(context:))
-            router.respond(to: .post, handler: resource.post(context:))
-            router.respond(to: .put, handler: resource.put(context:))
-            router.respond(to: .options, handler: resource.options(context:))
-            router.respond(to: .patch, handler: resource.patch(context:))
-        }
+    internal func add(pathComponent: PathComponent, resource: Resource) {
+        add(router: resource.makeRouter(pathComponent: pathComponent))
     }
+}
 
+extension Router {
     /// Adds a resource, with a path component, as a subrouter to this router
     ///
     /// - Note: The subrouter created using the resource will inherit the parent's content negotiator and
     ///         logger by default
     ///
     /// - Parameters:
-    ///   - pathComponent: Path component of the subrouter
+    ///   - pathLiteral: Path component literal of the subrouter
     ///   - resource: Resource which supplies endpoints for the subrouter
-    public func add(pathComponent: String, resource: Resource) {
-        add(pathSegment: .literal(pathComponent), resource: resource)
+    public func add(pathLiteral: String, resource: Resource) {
+        add(pathComponent: .literal(pathLiteral), resource: resource)
     }
 
     /// Adds a resource, with a path parameter, as a subrouter to this router
@@ -162,20 +158,42 @@ public class Router {
     ///         logger by default
     ///
     /// - Parameters:
-    ///   - pathComponent: Path component of the subrouter
+    ///   - pathLiteral: Path component literal of the subrouter
     ///   - resource: Resource which supplies endpoints for the subrouter
     public func add(parameterName: String, resource: Resource) {
-        add(pathSegment: .parameter(parameterName), resource: resource)
+        add(pathComponent: .parameter(parameterName), resource: resource)
+    }
+
+    public func add<T: ParameterResource>(parameterName: String, resource: T) {
+
+        add(parameterName: parameterName) { router in
+
+        }
+
     }
 }
 
 extension Router {
+
+    /// Creates a `DELETE` responder for this router
+    ///
+    /// - Parameter handler: Handler closure invoked when the method is called
+    public func delete(handler: @escaping (RequestContext) throws -> ResponseContext) {
+        respond(to: .delete, handler: handler)
+    }
 
     /// Creates a `GET` responder for this router
     ///
     /// - Parameter handler: Handler closure invoked when the method is called
     public func get(handler: @escaping (RequestContext) throws -> ResponseContext) {
         respond(to: .get, handler: handler)
+    }
+
+    /// Creates a `HEAD` responder for this router
+    ///
+    /// - Parameter handler: Handler closure invoked when the method is called
+    public func head(handler: @escaping (RequestContext) throws -> ResponseContext) {
+        respond(to: .head, handler: handler)
     }
 
     /// Creates a `POST` responder for this router
@@ -192,6 +210,27 @@ extension Router {
         respond(to: .put, handler: handler)
     }
 
+    /// Creates a `CONNECT` responder for this router
+    ///
+    /// - Parameter handler: Handler closure invoked when the method is called
+    public func connect(handler: @escaping (RequestContext) throws -> ResponseContext) {
+        respond(to: .connect, handler: handler)
+    }
+
+    /// Creates a `OPTIONS` responder for this router
+    ///
+    /// - Parameter handler: Handler closure invoked when the method is called
+    public func options(handler: @escaping (RequestContext) throws -> ResponseContext) {
+        respond(to: .options, handler: handler)
+    }
+
+    /// Creates a `TRACE` responder for this router
+    ///
+    /// - Parameter handler: Handler closure invoked when the method is called
+    public func trace(handler: @escaping (RequestContext) throws -> ResponseContext) {
+        respond(to: .trace, handler: handler)
+    }
+
     /// Creates a `PATCH` responder for this router
     ///
     /// - Parameter handler: Handler closure invoked when the method is called
@@ -199,14 +238,7 @@ extension Router {
         respond(to: .patch, handler: handler)
     }
 
-    /// Creates a `DELETE` responder for this router
-    ///
-    /// - Parameter handler: Handler closure invoked when the method is called
-    public func delete(handler: @escaping (RequestContext) throws -> ResponseContext) {
-        respond(to: .delete, handler: handler)
     }
-
-}
 
 extension Router {
 
@@ -348,7 +380,7 @@ extension Router {
             return nil
         }
 
-        if case .literal(let string) = pathSegment {
+        if case .literal(let string) = pathComponent {
             guard string == pathComponents[depth] else {
                 return nil
             }
@@ -379,8 +411,9 @@ extension Router {
 
         var responseContext: ResponseContext
 
-        let pathComponents = requestContext.request.url.pathComponents
+        let urlPathComponents = requestContext.request.url.pathComponents
 
+        // Respnse preprocessors to invoke at the end of this method
         var responseProcessors: [ResponseContextPreprocessor] = []
 
         do {
@@ -396,26 +429,35 @@ extension Router {
             // Validate chain of routers making sure that the chain isn't empty,
             // and that the last router has an action associated with the request's method
             guard
-                let routers = matchingRouterChain(for: pathComponents, context: requestContext),
+                let routers = matchingRouterChain(for: urlPathComponents, context: requestContext),
                 !routers.isEmpty,
                 let endpointRouter = routers.last
                 else {
                     throw HTTPError(error: .notFound)
             }
 
+            // Get the endpoint request context responder
             guard let requestContextResponder = endpointRouter.requestContextResponders[requestContext.request.method] else {
 
+                // No responder found – if the responders are empty, an error with 404 status should be
+                // thrown
                 if endpointRouter.requestContextResponders.isEmpty {
                     throw HTTPError(error: .notFound)
+                    // Other methods exist, but the supplied method isn't supported
                 } else {
+
                     let validMethodsString = endpointRouter.requestContextResponders.keys.map({ $0.description }).joined(separator: ", ")
-                    throw HTTPError(error: .methodNotAllowed, reason: "Unsupported method \(requestContext.request.method.description). Supported methods: \(validMethodsString)")
+
+                    throw HTTPError(
+                        error: .methodNotAllowed,
+                        reason: "Unsupported method \(requestContext.request.method.description). Supported methods: \(validMethodsString)"
+                    )
                 }
             }
 
             var requestProcessors: [RequestContextPreprocessor] = []
 
-            // Extract all preprocessors
+            // Extract all request preprocessors
             for router in routers {
 
                 requestProcessors += router.requestPreprocessors.filter { method, _ in
@@ -430,12 +472,12 @@ extension Router {
             // Extract path parameters from the router chain
             var parametersByName: [String: String] = [:]
 
-            for (pathSegment, pathComponent) in zip(routers.map { $0.pathSegment }, pathComponents) {
-                guard case .parameter(let name) = pathSegment else {
+            for (pathComponent, urlPathComponent) in zip(routers.map { $0.pathComponent }, urlPathComponents) {
+                guard case .parameter(let name) = pathComponent else {
                     continue
                 }
 
-                parametersByName[name] = pathComponent
+                parametersByName[name] = urlPathComponent
             }
 
             // Update context
@@ -455,6 +497,7 @@ extension Router {
 
             responseContext = try requestContextResponder.respond(to: requestContext)
 
+            // Catch parameter errors, generating an HTTP error with status 400
         } catch let error as ParametersError {
 
             let reason: String
@@ -476,6 +519,7 @@ extension Router {
             throw error
         }
 
+        // Invoke all response preprocessors
         for responseProcessor in responseProcessors {
             responseContext = try responseProcessor.process(responseContext: responseContext)
         }
@@ -506,27 +550,33 @@ extension Router: Responder {
 
     public func respond(to request: Request) throws -> Response {
 
+        // Create a request context from the request
         let context = RequestContext(request: request, logger: logger)
 
         logger.debug(request.description)
 
         do {
+            // Process the request context, creating a response context
             let responseContext = try self.responseContext(for: context)
 
             return try response(from: responseContext, for: context.request.accept)
 
+            // Catch HTTP errors
         } catch let error as HTTPError {
 
             var errorContent = Content()
 
+            // Add an error message to the response content, if exists
             if let reason = error.reason {
                 try errorContent.set(value: reason, forKey: "message")
             }
 
+            // Add an error code to the response content, if exists
             if let code = error.code {
                 try errorContent.set(value: code, forKey: "code")
             }
 
+            // If the error is empty, return a response without content
             guard !errorContent.isEmpty else {
                 return try response(
                     from: ResponseContext(status: error.status),
@@ -534,9 +584,11 @@ extension Router: Responder {
                 )
             }
 
+            // Content wrapping the error
             var content = Content()
             try content.set(value: errorContent, forKey: "error")
 
+            // Return a response with the error content
             return try response(
                 from: ResponseContext(status: error.status, content: content),
                 for: context.request.accept
@@ -549,11 +601,13 @@ extension Router: Responder {
             case 0:
                 return Response(
                     status: .badRequest,
+                    headers: [Header.contentType: MediaType.plainText.description],
                     body: "Accept header missing, or does not supply accepted media types"
                 )
             case 1:
                 return Response(
                     status: .badRequest,
+                    headers: [Header.contentType: MediaType.plainText.description],
                     body: "Media type \"\(mediaTypes[0])\" is unsupported"
                 )
             default:
@@ -561,6 +615,7 @@ extension Router: Responder {
 
                 return Response(
                     status: .badRequest,
+                    headers: [Header.contentType: MediaType.plainText.description],
                     body: "None of the accepted media types (\(mediaTypesString)) are supported"
                 )
             }
