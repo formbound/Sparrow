@@ -374,8 +374,8 @@ extension Router {
     }
 }
 
-extension Router: RequestContextResponder {
-    public func respond(to requestContext: RequestContext) throws -> ResponseContext {
+extension Router {
+    internal func responseContext(for requestContext: RequestContext) throws -> ResponseContext {
 
         var responseContext: ResponseContext
 
@@ -511,7 +511,7 @@ extension Router: Responder {
         logger.debug(request.description)
 
         do {
-            let responseContext = try respond(to: context)
+            let responseContext = try self.responseContext(for: context)
 
             return try response(from: responseContext, for: context.request.accept)
 
