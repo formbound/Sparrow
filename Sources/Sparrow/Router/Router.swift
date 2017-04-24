@@ -244,7 +244,6 @@ extension Router {
 
 extension Router {
 
-
     public func respond(to methods: [Request.Method], using handler: RequestContextResponder) {
         for method  in methods {
             requestContextResponders[method] = handler

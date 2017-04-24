@@ -56,7 +56,7 @@ public class SparrowTests: XCTestCase {
             toParameterName: "id"
         )
 
-        router.add(resource: UserCollection(), toPathLiteral: "users")
+        router.add(resource: UserCollection(), toPathLiteral: "users").add(resource: UserEndpoint(), toParameterName: "userId")
 
         let server = try HTTPServer(port: 8080, responder: router)
         try server.start()

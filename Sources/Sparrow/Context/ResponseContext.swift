@@ -19,7 +19,7 @@ public class ResponseContext {
         )
     }
 
-    public convenience init(status: Response.Status, headers: Headers = [:], content: ContentRepresentable?) throws {
+    public convenience init(status: Response.Status, headers: Headers = [:], content: ContentRepresentable?) {
         self.init(
             status: status,
             headers: headers,

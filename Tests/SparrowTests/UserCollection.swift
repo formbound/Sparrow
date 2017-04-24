@@ -42,3 +42,14 @@ public struct UserCollection: EntityCollectionResource {
     }
 
 }
+
+public struct UserEndpoint: EntityResource {
+
+    public func show(identifier: Int) throws -> User? {
+        return User(
+            username: "User \(identifier)",
+            email: "david+\(identifier)@formbound.com"
+        )
+    }
+
+}
