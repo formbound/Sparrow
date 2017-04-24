@@ -10,12 +10,12 @@ public class TestCollection: Resource {
     }
 }
 
-public class TestEntity: ParameterResource {
+public class TestEntity: PathParameterResource {
 
-    public func get(context: RequestContext, parameter: Int) throws -> ResponseContext {
+    public func get(context: RequestContext, pathParameter: Int) throws -> ResponseContext {
         return ResponseContext(
             status: .ok,
-            message: "Test #" + String(parameter)
+            message: "Test #" + String(pathParameter)
         )
     }
 

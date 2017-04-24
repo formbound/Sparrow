@@ -1,7 +1,7 @@
 import Core
 import HTTP
 
-public protocol EntityResource: ParameterResource {
+public protocol EntityResource: PathParameterResource {
     associatedtype Entity: ContentConvertible
     associatedtype Identifier: ParameterInitializable
 
@@ -17,9 +17,9 @@ public protocol EntityResource: ParameterResource {
 
 extension EntityResource {
 
-    public func get(context: RequestContext, parameter: Identifier) throws -> ResponseContext {
+    public func get(context: RequestContext, pathParameter: Identifier) throws -> ResponseContext {
 
-        guard let entity: Entity = try show(identifier: parameter) else {
+        guard let entity: Entity = try show(identifier: pathParameter) else {
             throw HTTPError(error: .notFound)
         }
 
@@ -29,16 +29,16 @@ extension EntityResource {
         )
     }
 
-    public func delete(context: RequestContext, parameter: Identifier) throws -> ResponseContext {
-        try delete(identifier: parameter)
+    public func delete(context: RequestContext, pathParameter: Identifier) throws -> ResponseContext {
+        try delete(identifier: pathParameter)
 
         return ResponseContext(
             status: .ok
         )
     }
 
-    public func put(context: RequestContext, parameter: Identifier) throws -> ResponseContext {
-        let entity = try replace(identifier: parameter, with: Entity(content: context.content))
+    public func put(context: RequestContext, pathParameter: Identifier) throws -> ResponseContext {
+        let entity = try replace(identifier: pathParameter, with: Entity(content: context.content))
 
         return ResponseContext(
             status: .ok,
@@ -46,8 +46,8 @@ extension EntityResource {
         )
     }
 
-    public func patch(context: RequestContext, parameter: Identifier) throws -> ResponseContext {
-        let entity = try update(identifier: parameter, with: context.content)
+    public func patch(context: RequestContext, pathParameter: Identifier) throws -> ResponseContext {
+        let entity = try update(identifier: pathParameter, with: context.content)
 
         return ResponseContext(
             status: .ok,
