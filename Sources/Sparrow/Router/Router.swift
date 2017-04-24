@@ -244,15 +244,24 @@ extension Router {
 
 extension Router {
 
+
+    public func respond(to methods: [Request.Method], using handler: RequestContextResponder) {
+        for method  in methods {
+            requestContextResponders[method] = handler
+        }
+    }
+
+    public func respond(to method: Request.Method, using handler: RequestContextResponder) {
+        respond(to: [method], using: handler)
+    }
+
     /// Creates a responder for this router responding to the supplied methods
     ///
     /// - Parameters:
     ///   - methods: Methods to respond do
     ///   - handler: Handler closure invoked when the methods are called
     public func respond(to methods: [Request.Method], handler: @escaping (RequestContext) throws -> ResponseContext) {
-        for method  in methods {
-            requestContextResponders[method] = BasicRequestContextResponder(handler: handler)
-        }
+        respond(to: methods, using: BasicRequestContextResponder(handler: handler))
     }
 
     /// Creates a responder for this router responding to the supplied method
@@ -261,7 +270,7 @@ extension Router {
     ///   - method: Methods to respond do
     ///   - handler: Handler closure invoked when the method is called
     public func respond(to method: Request.Method, handler: @escaping (RequestContext) throws -> ResponseContext) {
-        respond(to: [method], handler: handler)
+        respond(to: method, using: BasicRequestContextResponder(handler: handler))
     }
 }
 
