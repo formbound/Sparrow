@@ -1,4 +1,4 @@
-@testable import Sparrow
+import Sparrow
 
 public struct User {
     let username: String
@@ -19,10 +19,9 @@ extension User: ContentConvertible {
     }
 }
 
-public struct UserCollection: ResourceCollection {
+public struct UserCollection: EntityCollectionResource {
 
-    public func get(offset: Int, limit: Int?) throws -> ResourceCollectionResult<User> {
-
+    public func list(offset: Int, limit: Int?) throws -> EntityCollectionResourceResult<User> {
         let allUsers = (0..<100).map { i in
             return User(
                 username: "User \(i)",
@@ -36,7 +35,10 @@ public struct UserCollection: ResourceCollection {
 
         users = Array(users[0..<limit])
 
-        return ResourceCollectionResult(
-            elements: users, totalElementCount: allUsers.count, limit: limit, offset: offset)
+        return EntityCollectionResourceResult(
+            entities: users,
+            ofTotal: allUsers.count
+        )
     }
+
 }
