@@ -32,9 +32,9 @@ import Core
 ///             message: "Hello world!"
 ///         )
 ///     }
-public class Router {
+public final class Router {
 
-    internal enum PathComponent {
+    public enum PathComponent {
         case literal(String)
         case parameter(String)
     }
@@ -44,13 +44,13 @@ public class Router {
     /// Content negotiator of the router
     public let contentNegotiator: ContentNegotiator
 
-    internal let pathComponent: PathComponent
+    fileprivate let pathComponent: PathComponent
 
-    internal var requestPreprocessors: [(Request.Method, RequestContextPreprocessor)] = []
+    fileprivate var requestContextPreprocessors: [(Request.Method, RequestContextPreprocessor)] = []
 
-    internal var responsePreprocessors: [(Request.Method, ResponseContextPreprocessor)] = []
+    fileprivate var responseContextPreprocessors: [(Request.Method, ResponseContextPreprocessor)] = []
 
-    internal var requestContextResponders: [Request.Method: RequestContextResponder] = [:]
+    fileprivate var requestContextResponders: [Request.Method: RequestContextResponder] = [:]
 
     /// Logger used by the router
     public let logger: Logger
@@ -106,10 +106,11 @@ public class Router {
         self.children += routers
     }
 
-    internal func add(pathComponent: PathComponent, builder: (Router) -> Void) {
+    internal func add(pathComponent: PathComponent, builder: (Router) -> Void) -> Router {
         let router = Router(pathComponent: pathComponent, contentNegotiator: contentNegotiator, logger: logger)
         builder(router)
         add(router: router)
+        return router
     }
 
     /// Creates and adds a new subrouter of this router, with a path component, using a construction handler
@@ -119,8 +120,9 @@ public class Router {
     /// - Parameters:
     ///   - pathLiteral: Path component literal of the subrouter
     ///   - builder: Handler used to configure the subrouter
-    public func add(pathLiteral: String, builder: (Router) -> Void) {
-        add(pathComponent: .literal(pathLiteral), builder: builder)
+    @discardableResult
+    public func add(pathLiteral: String, builder: (Router) -> Void) -> Router {
+        return add(pathComponent: .literal(pathLiteral), builder: builder)
     }
 
     /// Creates and adds a new subrouter of this router, with a path parameter, using a construction handler
@@ -130,46 +132,20 @@ public class Router {
     /// - Parameters:
     ///   - parameterName: Parameter name of the subrouter
     ///   - builder: Handler used to configure the subrouter
-    public func add(parameterName: String, builder: (Router) -> Void) {
-        add(pathComponent: .parameter(parameterName), builder: builder)
-    }
-
-    internal func add(pathComponent: PathComponent, resource: Resource) {
-        add(router: resource.makeRouter(pathComponent: pathComponent))
+    @discardableResult
+    public func add(parameterName: String, builder: (Router) -> Void) -> Router {
+        return add(pathComponent: .parameter(parameterName), builder: builder)
     }
 }
 
 extension Router {
-    /// Adds a resource, with a path component, as a subrouter to this router
-    ///
-    /// - Note: The subrouter created using the resource will inherit the parent's content negotiator and
-    ///         logger by default
-    ///
-    /// - Parameters:
-    ///   - pathLiteral: Path component literal of the subrouter
-    ///   - resource: Resource which supplies endpoints for the subrouter
-    public func add(pathLiteral: String, resource: Resource) {
-        add(pathComponent: .literal(pathLiteral), resource: resource)
+
+    fileprivate func responseContextPreprocessors(for method: Request.Method) -> [ResponseContextPreprocessor] {
+        return responseContextPreprocessors.filter { $0.0 == method }.map { $0.1 }
     }
 
-    /// Adds a resource, with a path parameter, as a subrouter to this router
-    ///
-    /// - Note: The subrouter created using the resource will inherit the parent's content negotiator and
-    ///         logger by default
-    ///
-    /// - Parameters:
-    ///   - pathLiteral: Path component literal of the subrouter
-    ///   - resource: Resource which supplies endpoints for the subrouter
-    public func add(parameterName: String, resource: Resource) {
-        add(pathComponent: .parameter(parameterName), resource: resource)
-    }
-
-    public func add<T: ParameterResource>(parameterName: String, resource: T) {
-
-        add(parameterName: parameterName) { router in
-
-        }
-
+    fileprivate func requestContextPreprocessors(for method: Request.Method) -> [RequestContextPreprocessor] {
+        return requestContextPreprocessors.filter { $0.0 == method }.map { $0.1 }
     }
 }
 
@@ -237,8 +213,34 @@ extension Router {
     public func patch(handler: @escaping (RequestContext) throws -> ResponseContext) {
         respond(to: .patch, handler: handler)
     }
+}
 
+extension Router {
+    @discardableResult
+    fileprivate func add<T: Resource>(resource: T, to pathComponent: PathComponent) -> Router {
+
+        return add(pathComponent: pathComponent) { router in
+            router.delete(handler: resource.delete(context:))
+            router.get(handler: resource.get(context:))
+            router.head(handler: resource.head(context:))
+            router.post(handler: resource.post(context:))
+            router.put(handler: resource.put(context:))
+            router.connect(handler: resource.connect(context:))
+            router.options(handler: resource.options(context:))
+            router.trace(handler: resource.trace(context:))
+        }
     }
+
+    @discardableResult
+    internal func add<T: Resource>(resource: T, toPathLiteral pathLiteral: String) -> Router {
+        return add(resource: resource, to: .literal(pathLiteral))
+    }
+
+    @discardableResult
+    internal func add<T: Resource>(resource: T, toParameterName parameterName: String) -> Router {
+        return add(resource: resource, to: .parameter(parameterName))
+    }
+}
 
 extension Router {
 
@@ -270,9 +272,9 @@ extension Router {
     /// - Parameters:
     ///   - methods: Methods triggering preprocessing
     ///   - handler: Handler closure invoked for the supplied methods
-    public func processRequest(for methods: [Request.Method], handler: @escaping (RequestContext) throws -> RequestContextProcessingResult) {
+    public func processRequest(for methods: [Request.Method], handler: @escaping (RequestContext) throws -> Void) {
         for method in methods {
-            requestPreprocessors.append((method, BasicRequestContextPreprocessor(handler: handler)))
+            requestContextPreprocessors.append((method, BasicRequestContextPreprocessor(handler: handler)))
         }
     }
 
@@ -281,7 +283,7 @@ extension Router {
     /// - Parameters:
     ///   - method: Method triggering preprocessing
     ///   - handler: Handler closure invoked for the supplied method
-    public func processRequest(for method: Request.Method, handler: @escaping (RequestContext) throws -> RequestContextProcessingResult) {
+    public func processRequest(for method: Request.Method, handler: @escaping (RequestContext) throws -> Void) {
         processRequest(for: [method], handler: handler)
     }
 
@@ -311,9 +313,9 @@ extension Router {
     /// - Parameters:
     ///   - methods: Methods triggering preprocessing
     ///   - handler: Handler closure invoked invoked for the supplied methods
-    public func processResponse(for methods: [Request.Method], handler: @escaping (ResponseContext) throws -> ResponseContext) {
+    public func processResponse(for methods: [Request.Method], handler: @escaping (ResponseContext) throws -> Void) {
         for method in methods {
-            responsePreprocessors.append((method, BasicResponseContextPreprocessor(handler: handler)))
+            responseContextPreprocessors.append((method, BasicResponseContextPreprocessor(handler: handler)))
         }
     }
 
@@ -322,7 +324,7 @@ extension Router {
     /// - Parameters:
     ///   - method: Method triggering preprocessing
     ///   - handler: Handler closure invoked invoked for the supplied methods
-    public func processResponse(for method: Request.Method, handler: @escaping (ResponseContext) throws -> ResponseContext) {
+    public func processResponse(for method: Request.Method, handler: @escaping (ResponseContext) throws -> Void) {
         processResponse(for: [method], handler: handler)
     }
 
@@ -369,20 +371,20 @@ extension Router {
 
 extension Router {
 
-    internal func matchingRouterChain(
+    fileprivate func matchingRouterChain(
         for pathComponents: [String],
         depth: Array<String>.Index = 0,
         context: RequestContext,
         parents: [Router] = []
-        ) -> [Router]? {
+        ) -> [Router] {
 
         guard pathComponents.count > depth else {
-            return nil
+            return []
         }
 
         if case .literal(let string) = pathComponent {
             guard string == pathComponents[depth] else {
-                return nil
+                return []
             }
         }
 
@@ -391,32 +393,34 @@ extension Router {
         }
 
         for child in children {
-            guard let matching = child.matchingRouterChain(
+            let matching = child.matchingRouterChain(
                 for: pathComponents,
                 depth: depth.advanced(by: 1),
                 context: context,
                 parents: parents + [self]
-                ) else {
-                    continue
+            )
+
+            guard !matching.isEmpty else {
+                continue
             }
+
             return matching
         }
 
-        return nil
+        return []
     }
 }
 
 extension Router {
-    internal func responseContext(for requestContext: RequestContext) throws -> ResponseContext {
-
-        var responseContext: ResponseContext
-
-        let urlPathComponents = requestContext.request.url.pathComponents
-
-        // Respnse preprocessors to invoke at the end of this method
-        var responseProcessors: [ResponseContextPreprocessor] = []
+    fileprivate func responseContext(for requestContext: RequestContext) throws -> ResponseContext {
 
         do {
+
+            let responseContext: ResponseContext
+
+            let urlPathComponents = requestContext.request.url.pathComponents
+
+            let routers: [Router]
 
             // Extract the body, and parse if, if needed
             if
@@ -426,10 +430,11 @@ extension Router {
                 requestContext.content = try contentNegotiator.parse(body: requestContext.request.body, mediaType: contentType, deadline: .never)
             }
 
+            routers = matchingRouterChain(for: urlPathComponents, context: requestContext)
+
             // Validate chain of routers making sure that the chain isn't empty,
             // and that the last router has an action associated with the request's method
             guard
-                let routers = matchingRouterChain(for: urlPathComponents, context: requestContext),
                 !routers.isEmpty,
                 let endpointRouter = routers.last
                 else {
@@ -455,47 +460,29 @@ extension Router {
                 }
             }
 
-            var requestProcessors: [RequestContextPreprocessor] = []
+            for (i, router) in routers.enumerated() {
 
-            // Extract all request preprocessors
-            for router in routers {
-
-                requestProcessors += router.requestPreprocessors.filter { method, _ in
-                    method == requestContext.request.method
-                    }.map { $0.1 }
-
-                responseProcessors += router.responsePreprocessors.filter { method, _ in
-                    method == requestContext.request.method
-                    }.map { $0.1 }
-            }
-
-            // Extract path parameters from the router chain
-            var parametersByName: [String: String] = [:]
-
-            for (pathComponent, urlPathComponent) in zip(routers.map { $0.pathComponent }, urlPathComponents) {
-                guard case .parameter(let name) = pathComponent else {
-                    continue
+                switch router.pathComponent {
+                case .literal:
+                    requestContext.currentPathParameter = nil
+                case .parameter:
+                    requestContext.currentPathParameter = urlPathComponents[i]
                 }
 
-                parametersByName[name] = urlPathComponent
-            }
-
-            // Update context
-            requestContext.pathParameters = Parameters(contents: parametersByName)
-
-            // Execute all preprocessors in order
-            for requestProcessor in requestProcessors {
-                switch try requestProcessor.process(requestContext: requestContext) {
-
-                case .continue:
-                    break
-
-                case .break(let breakingResponseContext):
-                    responseContext = breakingResponseContext
+                for requestContextPreprocessor in router.requestContextPreprocessors(for: requestContext.request.method) {
+                    try requestContextPreprocessor.process(requestContext: requestContext)
                 }
             }
 
             responseContext = try requestContextResponder.respond(to: requestContext)
+
+            for router in routers {
+                for responseContextPreprocessor in router.responseContextPreprocessors(for: requestContext.request.method) {
+                    try responseContextPreprocessor.process(responseContext: responseContext)
+                }
+            }
+
+            return responseContext
 
             // Catch parameter errors, generating an HTTP error with status 400
         } catch let error as ParametersError {
@@ -515,22 +502,32 @@ extension Router {
             )
 
             // Catch thrown HTTP errors – they should be presented with the content negotiator
+
+        } catch let error as RequestContextError {
+
+            switch error {
+            case .pathParameterConversionFailed(let pathParameterName):
+                throw HTTPError(
+                    error: .badRequest,
+                    reason: "Path parameter \(pathParameterName) failed to convert to expected type"
+                )
+
+            case .pathParameterMissing:
+                throw HTTPError(
+                    error: .badRequest,
+                    reason: "Missing path parameter"
+                )
+            }
+
         } catch {
             throw error
         }
-
-        // Invoke all response preprocessors
-        for responseProcessor in responseProcessors {
-            responseContext = try responseProcessor.process(responseContext: responseContext)
-        }
-
-        return responseContext
     }
 }
 
 extension Router: Responder {
 
-    internal func response(from responseContext: ResponseContext, for mediaTypes: [MediaType]) throws -> Response {
+    fileprivate func response(from responseContext: ResponseContext, for mediaTypes: [MediaType]) throws -> Response {
 
         // If the response context has no content to serialize, return its response
         guard let content = responseContext.content else {

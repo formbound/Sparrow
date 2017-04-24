@@ -1,38 +1,33 @@
-public enum RequestContextProcessingResult {
-    case `continue`
-    case `break`(ResponseContext)
-}
-
 public protocol RequestContextPreprocessor {
-    func process(requestContext: RequestContext) throws -> RequestContextProcessingResult
+    func process(requestContext: RequestContext) throws
 }
 
 public struct BasicRequestContextPreprocessor: RequestContextPreprocessor {
 
-    private let handler: (RequestContext) throws -> RequestContextProcessingResult
+    private let handler: (RequestContext) throws -> Void
 
-    internal init(handler: @escaping (RequestContext) throws -> RequestContextProcessingResult) {
+    internal init(handler: @escaping (RequestContext) throws -> Void) {
         self.handler = handler
     }
 
-    public func process(requestContext: RequestContext) throws -> RequestContextProcessingResult {
+    public func process(requestContext: RequestContext) throws {
         return try handler(requestContext)
     }
 }
 
 public protocol ResponseContextPreprocessor {
-    func process(responseContext: ResponseContext) throws -> ResponseContext
+    func process(responseContext: ResponseContext) throws
 }
 
 public struct BasicResponseContextPreprocessor: ResponseContextPreprocessor {
 
-    private let handler: (ResponseContext) throws -> ResponseContext
+    private let handler: (ResponseContext) throws -> Void
 
-    internal init(handler: @escaping (ResponseContext) throws -> ResponseContext) {
+    internal init(handler: @escaping (ResponseContext) throws -> Void) {
         self.handler = handler
     }
 
-    public func process(responseContext: ResponseContext) throws -> ResponseContext {
+    public func process(responseContext: ResponseContext) throws {
         return try handler(responseContext)
     }
 }

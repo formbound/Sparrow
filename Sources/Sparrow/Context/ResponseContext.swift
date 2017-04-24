@@ -15,11 +15,11 @@ public class ResponseContext {
         self.init(
             status: status,
             headers: headers,
-            content: ["message": message]
+            content: Content(dictionary: ["message": message])
         )
     }
 
-    public convenience init(status: Response.Status, headers: Headers = [:], content: ContentRepresentable?) {
+    public convenience init(status: Response.Status, headers: Headers = [:], content: ContentRepresentable?) throws {
         self.init(
             status: status,
             headers: headers,

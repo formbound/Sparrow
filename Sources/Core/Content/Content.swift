@@ -394,18 +394,6 @@ extension Content: ExpressibleByNilLiteral {
     }
 }
 
-extension Content: ExpressibleByDictionaryLiteral {
-    public init(dictionaryLiteral elements: (String, ContentRepresentable?)...) {
-        var result: [String: Content] = [:]
-
-        for (key, value) in elements {
-            result[key] = value?.content ?? .null
-        }
-
-        self.init(dictionary: result)
-    }
-}
-
 extension Content: CustomStringConvertible {
     public var description: String {
         let result: String
