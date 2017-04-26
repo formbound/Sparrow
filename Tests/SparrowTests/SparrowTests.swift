@@ -64,9 +64,9 @@ public class SparrowTests: XCTestCase {
 
     func testRouterPerformance() throws {
         let router = Router()
-        router.add(UserCollection(), to: "users")
+        router.add(UserCollection(), to: "users").add(UserEndpoint(), to: .userId)
 
-        let request = HTTP.Request(method: .get, url: URL(string: "/users/23")!, headers: ["Authentication": "bearer token"])
+        let request = HTTP.Request(method: .get, url: URL(string: "/users")!, headers: ["Authentication": "bearer token"])
 
         measure {
             print(try? router.respond(to: request))
