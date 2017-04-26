@@ -12,43 +12,13 @@ public class RequestContext {
     public let storage: [String: Any] = [:]
     internal(set) public var content: Content
     fileprivate(set) public var log: Logger
-    internal var currentPathParameter: String?
+    internal(set) public var pathParameters: Parameters
 
-    internal init(request: Request, logger: Logger) {
+    internal init(request: Request, logger: Logger, pathParameters: Parameters = .empty) {
         self.request = request
         self.content = .null
         self.log = logger
-    }
-}
-
-extension RequestContext {
-
-    public var hasPathParameter: Bool {
-        return currentPathParameter != nil
-    }
-
-    public func pathParameter<T: ParameterInitializable>() throws -> T? {
-
-        guard let stringValue = currentPathParameter else {
-            return nil
-        }
-
-        do {
-            return try T(pathParameter: stringValue)
-        } catch ParameterConversionError.conversionFailed {
-            throw RequestContextError.pathParameterConversionFailed(stringValue)
-        } catch {
-            throw error
-        }
-    }
-
-    public func pathParameter<T: ParameterInitializable>() throws -> T {
-
-        guard let value: T = try pathParameter() else {
-            throw RequestContextError.pathParameterMissing
-        }
-
-        return value
+        self.pathParameters = pathParameters
     }
 }
 

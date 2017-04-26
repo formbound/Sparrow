@@ -19,9 +19,9 @@ extension User: ContentConvertible {
     }
 }
 
-public struct UserCollection: EntityCollectionResource {
+public struct UserCollection: CollectionRoute {
 
-    public func list(offset: Int, limit: Int?) throws -> EntityCollectionResourceResult<User> {
+    public func list(offset: Int, limit: Int?) throws -> CollectionRouteResult<User> {
         let allUsers = (0..<100).map { i in
             return User(
                 username: "User \(i)",
@@ -35,7 +35,7 @@ public struct UserCollection: EntityCollectionResource {
 
         users = Array(users[0..<limit])
 
-        return EntityCollectionResourceResult(
+        return CollectionRouteResult(
             entities: users,
             ofTotal: allUsers.count
         )
@@ -43,12 +43,19 @@ public struct UserCollection: EntityCollectionResource {
 
 }
 
-public struct UserEndpoint: EntityResource {
+public struct UserEndpoint: EntityRoute {
+    public struct PathParameters: ParametersInitializable {
+        public let id: Int
 
-    public func show(identifier: Int) throws -> User? {
+        public init(parameters: Parameters) throws {
+            id = try parameters.get(.userId)
+        }
+    }
+
+    public func show(pathParameters: UserEndpoint.PathParameters, queryItems: Parameters) throws -> User? {
         return User(
-            username: "User \(identifier)",
-            email: "david+\(identifier)@formbound.com"
+            username: "User \(pathParameters.id)",
+            email: "david+\(pathParameters.id)@formbound.com"
         )
     }
 

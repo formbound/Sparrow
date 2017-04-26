@@ -16,13 +16,13 @@ public struct Parameters {
         self.contents = contents
     }
 
-    public func value<T: ParameterInitializable>(for key: String) throws -> T? {
+    public func get<T: ParameterInitializable>(_ key: String) throws -> T? {
         guard let string = contents[key] else {
             return nil
         }
 
         do {
-            return try T(pathParameter: string)
+            return try T(parameter: string)
         } catch ParameterConversionError.conversionFailed {
             throw ParametersError.conversionFailed(key)
         } catch {
@@ -30,8 +30,8 @@ public struct Parameters {
         }
     }
 
-    public func value<T: ParameterInitializable>(for key: String) throws -> T {
-        guard let value: T = try value(for: key) else {
+    public func get<T: ParameterInitializable>(_ key: String) throws -> T {
+        guard let value: T = try get(key) else {
             throw ParametersError.missingValue(key)
         }
 
@@ -41,24 +41,26 @@ public struct Parameters {
     public var isEmpty: Bool {
         return contents.isEmpty
     }
+
+    public static let empty = Parameters(contents: [:])
 }
 
 public protocol ParameterInitializable {
-    init(pathParameter: String) throws
+    init(parameter: String) throws
 }
 
 public protocol ParameterRepresentable {
-    var pathParameter: String { get }
+    var parameter: String { get }
 }
 
 public protocol ParameterConvertible: ParameterInitializable, ParameterRepresentable {}
 
 extension String : ParameterConvertible {
-    public init(pathParameter: String) throws {
-        self = pathParameter
+    public init(parameter: String) throws {
+        self = parameter
     }
 
-    public var pathParameter: String {
+    public var parameter: String {
         return self
     }
 }
@@ -68,47 +70,47 @@ public enum ParameterConversionError: Error {
 }
 
 extension Int : ParameterConvertible {
-    public init(pathParameter: String) throws {
-        guard let value = Int(pathParameter) else {
+    public init(parameter: String) throws {
+        guard let value = Int(parameter) else {
             throw ParameterConversionError.conversionFailed
         }
         self.init(value)
     }
 
-    public var pathParameter: String {
+    public var parameter: String {
         return String(self)
     }
 }
 
 extension Double : ParameterConvertible {
-    public init(pathParameter: String) throws {
-        guard let value = Double(pathParameter) else {
+    public init(parameter: String) throws {
+        guard let value = Double(parameter) else {
             throw ParameterConversionError.conversionFailed
         }
         self.init(value)
     }
 
-    public var pathParameter: String {
+    public var parameter: String {
         return String(self)
     }
 }
 
 extension Float : ParameterConvertible {
-    public init(pathParameter: String) throws {
-        guard let value = Float(pathParameter) else {
+    public init(parameter: String) throws {
+        guard let value = Float(parameter) else {
             throw ParameterConversionError.conversionFailed
         }
         self.init(value)
     }
 
-    public var pathParameter: String {
+    public var parameter: String {
         return String(self)
     }
 }
 
 extension Bool : ParameterInitializable {
-    public init(pathParameter: String) throws {
-        switch pathParameter.lowercased() {
+    public init(parameter: String) throws {
+        switch parameter.lowercased() {
         case "true", "1", "t":
             self = true
         case "false", "0", "f":

@@ -36,7 +36,7 @@ public final class Router {
 
     public enum PathComponent {
         case literal(String)
-        case parameter(String)
+        case parameter(PathParameter)
     }
 
     fileprivate(set) public var children: [Router] = []
@@ -71,7 +71,7 @@ public final class Router {
     ///   - contentNegotiator: Content negotiator for the router to create. Defaults to the standard content negotiator
     ///   - logger: Logger used by the router. Defaults to the stanard logger, printing to standard out
     public convenience init(contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
-        self.init(pathLiteral: "/", contentNegotiator: contentNegotiator, logger: logger)
+        self.init(component: "/", contentNegotiator: contentNegotiator, logger: logger)
     }
 
     /// Creates a new router with specified path component
@@ -79,8 +79,8 @@ public final class Router {
     /// - Parameters:
     ///   - contentNegotiator: Content negotiator for the router to create. Defaults to the standard content negotiator
     ///   - logger: Logger used by the router. Defaults to the stanard logger, printing to standard out
-    public convenience init(pathLiteral: String, contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
-        self.init(pathComponent: .literal(pathLiteral), contentNegotiator: contentNegotiator, logger: logger)
+    public convenience init(component: String, contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
+        self.init(pathComponent: .literal(component), contentNegotiator: contentNegotiator, logger: logger)
     }
 
     /// Creates a new router with specified path parameter name
@@ -88,8 +88,8 @@ public final class Router {
     /// - Parameters:
     ///   - contentNegotiator: Content negotiator for the router to create. Defaults to the standard content negotiator
     ///   - logger: Logger used by the router. Defaults to the stanard logger, printing to standard out
-    public convenience init(parameterName: String, contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
-        self.init(pathComponent: .parameter(parameterName), contentNegotiator: contentNegotiator, logger: logger)
+    public convenience init(parameter: PathParameter, contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
+        self.init(pathComponent: .parameter(parameter), contentNegotiator: contentNegotiator, logger: logger)
     }
 
     /// Adds a router as a subrouter of this router
@@ -106,8 +106,8 @@ public final class Router {
         self.children += routers
     }
 
-    internal func add(pathComponent: PathComponent, builder: (Router) -> Void) -> Router {
-        let router = Router(pathComponent: pathComponent, contentNegotiator: contentNegotiator, logger: logger)
+    fileprivate func add(component: PathComponent, builder: (Router) -> Void) -> Router {
+        let router = Router(pathComponent: component, contentNegotiator: contentNegotiator, logger: logger)
         builder(router)
         add(router: router)
         return router
@@ -121,8 +121,8 @@ public final class Router {
     ///   - pathLiteral: Path component literal of the subrouter
     ///   - builder: Handler used to configure the subrouter
     @discardableResult
-    public func add(pathLiteral: String, builder: (Router) -> Void) -> Router {
-        return add(pathComponent: .literal(pathLiteral), builder: builder)
+    public func add(_ literal: String, builder: (Router) -> Void) -> Router {
+        return add(component: .literal(literal), builder: builder)
     }
 
     /// Creates and adds a new subrouter of this router, with a path parameter, using a construction handler
@@ -133,8 +133,8 @@ public final class Router {
     ///   - parameterName: Parameter name of the subrouter
     ///   - builder: Handler used to configure the subrouter
     @discardableResult
-    public func add(parameterName: String, builder: (Router) -> Void) -> Router {
-        return add(pathComponent: .parameter(parameterName), builder: builder)
+    public func add(_ parameter: PathParameter, builder: (Router) -> Void) -> Router {
+        return add(component: .parameter(parameter), builder: builder)
     }
 }
 
@@ -217,28 +217,28 @@ extension Router {
 
 extension Router {
     @discardableResult
-    fileprivate func add<T: Resource>(resource: T, to pathComponent: PathComponent) -> Router {
+    fileprivate func add<T: Route>(_ route: T, to component: PathComponent) -> Router {
 
-        return add(pathComponent: pathComponent) { router in
-            router.delete(handler: resource.delete(context:))
-            router.get(handler: resource.get(context:))
-            router.head(handler: resource.head(context:))
-            router.post(handler: resource.post(context:))
-            router.put(handler: resource.put(context:))
-            router.connect(handler: resource.connect(context:))
-            router.options(handler: resource.options(context:))
-            router.trace(handler: resource.trace(context:))
+        return add(component: component) { router in
+            router.delete(handler: route.delete(context:))
+            router.get(handler: route.get(context:))
+            router.head(handler: route.head(context:))
+            router.post(handler: route.post(context:))
+            router.put(handler: route.put(context:))
+            router.connect(handler: route.connect(context:))
+            router.options(handler: route.options(context:))
+            router.trace(handler: route.trace(context:))
         }
     }
 
     @discardableResult
-    internal func add<T: Resource>(resource: T, toPathLiteral pathLiteral: String) -> Router {
-        return add(resource: resource, to: .literal(pathLiteral))
+    internal func add<T: Route>(_ route: T, to component: String) -> Router {
+        return add(route, to: .literal(component))
     }
 
     @discardableResult
-    internal func add<T: Resource>(resource: T, toParameterName parameterName: String) -> Router {
-        return add(resource: resource, to: .parameter(parameterName))
+    internal func add<T: Route>(_ route: T, to parameter: PathParameter) -> Router {
+        return add(route, to: .parameter(parameter))
     }
 }
 
@@ -468,15 +468,22 @@ extension Router {
                 }
             }
 
-            for (i, router) in routers.enumerated() {
+            // Extract path parameters from the router chain
+            var parametersByName: [String: String] = [:]
 
-                switch router.pathComponent {
-                case .literal:
-                    requestContext.currentPathParameter = nil
-                case .parameter:
-                    requestContext.currentPathParameter = urlPathComponents[i]
+            for (pathComponent, urlPathComponent) in zip(routers.map { $0.pathComponent }, urlPathComponents) {
+                guard case .parameter(let name) = pathComponent else {
+                    continue
                 }
 
+                parametersByName[name.rawValue] = urlPathComponent
+            }
+
+            // Update context
+            requestContext.pathParameters = Parameters(contents: parametersByName)
+
+            // Request context preprocessors
+            for router in routers {
                 for requestContextPreprocessor in router.requestContextPreprocessors(for: requestContext.request.method) {
                     try requestContextPreprocessor.process(requestContext: requestContext)
                 }

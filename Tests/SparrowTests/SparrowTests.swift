@@ -11,11 +11,11 @@ public class SparrowTests: XCTestCase {
 
         let router = Router()
 
-        router.add(pathLiteral: "error") { router in
+        router.add("error") { router in
 
             router.respond(to: .get) { context in
 
-                if let shouldThrow: Bool = try context.queryParameters.value(for: "throw") {
+                if let shouldThrow: Bool = try context.queryParameters.get("throw") {
                     if shouldThrow {
                         throw TestError.test
                     }
@@ -27,7 +27,7 @@ public class SparrowTests: XCTestCase {
             }
         }
 
-        router.add(pathLiteral: "echo") { router in
+        router.add("echo") { router in
 
             router.post { context in
                 return ResponseContext(
@@ -49,17 +49,28 @@ public class SparrowTests: XCTestCase {
         let router = Router()
 
         router.add(
-            resource: TestCollection(),
-            toPathLiteral: "tests"
+            TestCollection(),
+            to: "tests"
         ).add(
-            resource: TestEntity(),
-            toParameterName: "id"
+            TestEntity(),
+            to: .testId
         )
 
-        router.add(resource: UserCollection(), toPathLiteral: "users").add(resource: UserEndpoint(), toParameterName: "userId")
+        router.add(UserCollection(), to: "users").add(UserEndpoint(), to: .userId)
 
         let server = try HTTPServer(port: 8080, responder: router)
         try server.start()
+    }
+
+    func testRouterPerformance() throws {
+        let router = Router()
+        router.add(UserCollection(), to: "users")
+
+        let request = HTTP.Request(method: .get, url: URL(string: "/users/23")!, headers: ["Authentication": "bearer token"])
+
+        measure {
+            print(try? router.respond(to: request))
+        }
     }
 }
 
@@ -69,13 +80,18 @@ extension SparrowTests {
     }
 }
 
+extension PathParameter {
+    public static let userId = PathParameter(rawValue: "userId")
+    public static let testId = PathParameter(rawValue: "testId")
+}
+
 struct NameAndAgeParameters: ParametersInitializable {
 
     let age: Int
     let name: String
 
     init(parameters: Parameters) throws {
-        age = try parameters.value(for: "age")
-        name = try parameters.value(for: "name")
+        age = try parameters.get("age")
+        name = try parameters.get("name")
     }
 }

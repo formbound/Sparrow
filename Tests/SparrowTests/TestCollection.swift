@@ -1,6 +1,6 @@
 @testable import Sparrow
 
-public class TestCollection: Resource {
+public class TestCollection: Route {
 
     public func get(context: RequestContext) throws -> ResponseContext {
         return ResponseContext(
@@ -10,12 +10,15 @@ public class TestCollection: Resource {
     }
 }
 
-public class TestEntity: PathParameterResource {
+public class TestEntity: Route {
 
-    public func get(context: RequestContext, pathParameter: Int) throws -> ResponseContext {
+    public func get(context: RequestContext) throws -> ResponseContext {
+
+        let id: Int = try context.pathParameters.get(.testId)
+
         return ResponseContext(
             status: .ok,
-            message: "Test #" + String(pathParameter)
+            message: "Test #" + String(id)
         )
     }
 

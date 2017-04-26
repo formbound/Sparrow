@@ -1,7 +1,7 @@
 import HTTP
 import Core
 
-public enum EntityCollectionResourceResultKey: String {
+public enum CollectionRouteResultKey: String {
     case entities
     case count
     case metadata
@@ -10,7 +10,7 @@ public enum EntityCollectionResourceResultKey: String {
     case total
 }
 
-public struct EntityCollectionResourceResult<T: ContentRepresentable> {
+public struct CollectionRouteResult<T: ContentRepresentable> {
     fileprivate let entities: [T]
     fileprivate let total: Int
 
@@ -20,21 +20,21 @@ public struct EntityCollectionResourceResult<T: ContentRepresentable> {
     }
 }
 
-public protocol EntityCollectionResource: Resource {
+public protocol CollectionRoute: Route {
     associatedtype Entity: ContentConvertible
 
     /// Configure the keys in the returning response
     ///
     /// - Parameter key: Key to transform
     /// - Returns: String to use in the returning response
-    static func resultKey(for key: EntityCollectionResourceResultKey) -> String
+    static func resultKey(for key: CollectionRouteResultKey) -> String
 
     /// Lists all entities
     ///
     /// - Parameters:
     ///   - offset: Index offsetting the returning range of entities
     ///   - limit: Limit the returning range of entities
-    func list(offset: Int, limit: Int?) throws -> EntityCollectionResourceResult<Entity>
+    func list(offset: Int, limit: Int?) throws -> CollectionRouteResult<Entity>
 
     /// Creates a new entity
     ///
@@ -50,19 +50,19 @@ public protocol EntityCollectionResource: Resource {
     func deleteAll() throws
 }
 
-extension EntityCollectionResource {
+extension CollectionRoute {
 
-    public static func resultKey(for key: EntityCollectionResourceResultKey) -> String {
+    public static func resultKey(for key: CollectionRouteResultKey) -> String {
         return key.rawValue
     }
 
     public func get(context: RequestContext) throws -> ResponseContext {
 
-        let offset: Int = try context.queryParameters.value(for: "offset") ?? 0
+        let offset: Int = try context.queryParameters.get("offset") ?? 0
 
         let result = try list(
             offset: offset,
-            limit: context.queryParameters.value(for: "limit")
+            limit: context.queryParameters.get("limit")
         )
         return ResponseContext(
             status: .ok,
@@ -92,7 +92,7 @@ extension EntityCollectionResource {
     }
 }
 
-extension EntityCollectionResource {
+extension CollectionRoute {
 
     public func create(element: Entity) throws -> Entity {
         throw HTTPError(error: .methodNotAllowed)

@@ -1,6 +1,6 @@
 import HTTP
 
-public protocol Resource {
+public protocol Route {
 
     func delete(context: RequestContext) throws -> ResponseContext
 
@@ -21,7 +21,7 @@ public protocol Resource {
     func patch(context: RequestContext) throws -> ResponseContext
 }
 
-extension Resource {
+extension Route {
 
     public func delete(context: RequestContext) throws -> ResponseContext {
         throw HTTPError(error: .methodNotAllowed)
