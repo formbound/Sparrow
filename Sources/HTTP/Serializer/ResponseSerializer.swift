@@ -10,7 +10,7 @@ public class ResponseSerializer {
         self.bufferSize = bufferSize
     }
 
-    public func serialize(_ response: Response, deadline: Deadline) throws {
+    public func serialize(_ response: HTTPResponse, deadline: Deadline) throws {
         var header = "HTTP/"
         header += response.version.major.description
         header += "."

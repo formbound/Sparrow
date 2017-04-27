@@ -1,13 +1,13 @@
 import Core
 
-public protocol Message {
+public protocol HTTPMessage {
     var version: Version { get set }
-    var headers: Headers { get set }
-    var body: Body { get set }
+    var headers: HTTPHeaders { get set }
+    var body: HTTPBody { get set }
     var storage: [String: Any] { get set }
 }
 
-extension Message {
+extension HTTPMessage {
     public var contentType: MediaType? {
         get {
             return headers["Content-Type"].flatMap({try? MediaType(string: $0)})
@@ -75,7 +75,7 @@ extension Message {
     }
 }
 
-extension Message {
+extension HTTPMessage {
     public var storageDescription: String {
         var string = "Storage:\n"
 

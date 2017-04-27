@@ -38,7 +38,7 @@ public class ContentNegotiator {
 
 public extension ContentNegotiator {
 
-    public func serialize(content: Content, mediaType: MediaType, deadline: Deadline) throws -> (Body, MediaType) {
+    public func serialize(content: Content, mediaType: MediaType, deadline: Deadline) throws -> (HTTPBody, MediaType) {
 
         guard let supportedMediaType = produces.filter({
             $0.mediaType.matches(other: mediaType)
@@ -52,7 +52,7 @@ public extension ContentNegotiator {
         }
     }
 
-    public func parse(body: Body, mediaType: MediaType, deadline: Deadline) throws -> Content {
+    public func parse(body: HTTPBody, mediaType: MediaType, deadline: Deadline) throws -> Content {
 
         guard let supportedMediaType = accepts.filter({
             $0.mediaType.matches(other: mediaType)
@@ -70,7 +70,7 @@ public extension ContentNegotiator {
 }
 
 extension ContentNegotiator {
-    public func parse(body: Body, mediaTypes: [MediaType], deadline: Deadline) throws -> Content {
+    public func parse(body: HTTPBody, mediaTypes: [MediaType], deadline: Deadline) throws -> Content {
 
         var mediaTypes = mediaTypes
 
@@ -89,7 +89,7 @@ extension ContentNegotiator {
         throw Error.unsupportedMediaTypes(mediaTypes)
     }
 
-    public func serialize(content: Content, mediaTypes: [MediaType], deadline: Deadline) throws -> (Body, MediaType) {
+    public func serialize(content: Content, mediaTypes: [MediaType], deadline: Deadline) throws -> (HTTPBody, MediaType) {
 
         var mediaTypes = mediaTypes
 

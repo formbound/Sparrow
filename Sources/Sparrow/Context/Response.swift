@@ -1,17 +1,17 @@
 import Core
 
-public class ResponseContext {
-    public var response: Response
+public class Response {
+    public var httpResponse: HTTPResponse
     public var content: Content?
-    public var headers: Headers
+    public var headers: HTTPHeaders
 
-    public init(status: Response.Status, headers: Headers = [:], content: Content? = nil) {
-        self.response = Response(status: status, headers: headers)
+    public init(status: HTTPResponse.Status, headers: HTTPHeaders = [:], content: Content? = nil) {
+        self.httpResponse = HTTPResponse(status: status, headers: headers)
         self.headers = headers
         self.content = content
     }
 
-    public convenience init(status: Response.Status, headers: Headers = [:], message: String) {
+    public convenience init(status: HTTPResponse.Status, headers: HTTPHeaders = [:], message: String) {
         self.init(
             status: status,
             headers: headers,
@@ -19,7 +19,7 @@ public class ResponseContext {
         )
     }
 
-    public convenience init(status: Response.Status, headers: Headers = [:], content: ContentRepresentable?) {
+    public convenience init(status: HTTPResponse.Status, headers: HTTPHeaders = [:], content: ContentRepresentable?) {
         self.init(
             status: status,
             headers: headers,
@@ -28,26 +28,26 @@ public class ResponseContext {
     }
 }
 
-extension ResponseContext: CustomStringConvertible {
+extension Response: CustomStringConvertible {
     public var description: String {
         if let content = content {
             var string: String = ""
-            string += String(response.status.statusCode) + " " + response.status.reasonPhrase + "\n"
+            string += String(httpResponse.status.statusCode) + " " + httpResponse.status.reasonPhrase + "\n"
             string += headers.description + "\n"
             string += content.description
             return string
         } else {
-            return response.description
+            return httpResponse.description
         }
     }
 }
 
-extension ResponseContext: CustomDebugStringConvertible {
+extension Response: CustomDebugStringConvertible {
     public var debugDescription: String {
         guard content != nil else {
             return description
         }
 
-        return response.debugDescription
+        return httpResponse.debugDescription
     }
 }

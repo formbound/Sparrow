@@ -56,15 +56,15 @@ extension CollectionRoute {
         return key.rawValue
     }
 
-    public func get(context: RequestContext) throws -> ResponseContext {
+    public func get(request: Request) throws -> Response {
 
-        let offset: Int = try context.queryParameters.get("offset") ?? 0
+        let offset: Int = try request.queryParameters.get("offset") ?? 0
 
         let result = try list(
             offset: offset,
-            limit: context.queryParameters.get("limit")
+            limit: request.queryParameters.get("limit")
         )
-        return ResponseContext(
+        return Response(
             status: .ok,
             content: Content(
                 dictionary: [
@@ -79,16 +79,16 @@ extension CollectionRoute {
         )
     }
 
-    public func post(context: RequestContext) throws -> ResponseContext {
-        return try ResponseContext(
+    public func post(request: Request) throws -> Response {
+        return try Response(
             status: .created,
-            content: create(element: Entity(content: context.content))
+            content: create(element: Entity(content: request.content))
         )
     }
 
-    public func delete(context: RequestContext) throws -> ResponseContext {
+    public func delete(request: Request) throws -> Response {
         try deleteAll()
-        return ResponseContext(status: .ok)
+        return Response(status: .ok)
     }
 }
 

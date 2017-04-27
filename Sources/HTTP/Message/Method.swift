@@ -1,4 +1,4 @@
-extension Request.Method {
+extension HTTPRequest.Method {
     init(_ rawValue: String) {
         let method = rawValue.uppercased()
         switch method {
@@ -16,7 +16,7 @@ extension Request.Method {
     }
 }
 
-extension Request.Method : CustomStringConvertible {
+extension HTTPRequest.Method : CustomStringConvertible {
     public var description: String {
         switch self {
         case .delete:            return "DELETE"
@@ -33,7 +33,7 @@ extension Request.Method : CustomStringConvertible {
     }
 }
 
-extension Request.Method : Hashable {
+extension HTTPRequest.Method : Hashable {
     public var hashValue: Int {
         switch self {
         case .delete:            return 0
@@ -50,6 +50,6 @@ extension Request.Method : Hashable {
     }
 }
 
-public func ==(lhs: Request.Method, rhs: Request.Method) -> Bool {
+public func ==(lhs: HTTPRequest.Method, rhs: HTTPRequest.Method) -> Bool {
     return lhs.description == rhs.description
 }

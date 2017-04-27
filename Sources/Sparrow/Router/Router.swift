@@ -8,26 +8,30 @@ import Core
 /// The default router, created with `Router()` is created with the base path of `"/"`.
 /// To this base router, you can add subrouters using resources, or simply with closures if you like.
 ///
+///     extension PathParameter {
+///         static let name = PathParameter(rawValue: "name")
+///     }
+///
 ///     let router = Router()
 ///
 ///     // /greeting
 ///     router.add(pathLiteral: "greeting") { router in
 ///
 ///         // /greeting/:name
-///         router.add(parameterName: "name") { router in
-///             router.get { context in
-///                 return try ResponseContext(
+///         router.add(.name) { router in
+///             router.get { request in
+///                 return try Response(
 ///                     status: .ok,
-///                     message: "Hello " + context.pathParameters.value(for: "name")
+///                     message: "Hello " + request.pathParameters.value(for: "name")
 ///                 )
 ///             }
 ///         }
 ///     }
 ///
 ///     // GET /
-///     router.get { context in
+///     router.get { request in
 ///
-///         return ResponseContext(
+///         return Response(
 ///             status: .ok,
 ///             message: "Hello world!"
 ///         )
@@ -46,17 +50,17 @@ public final class Router {
 
     fileprivate let pathComponent: PathComponent
 
-    fileprivate var requestContextPreprocessors: [(Request.Method, RequestContextPreprocessor)] = []
+    fileprivate var requestPreprocessors: [(HTTPRequest.Method, RequestPreprocessor)] = []
 
-    fileprivate var responseContextPreprocessors: [(Request.Method, ResponseContextPreprocessor)] = []
+    fileprivate var responsePreprocessors: [(HTTPRequest.Method, ResponsePreprocessor)] = []
 
-    fileprivate var requestContextResponders: [Request.Method: RequestContextResponder] = [:]
+    fileprivate var requestResponders: [HTTPRequest.Method: RequestResponder] = [:]
 
     /// Logger used by the router
     public let logger: Logger
 
-    lazy public var recovery: ((Error) -> ResponseContext) = { _ in
-        return ResponseContext(status: .internalServerError, message: "An unexpected error occurred")
+    lazy public var recovery: ((Error) -> Response) = { _ in
+        return Response(status: .internalServerError, message: "An unexpected error occurred")
     }
 
     internal init(pathComponent: PathComponent, contentNegotiator: ContentNegotiator, logger: Logger) {
@@ -140,12 +144,12 @@ public final class Router {
 
 extension Router {
 
-    fileprivate func responseContextPreprocessors(for method: Request.Method) -> [ResponseContextPreprocessor] {
-        return responseContextPreprocessors.filter { $0.0 == method }.map { $0.1 }
+    fileprivate func responsePreprocessors(for method: HTTPRequest.Method) -> [ResponsePreprocessor] {
+        return responsePreprocessors.filter { $0.0 == method }.map { $0.1 }
     }
 
-    fileprivate func requestContextPreprocessors(for method: Request.Method) -> [RequestContextPreprocessor] {
-        return requestContextPreprocessors.filter { $0.0 == method }.map { $0.1 }
+    fileprivate func requestPreprocessors(for method: HTTPRequest.Method) -> [RequestPreprocessor] {
+        return requestPreprocessors.filter { $0.0 == method }.map { $0.1 }
     }
 }
 
@@ -154,63 +158,63 @@ extension Router {
     /// Creates a `DELETE` responder for this router
     ///
     /// - Parameter handler: Handler closure invoked when the method is called
-    public func delete(handler: @escaping (RequestContext) throws -> ResponseContext) {
+    public func delete(handler: @escaping (Request) throws -> Response) {
         respond(to: .delete, handler: handler)
     }
 
     /// Creates a `GET` responder for this router
     ///
     /// - Parameter handler: Handler closure invoked when the method is called
-    public func get(handler: @escaping (RequestContext) throws -> ResponseContext) {
+    public func get(handler: @escaping (Request) throws -> Response) {
         respond(to: .get, handler: handler)
     }
 
     /// Creates a `HEAD` responder for this router
     ///
     /// - Parameter handler: Handler closure invoked when the method is called
-    public func head(handler: @escaping (RequestContext) throws -> ResponseContext) {
+    public func head(handler: @escaping (Request) throws -> Response) {
         respond(to: .head, handler: handler)
     }
 
     /// Creates a `POST` responder for this router
     ///
     /// - Parameter handler: Handler closure invoked when the method is called
-    public func post(handler: @escaping (RequestContext) throws -> ResponseContext) {
+    public func post(handler: @escaping (Request) throws -> Response) {
         respond(to: .post, handler: handler)
     }
 
     /// Creates a `PUT` responder for this router
     ///
     /// - Parameter handler: Handler closure invoked when the method is called
-    public func put(handler: @escaping (RequestContext) throws -> ResponseContext) {
+    public func put(handler: @escaping (Request) throws -> Response) {
         respond(to: .put, handler: handler)
     }
 
     /// Creates a `CONNECT` responder for this router
     ///
     /// - Parameter handler: Handler closure invoked when the method is called
-    public func connect(handler: @escaping (RequestContext) throws -> ResponseContext) {
+    public func connect(handler: @escaping (Request) throws -> Response) {
         respond(to: .connect, handler: handler)
     }
 
     /// Creates a `OPTIONS` responder for this router
     ///
     /// - Parameter handler: Handler closure invoked when the method is called
-    public func options(handler: @escaping (RequestContext) throws -> ResponseContext) {
+    public func options(handler: @escaping (Request) throws -> Response) {
         respond(to: .options, handler: handler)
     }
 
     /// Creates a `TRACE` responder for this router
     ///
     /// - Parameter handler: Handler closure invoked when the method is called
-    public func trace(handler: @escaping (RequestContext) throws -> ResponseContext) {
+    public func trace(handler: @escaping (Request) throws -> Response) {
         respond(to: .trace, handler: handler)
     }
 
     /// Creates a `PATCH` responder for this router
     ///
     /// - Parameter handler: Handler closure invoked when the method is called
-    public func patch(handler: @escaping (RequestContext) throws -> ResponseContext) {
+    public func patch(handler: @escaping (Request) throws -> Response) {
         respond(to: .patch, handler: handler)
     }
 }
@@ -220,14 +224,14 @@ extension Router {
     fileprivate func add<T: Route>(_ route: T, to component: PathComponent) -> Router {
 
         return add(component: component) { router in
-            router.delete(handler: route.delete(context:))
-            router.get(handler: route.get(context:))
-            router.head(handler: route.head(context:))
-            router.post(handler: route.post(context:))
-            router.put(handler: route.put(context:))
-            router.connect(handler: route.connect(context:))
-            router.options(handler: route.options(context:))
-            router.trace(handler: route.trace(context:))
+            router.delete(handler: route.delete(request:))
+            router.get(handler: route.get(request:))
+            router.head(handler: route.head(request:))
+            router.post(handler: route.post(request:))
+            router.put(handler: route.put(request:))
+            router.connect(handler: route.connect(request:))
+            router.options(handler: route.options(request:))
+            router.trace(handler: route.trace(request:))
         }
     }
 
@@ -244,13 +248,13 @@ extension Router {
 
 extension Router {
 
-    public func respond(to methods: [Request.Method], using handler: RequestContextResponder) {
+    public func respond(to methods: [HTTPRequest.Method], using handler: RequestResponder) {
         for method  in methods {
-            requestContextResponders[method] = handler
+            requestResponders[method] = handler
         }
     }
 
-    public func respond(to method: Request.Method, using handler: RequestContextResponder) {
+    public func respond(to method: HTTPRequest.Method, using handler: RequestResponder) {
         respond(to: [method], using: handler)
     }
 
@@ -259,8 +263,8 @@ extension Router {
     /// - Parameters:
     ///   - methods: Methods to respond do
     ///   - handler: Handler closure invoked when the methods are called
-    public func respond(to methods: [Request.Method], handler: @escaping (RequestContext) throws -> ResponseContext) {
-        respond(to: methods, using: BasicRequestContextResponder(handler: handler))
+    public func respond(to methods: [HTTPRequest.Method], handler: @escaping (Request) throws -> Response) {
+        respond(to: methods, using: BasicRequestResponder(handler: handler))
     }
 
     /// Creates a responder for this router responding to the supplied method
@@ -268,8 +272,8 @@ extension Router {
     /// - Parameters:
     ///   - method: Methods to respond do
     ///   - handler: Handler closure invoked when the method is called
-    public func respond(to method: Request.Method, handler: @escaping (RequestContext) throws -> ResponseContext) {
-        respond(to: method, using: BasicRequestContextResponder(handler: handler))
+    public func respond(to method: HTTPRequest.Method, handler: @escaping (Request) throws -> Response) {
+        respond(to: method, using: BasicRequestResponder(handler: handler))
     }
 }
 
@@ -280,9 +284,9 @@ extension Router {
     /// - Parameters:
     ///   - methods: Methods triggering preprocessing
     ///   - handler: Handler closure invoked for the supplied methods
-    public func processRequest(for methods: [Request.Method], handler: @escaping (RequestContext) throws -> Void) {
+    public func processRequest(for methods: [HTTPRequest.Method], handler: @escaping (Request) throws -> Void) {
         for method in methods {
-            requestContextPreprocessors.append((method, BasicRequestContextPreprocessor(handler: handler)))
+            requestPreprocessors.append((method, BasicRequestPreprocessor(handler: handler)))
         }
     }
 
@@ -291,7 +295,7 @@ extension Router {
     /// - Parameters:
     ///   - method: Method triggering preprocessing
     ///   - handler: Handler closure invoked for the supplied method
-    public func processRequest(for method: Request.Method, handler: @escaping (RequestContext) throws -> Void) {
+    public func processRequest(for method: HTTPRequest.Method, handler: @escaping (Request) throws -> Void) {
         processRequest(for: [method], handler: handler)
     }
 
@@ -300,7 +304,7 @@ extension Router {
     /// - Parameters:
     ///   - processor: Preprocessor invoked for supplied methods
     ///   - methods: Methods triggering preprocessing
-    func add(processor: RequestContextPreprocessor, for methods: [Request.Method]) {
+    func add(processor: RequestPreprocessor, for methods: [HTTPRequest.Method]) {
         processRequest(for: methods, handler: processor.process)
     }
 
@@ -309,7 +313,7 @@ extension Router {
     /// - Parameters:
     ///   - processor: Preprocessor invoked for supplied methods
     ///   - method: Method triggering preprocessing
-    func add(processor: RequestContextPreprocessor, for method: Request.Method) {
+    func add(processor: RequestPreprocessor, for method: HTTPRequest.Method) {
         processRequest(for: method, handler: processor.process)
     }
 }
@@ -321,9 +325,9 @@ extension Router {
     /// - Parameters:
     ///   - methods: Methods triggering preprocessing
     ///   - handler: Handler closure invoked invoked for the supplied methods
-    public func processResponse(for methods: [Request.Method], handler: @escaping (ResponseContext) throws -> Void) {
+    public func processResponse(for methods: [HTTPRequest.Method], handler: @escaping (Response) throws -> Void) {
         for method in methods {
-            responseContextPreprocessors.append((method, BasicResponseContextPreprocessor(handler: handler)))
+            responsePreprocessors.append((method, BasicResponsePreprocessor(handler: handler)))
         }
     }
 
@@ -332,7 +336,7 @@ extension Router {
     /// - Parameters:
     ///   - method: Method triggering preprocessing
     ///   - handler: Handler closure invoked invoked for the supplied methods
-    public func processResponse(for method: Request.Method, handler: @escaping (ResponseContext) throws -> Void) {
+    public func processResponse(for method: HTTPRequest.Method, handler: @escaping (Response) throws -> Void) {
         processResponse(for: [method], handler: handler)
     }
 
@@ -341,7 +345,7 @@ extension Router {
     /// - Parameters:
     ///   - processor: Preprocessor invoked for supplied methods
     ///   - methods: Methods triggering the preprocessor invocation
-    func add(processor: ResponseContextPreprocessor, for methods: [Request.Method]) {
+    func add(processor: ResponsePreprocessor, for methods: [HTTPRequest.Method]) {
         processResponse(for: methods, handler: processor.process)
     }
 
@@ -350,7 +354,7 @@ extension Router {
     /// - Parameters:
     ///   - processor: Preprocessor invoked for supplied methods
     ///   - method: Methods triggering the preprocessor invocation
-    func add(processor: ResponseContextPreprocessor, for method: Request.Method) {
+    func add(processor: ResponsePreprocessor, for method: HTTPRequest.Method) {
         processResponse(for: method, handler: processor.process)
     }
 }
@@ -361,7 +365,7 @@ extension Router {
     /// - Parameters:
     ///   - processor: Preprocessor invoked for supplied methods
     ///   - methods: Methods triggering the request and response processor
-    func add(processor: ContextPreprocessor, for methods: [Request.Method]) {
+    func add(processor: ContextPreprocessor, for methods: [HTTPRequest.Method]) {
         processRequest(for: methods, handler: processor.process)
         processResponse(for: methods, handler: processor.process)
     }
@@ -371,7 +375,7 @@ extension Router {
     /// - Parameters:
     ///   - processor: Preprocessor invoked for supplied methods
     ///   - method: Method triggering the request and response processor
-    func add(processor: ContextPreprocessor, for method: Request.Method) {
+    func add(processor: ContextPreprocessor, for method: HTTPRequest.Method) {
         processRequest(for: method, handler: processor.process)
         processResponse(for: method, handler: processor.process)
     }
@@ -382,7 +386,7 @@ extension Router {
     fileprivate func matchingRouterChain(
         for pathComponents: [String],
         depth: Array<String>.Index = 0,
-        context: RequestContext,
+        request: Request,
         parents: [Router] = []
         ) -> [Router] {
 
@@ -404,7 +408,7 @@ extension Router {
             let matching = child.matchingRouterChain(
                 for: pathComponents,
                 depth: depth.advanced(by: 1),
-                context: context,
+                request: request,
                 parents: parents + [self]
             )
 
@@ -419,26 +423,26 @@ extension Router {
     }
 }
 
-extension Router: RequestContextResponder {
+extension Router: RequestResponder {
 
-    public func respond(to requestContext: RequestContext) throws -> ResponseContext {
+    public func respond(to request: Request) throws -> Response {
         do {
 
-            let responseContext: ResponseContext
+            let response: Response
 
-            let urlPathComponents = requestContext.request.url.pathComponents
+            let urlPathComponents = request.httpRequest.url.pathComponents
 
             let routers: [Router]
 
             // Extract the body, and parse if, if needed
             if
-                let contentLength = requestContext.request.contentLength,
+                let contentLength = request.httpRequest.contentLength,
                 contentLength > 0,
-                let contentType = requestContext.request.contentType {
-                requestContext.content = try contentNegotiator.parse(body: requestContext.request.body, mediaType: contentType, deadline: .never)
+                let contentType = request.httpRequest.contentType {
+                request.content = try contentNegotiator.parse(body: request.httpRequest.body, mediaType: contentType, deadline: .never)
             }
 
-            routers = matchingRouterChain(for: urlPathComponents, context: requestContext)
+            routers = matchingRouterChain(for: urlPathComponents, request: request)
 
             // Validate chain of routers making sure that the chain isn't empty,
             // and that the last router has an action associated with the request's method
@@ -449,21 +453,21 @@ extension Router: RequestContextResponder {
                     throw HTTPError(error: .notFound)
             }
 
-            // Get the endpoint request context responder
-            guard let requestContextResponder = endpointRouter.requestContextResponders[requestContext.request.method] else {
+            // Get the endpoint request responder
+            guard let requestResponder = endpointRouter.requestResponders[request.httpRequest.method] else {
 
                 // No responder found – if the responders are empty, an error with 404 status should be
                 // thrown
-                if endpointRouter.requestContextResponders.isEmpty {
+                if endpointRouter.requestResponders.isEmpty {
                     throw HTTPError(error: .notFound)
                     // Other methods exist, but the supplied method isn't supported
                 } else {
 
-                    let validMethodsString = endpointRouter.requestContextResponders.keys.map({ $0.description }).joined(separator: ", ")
+                    let validMethodsString = endpointRouter.requestResponders.keys.map({ $0.description }).joined(separator: ", ")
 
                     throw HTTPError(
                         error: .methodNotAllowed,
-                        reason: "Unsupported method \(requestContext.request.method.description). Supported methods: \(validMethodsString)"
+                        reason: "Unsupported method \(request.httpRequest.method.description). Supported methods: \(validMethodsString)"
                     )
                 }
             }
@@ -479,25 +483,25 @@ extension Router: RequestContextResponder {
                 parametersByName[name.rawValue] = urlPathComponent
             }
 
-            // Update context
-            requestContext.pathParameters = Parameters(contents: parametersByName)
+            // Update request
+            request.pathParameters = Parameters(contents: parametersByName)
 
-            // Request context preprocessors
+            // Request request preprocessors
             for router in routers {
-                for requestContextPreprocessor in router.requestContextPreprocessors(for: requestContext.request.method) {
-                    try requestContextPreprocessor.process(requestContext: requestContext)
+                for requestPreprocessor in router.requestPreprocessors(for: request.httpRequest.method) {
+                    try requestPreprocessor.process(request: request)
                 }
             }
 
-            responseContext = try requestContextResponder.respond(to: requestContext)
+            response = try requestResponder.respond(to: request)
 
             for router in routers {
-                for responseContextPreprocessor in router.responseContextPreprocessors(for: requestContext.request.method) {
-                    try responseContextPreprocessor.process(responseContext: responseContext)
+                for responsePreprocessor in router.responsePreprocessors(for: request.httpRequest.method) {
+                    try responsePreprocessor.process(response: response)
                 }
             }
 
-            return responseContext
+            return response
 
             // Catch parameter errors, generating an HTTP error with status 400
         } catch let error as ParametersError {
@@ -524,38 +528,38 @@ extension Router: RequestContextResponder {
     }
 }
 
-extension Router: Responder {
+extension Router: HTTPResponder {
 
-    fileprivate func response(from responseContext: ResponseContext, for mediaTypes: [MediaType]) throws -> Response {
+    fileprivate func httpResponse(from response: Response, for mediaTypes: [MediaType]) throws -> HTTPResponse {
 
-        // If the response context has no content to serialize, return its response
-        guard let content = responseContext.content else {
-            return responseContext.response
+        // If the response has no content to serialize, return its response
+        guard let content = response.content else {
+            return response.httpResponse
         }
 
         // Serialize content, modify response and return it
         let (body, mediaType) = try contentNegotiator.serialize(content: content, mediaTypes: mediaTypes, deadline: .never)
-        var headers = responseContext.response.headers
-        headers[Header.contentType] = mediaType.description
+        var headers = response.httpResponse.headers
+        headers[HTTPHeader.contentType] = mediaType.description
 
-        responseContext.response.headers = headers
-        responseContext.response.body = body
+        response.httpResponse.headers = headers
+        response.httpResponse.body = body
 
-        return responseContext.response
+        return response.httpResponse
     }
 
-    public func respond(to request: Request) throws -> Response {
+    public func respond(to httpRequest: HTTPRequest) throws -> HTTPResponse {
 
-        // Create a request context from the request
-        let context = RequestContext(request: request, logger: logger)
+        // Create a request from the request
+        let request = Request(request: httpRequest, logger: logger)
 
-        logger.debug(request.description)
+        logger.debug(httpRequest.description)
 
         do {
-            // Process the request context, creating a response context
-            let responseContext = try self.responseContext(for: context)
+            // Process the request, creating a response
+            let response = try self.respond(to: request)
 
-            return try response(from: responseContext, for: context.request.accept)
+            return try httpResponse(from: response, for: request.httpRequest.accept)
 
             // Catch HTTP errors
         } catch let error as HTTPError {
@@ -574,9 +578,9 @@ extension Router: Responder {
 
             // If the error is empty, return a response without content
             guard !errorContent.isEmpty else {
-                return try response(
-                    from: ResponseContext(status: error.status),
-                    for: context.request.accept
+                return try httpResponse(
+                    from: Response(status: error.status),
+                    for: request.httpRequest.accept
                 )
             }
 
@@ -585,9 +589,9 @@ extension Router: Responder {
             try content.set(value: errorContent, forKey: "error")
 
             // Return a response with the error content
-            return try response(
-                from: ResponseContext(status: error.status, content: content),
-                for: context.request.accept
+            return try httpResponse(
+                from: Response(status: error.status, content: content),
+                for: request.httpRequest.accept
             )
 
             // Catch content negotiator unsupported media types error
@@ -595,29 +599,29 @@ extension Router: Responder {
 
             switch mediaTypes.count {
             case 0:
-                return Response(
+                return HTTPResponse(
                     status: .badRequest,
-                    headers: [Header.contentType: MediaType.plainText.description],
+                    headers: [HTTPHeader.contentType: MediaType.plainText.description],
                     body: "Accept header missing, or does not supply accepted media types"
                 )
             case 1:
-                return Response(
+                return HTTPResponse(
                     status: .badRequest,
-                    headers: [Header.contentType: MediaType.plainText.description],
+                    headers: [HTTPHeader.contentType: MediaType.plainText.description],
                     body: "Media type \"\(mediaTypes[0])\" is unsupported"
                 )
             default:
                 let mediaTypesString = mediaTypes.map({ "\"\($0.description)\"" }).joined(separator: ", ")
 
-                return Response(
+                return HTTPResponse(
                     status: .badRequest,
-                    headers: [Header.contentType: MediaType.plainText.description],
+                    headers: [HTTPHeader.contentType: MediaType.plainText.description],
                     body: "None of the accepted media types (\(mediaTypesString)) are supported"
                 )
             }
         } catch {
             // Run a recovery
-            return try response(from: recovery(error), for: context.request.accept)
+            return try httpResponse(from: recovery(error), for: request.httpRequest.accept)
         }
     }
 }

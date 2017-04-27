@@ -17,54 +17,54 @@ public protocol EntityRoute: Route {
 
 extension EntityRoute {
 
-    public func get(context: RequestContext) throws -> ResponseContext {
+    public func get(request: Request) throws -> Response {
 
         guard let entity: Entity = try show(
-            pathParameters: PathParameters(parameters: context.pathParameters),
-            queryItems: context.queryParameters
+            pathParameters: PathParameters(parameters: request.pathParameters),
+            queryItems: request.queryParameters
         ) else {
             throw HTTPError(error: .methodNotAllowed)
         }
 
-        return ResponseContext(
+        return Response(
             status: .ok,
             content: entity
         )
     }
 
-    public func delete(context: RequestContext) throws -> ResponseContext {
+    public func delete(request: Request) throws -> Response {
         try delete(
-            pathParameters: PathParameters(parameters: context.pathParameters),
-            queryItems: context.queryParameters
+            pathParameters: PathParameters(parameters: request.pathParameters),
+            queryItems: request.queryParameters
         )
 
-        return ResponseContext(
+        return Response(
             status: .ok
         )
     }
 
-    public func put(context: RequestContext) throws -> ResponseContext {
+    public func put(request: Request) throws -> Response {
         let entity = try replace(
-            pathParameters: PathParameters(parameters: context.pathParameters),
-            queryItems: context.queryParameters,
-            with: Entity(content: context.content
+            pathParameters: PathParameters(parameters: request.pathParameters),
+            queryItems: request.queryParameters,
+            with: Entity(content: request.content
             )
         )
 
-        return ResponseContext(
+        return Response(
             status: .ok,
             content: entity
         )
     }
 
-    public func patch(context: RequestContext) throws -> ResponseContext {
+    public func patch(request: Request) throws -> Response {
         let entity = try update(
-            pathParameters: PathParameters(parameters: context.pathParameters),
-            queryItems: context.queryParameters,
-            with: context.content
+            pathParameters: PathParameters(parameters: request.pathParameters),
+            queryItems: request.queryParameters,
+            with: request.content
         )
 
-        return ResponseContext(
+        return Response(
             status: .ok,
             content: entity
         )

@@ -1,12 +1,12 @@
 import Core
 
 public struct HTTPError: Error {
-    public let status: Response.Status
+    public let status: HTTPResponse.Status
     public var reason: String?
     public var code: Int?
-    public var headers: Headers
+    public var headers: HTTPHeaders
 
-    public init(error: HTTPErrorCode, reason: String? = nil, code: Int? = nil, headers: Headers = [:]) {
+    public init(error: HTTPErrorCode, reason: String? = nil, code: Int? = nil, headers: HTTPHeaders = [:]) {
         self.status = error.status
         self.code = code
         self.reason = reason
@@ -57,7 +57,7 @@ public enum HTTPErrorCode {
 }
 
 extension HTTPErrorCode {
-    public var status: Response.Status {
+    public var status: HTTPResponse.Status {
         switch self {
         case .badRequest: return .badRequest
         case .unauthorized: return .unauthorized

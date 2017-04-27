@@ -1,14 +1,14 @@
 import Core
 import Venice
 
-public enum Body {
+public enum HTTPBody {
     case data([Byte])
     case reader(InputStream)
     case writer((OutputStream) throws -> Void)
 }
 
-extension Body {
-    public static var empty: Body {
+extension HTTPBody {
+    public static var empty: HTTPBody {
         return .data([])
     }
 
@@ -20,7 +20,7 @@ extension Body {
     }
 }
 
-extension Body {
+extension HTTPBody {
     public var isBuffer: Bool {
         switch self {
         case .data: return true
@@ -43,7 +43,7 @@ extension Body {
     }
 }
 
-extension Body {
+extension HTTPBody {
     public mutating func becomeBytes(deadline: Deadline) throws -> [Byte] {
         switch self {
         case .data(let bytes):
@@ -100,9 +100,9 @@ extension Body {
     }
 }
 
-extension Body : Equatable {}
+extension HTTPBody : Equatable {}
 
-public func == (lhs: Body, rhs: Body) -> Bool {
+public func == (lhs: HTTPBody, rhs: HTTPBody) -> Bool {
     switch (lhs, rhs) {
         case let (.data(l), .data(r)) where l == r: return true
         default: return false

@@ -1,27 +1,27 @@
-public protocol Responder: ResponderRepresentable {
-    func respond(to request: Request) throws -> Response
+public protocol HTTPResponder: ResponderRepresentable {
+    func respond(to request: HTTPRequest) throws -> HTTPResponse
 }
 
-extension Responder {
-    public var responder: Responder {
+extension HTTPResponder {
+    public var responder: HTTPResponder {
         return self
     }
 }
 
 public protocol ResponderRepresentable {
-    var responder: Responder { get }
+    var responder: HTTPResponder { get }
 }
 
-public typealias Respond = (_ to: Request) throws -> Response
+public typealias Respond = (_ to: HTTPRequest) throws -> HTTPResponse
 
-public struct BasicResponder: Responder {
+public struct BasicResponder: HTTPResponder {
     let respond: Respond
 
     public init(_ respond: @escaping Respond) {
         self.respond = respond
     }
 
-    public func respond(to request: Request) throws -> Response {
+    public func respond(to request: HTTPRequest) throws -> HTTPResponse {
         return try self.respond(request)
     }
 }

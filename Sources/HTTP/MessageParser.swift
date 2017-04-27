@@ -5,7 +5,7 @@ import Foundation
 public typealias MessageParserError = http_errno
 
 public final class MessageParser {
-    public typealias Result = Message
+    public typealias Result = HTTPMessage
 
     public enum Mode {
         case request
@@ -25,14 +25,14 @@ public final class MessageParser {
     }
 
     fileprivate class Context {
-        var method: Request.Method?
-        var status: Response.Status?
+        var method: HTTPRequest.Method?
+        var status: HTTPResponse.Status?
         var version: Version?
         var url: URL?
-        var headers: [Header: String] = [:]
+        var headers: [HTTPHeader: String] = [:]
         var body: [Byte] = []
 
-        var currentHeaderField: Header?
+        var currentHeaderField: HTTPHeader?
 
         func addValueForCurrentHeaderField(_ value: String) {
             let key = currentHeaderField!
@@ -53,7 +53,7 @@ public final class MessageParser {
     private var context = Context()
     private var bytes: [Byte] = []
 
-    private var messages: [Message] = []
+    private var messages: [HTTPMessage] = []
 
     public init(mode: Mode) {
         var parser = http_parser()
@@ -84,13 +84,13 @@ public final class MessageParser {
         self.parser.data = Unmanaged.passUnretained(self).toOpaque()
     }
 
-    public func parse(_ bytes: [Byte]) throws -> [Message] {
+    public func parse(_ bytes: [Byte]) throws -> [HTTPMessage] {
         return try bytes.withUnsafeBufferPointer { buffer in
             try self.parse(buffer)
         }
     }
 
-    public func parse(_ buffer: UnsafeBufferPointer<Byte>) throws -> [Message] {
+    public func parse(_ buffer: UnsafeBufferPointer<Byte>) throws -> [HTTPMessage] {
         let final = buffer.isEmpty
         let needsMessage: Bool
         switch state {
@@ -123,7 +123,7 @@ public final class MessageParser {
         return parsed
     }
 
-    public func finish() throws -> [Message] {
+    public func finish() throws -> [HTTPMessage] {
         return try parse(UnsafeBufferPointer<Byte>())
     }
 
@@ -179,7 +179,7 @@ public final class MessageParser {
                     return String(cString: ptr.baseAddress!)
                 }
 
-                context.status = Response.Status(
+                context.status = HTTPResponse.Status(
                     statusCode: Int(parser.status_code),
                     reasonPhrase: string
                 )
@@ -190,7 +190,7 @@ public final class MessageParser {
                     return String(cString: ptr.baseAddress!)
                 }
 
-                context.currentHeaderField = Header(rawValue: string)
+                context.currentHeaderField = HTTPHeader(rawValue: string)
             case .headerValue:
                 bytes.append(0)
 
@@ -201,7 +201,7 @@ public final class MessageParser {
                 context.addValueForCurrentHeaderField(string)
             case .headersComplete:
                 context.currentHeaderField = nil
-                context.method = Request.Method(code: http_method(rawValue: parser.method))
+                context.method = HTTPRequest.Method(code: http_method(rawValue: parser.method))
                 context.version = Version(major: Int(parser.http_major), minor: Int(parser.http_minor))
             case .body:
                 context.body = [Byte](bytes)
@@ -211,17 +211,17 @@ public final class MessageParser {
             state = newState
 
             if state == .messageComplete {
-                let message: Message
+                let message: HTTPMessage
                 switch mode {
                 case .request:
-                    var request = Request(
+                    var request = HTTPRequest(
                         method: context.method!,
                         url: context.url!,
-                        headers: Headers(),
+                        headers: HTTPHeaders(),
                         body: .data(context.body)
                     )
 
-                    request.headers = Headers(context.headers)
+                    request.headers = HTTPHeaders(context.headers)
                     message = request
                 case .response:
                     let cookieHeaders =
@@ -232,10 +232,10 @@ public final class MessageParser {
                                 return initial.union(Set(value.components(separatedBy: ", ")))
                     }
 
-                    let response = Response(
+                    let response = HTTPResponse(
                         version: context.version!,
                         status: context.status!,
-                        headers: Headers(context.headers),
+                        headers: HTTPHeaders(context.headers),
                         cookieHeaders: cookieHeaders,
                         body: .data(context.body)
                     )
@@ -268,7 +268,7 @@ extension MessageParserError : Error, CustomStringConvertible {
     }
 }
 
-extension Request.Method {
+extension HTTPRequest.Method {
     internal init(code: http_method) {
         switch code {
         case HTTP_DELETE: self = .delete

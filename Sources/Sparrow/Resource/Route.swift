@@ -2,60 +2,60 @@ import HTTP
 
 public protocol Route {
 
-    func delete(context: RequestContext) throws -> ResponseContext
+    func delete(request: Request) throws -> Response
 
-    func get(context: RequestContext) throws -> ResponseContext
+    func get(request: Request) throws -> Response
 
-    func head(context: RequestContext) throws -> ResponseContext
+    func head(request: Request) throws -> Response
 
-    func post(context: RequestContext) throws -> ResponseContext
+    func post(request: Request) throws -> Response
 
-    func put(context: RequestContext) throws -> ResponseContext
+    func put(request: Request) throws -> Response
 
-    func connect(context: RequestContext) throws -> ResponseContext
+    func connect(request: Request) throws -> Response
 
-    func options(context: RequestContext) throws -> ResponseContext
+    func options(request: Request) throws -> Response
 
-    func trace(context: RequestContext) throws -> ResponseContext
+    func trace(request: Request) throws -> Response
 
-    func patch(context: RequestContext) throws -> ResponseContext
+    func patch(request: Request) throws -> Response
 }
 
 extension Route {
 
-    public func delete(context: RequestContext) throws -> ResponseContext {
+    public func delete(request: Request) throws -> Response {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func get(context: RequestContext) throws -> ResponseContext {
+    public func get(request: Request) throws -> Response {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func head(context: RequestContext) throws -> ResponseContext {
+    public func head(request: Request) throws -> Response {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func post(context: RequestContext) throws -> ResponseContext {
+    public func post(request: Request) throws -> Response {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func put(context: RequestContext) throws -> ResponseContext {
+    public func put(request: Request) throws -> Response {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func connect(context: RequestContext) throws -> ResponseContext {
+    public func connect(request: Request) throws -> Response {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func options(context: RequestContext) throws -> ResponseContext {
+    public func options(request: Request) throws -> Response {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func trace(context: RequestContext) throws -> ResponseContext {
+    public func trace(request: Request) throws -> Response {
         throw HTTPError(error: .methodNotAllowed)
     }
 
-    public func patch(context: RequestContext) throws -> ResponseContext {
+    public func patch(request: Request) throws -> Response {
         throw HTTPError(error: .methodNotAllowed)
     }
 }

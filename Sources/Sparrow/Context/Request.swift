@@ -2,26 +2,26 @@ import HTTP
 import Core
 import Foundation
 
-public class RequestContext {
-    public let request: HTTP.Request
+public class Request {
+    public let httpRequest: HTTPRequest
     public let storage: [String: Any] = [:]
     internal(set) public var content: Content
     fileprivate(set) public var log: Logger
     internal(set) public var pathParameters: Parameters
 
-    internal init(request: HTTP.Request, logger: Logger, pathParameters: Parameters = .empty) {
-        self.request = request
+    internal init(request: HTTPRequest, logger: Logger, pathParameters: Parameters = .empty) {
+        self.httpRequest = request
         self.content = .null
         self.log = logger
         self.pathParameters = pathParameters
     }
 }
 
-extension RequestContext {
+extension Request {
 
     public var queryParameters: Parameters {
 
-        guard let query = request.url.query else {
+        guard let query = httpRequest.url.query else {
             return Parameters()
         }
 
@@ -44,19 +44,19 @@ extension RequestContext {
 
 }
 
-public protocol RequestContextResponder {
-    func respond(to requestContext: RequestContext) throws -> ResponseContext
+public protocol RequestResponder {
+    func respond(to request: Request) throws -> Response
 }
 
-public struct BasicRequestContextResponder: RequestContextResponder {
+public struct BasicRequestResponder: RequestResponder {
 
-    private let handler: (RequestContext) throws -> ResponseContext
+    private let handler: (Request) throws -> Response
 
-    internal init(handler: @escaping (RequestContext) throws -> ResponseContext) {
+    internal init(handler: @escaping (Request) throws -> Response) {
         self.handler = handler
     }
 
-    public func respond(to requestContext: RequestContext) throws -> ResponseContext {
-        return try handler(requestContext)
+    public func respond(to request: Request) throws -> Response {
+        return try handler(request)
     }
 }

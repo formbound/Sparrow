@@ -12,7 +12,7 @@ public struct HTTPServer {
     /// First responder of the HTTP server
     /// For example, a `Router` is a type of responder.
     /// You can also write your own responders, implementing the `Responder` protocol
-    public let responder: Responder
+    public let responder: HTTPResponder
 
     /// Error handler of the HTTP server
     /// If the responder throws an error,
@@ -36,7 +36,7 @@ public struct HTTPServer {
         backlog: Int = 128,
         reusePort: Bool = false,
         bufferSize: Int = 4096,
-        responder: Responder,
+        responder: HTTPResponder,
         errorHandler: @escaping (Error) -> Void = { error in print("\(error)") }
     ) throws {
         self.tcpHost = try TCPHost(
@@ -62,7 +62,7 @@ public struct HTTPServer {
         certificatePath: String,
         privateKeyPath: String,
         certificateChainPath: String? = nil,
-        responder: Responder,
+        responder: HTTPResponder,
         errorHandler: @escaping (Error) -> Void = { error in print("\(error)") }
         ) throws {
         self.tcpHost = try TCPTLSHost(
@@ -145,7 +145,7 @@ extension HTTPServer {
                 let bytesRead = try stream.read(into: bytes, deadline: 30.seconds.fromNow())
 
                 for message in try parser.parse(bytesRead) {
-                    let request = message as! Request
+                    let request = message as! HTTPRequest
                     let response = try responder.respond(to: request)
                     // TODO: Add timeout parameter
                     try serializer.serialize(response, deadline: 5.minutes.fromNow())

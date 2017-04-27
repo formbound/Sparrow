@@ -10,7 +10,7 @@ public class RequestSerializer {
         self.bufferSize = bufferSize
     }
 
-    public func serialize(_ request: Request, deadline: Deadline) throws {
+    public func serialize(_ request: HTTPRequest, deadline: Deadline) throws {
         let newLine: [UInt8] = [13, 10]
 
         try stream.write("\(request.method) \(request.url.absoluteString) HTTP/\(request.version.major).\(request.version.minor)", deadline: deadline)

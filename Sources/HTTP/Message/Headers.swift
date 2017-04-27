@@ -1,6 +1,6 @@
 import Core
 
-public struct Header: RawRepresentable {
+public struct HTTPHeader: RawRepresentable {
     public let rawValue: String
 
     public init(rawValue: String) {
@@ -8,26 +8,26 @@ public struct Header: RawRepresentable {
     }
 }
 
-extension Header: Hashable {
+extension HTTPHeader: Hashable {
     public var hashValue: Int {
         return rawValue.hashValue
     }
 }
 
-extension Header: Equatable {
-    public static func == (lhs: Header, rhs: Header) -> Bool {
+extension HTTPHeader: Equatable {
+    public static func == (lhs: HTTPHeader, rhs: HTTPHeader) -> Bool {
         return lhs.hashValue == rhs.hashValue
     }
 }
 
-public extension Header {
+public extension HTTPHeader {
 
-    public static let contentLength = Header(rawValue: "content-length")
-    public static let contentType = Header(rawValue: "content-type")
+    public static let contentLength = HTTPHeader(rawValue: "content-length")
+    public static let contentType = HTTPHeader(rawValue: "content-type")
 
 }
 
-extension Header : ExpressibleByStringLiteral {
+extension HTTPHeader : ExpressibleByStringLiteral {
     public typealias UnicodeScalarLiteralType = String
     public typealias ExtendedGraphemeClusterLiteralType = StringLiteralType
 
@@ -44,23 +44,23 @@ extension Header : ExpressibleByStringLiteral {
     }
 }
 
-public struct Headers {
-    public var headers: [Header: String]
+public struct HTTPHeaders {
+    public var headers: [HTTPHeader: String]
 
-    public init(_ headers: [Header: String]) {
+    public init(_ headers: [HTTPHeader: String]) {
         self.headers = headers
     }
 }
 
-extension Headers {
-    public static var empty: Headers {
-        return Headers()
+extension HTTPHeaders {
+    public static var empty: HTTPHeaders {
+        return HTTPHeaders()
     }
 }
 
-extension Headers : ExpressibleByDictionaryLiteral {
-    public init(dictionaryLiteral elements: (Header, String)...) {
-        var headers: [Header: String] = [:]
+extension HTTPHeaders : ExpressibleByDictionaryLiteral {
+    public init(dictionaryLiteral elements: (HTTPHeader, String)...) {
+        var headers: [HTTPHeader: String] = [:]
 
         for (key, value) in elements {
             headers[key] = value
@@ -70,8 +70,8 @@ extension Headers : ExpressibleByDictionaryLiteral {
     }
 }
 
-extension Headers : Sequence {
-    public func makeIterator() -> DictionaryIterator<Header, String> {
+extension HTTPHeaders : Sequence {
+    public func makeIterator() -> DictionaryIterator<HTTPHeader, String> {
         return headers.makeIterator()
     }
 
@@ -83,7 +83,7 @@ extension Headers : Sequence {
         return headers.isEmpty
     }
 
-    public subscript(field: Header) -> String? {
+    public subscript(field: HTTPHeader) -> String? {
         get {
             return headers[field]
         }
@@ -100,7 +100,7 @@ extension Headers : Sequence {
     }
 }
 
-extension Headers : CustomStringConvertible {
+extension HTTPHeaders : CustomStringConvertible {
     public var description: String {
         var string = ""
 
@@ -112,14 +112,14 @@ extension Headers : CustomStringConvertible {
     }
 }
 
-extension Header: CustomStringConvertible {
+extension HTTPHeader: CustomStringConvertible {
     public var description: String {
         return rawValue
     }
 }
 
-extension Headers : Equatable {}
+extension HTTPHeaders : Equatable {}
 
-public func == (lhs: Headers, rhs: Headers) -> Bool {
+public func == (lhs: HTTPHeaders, rhs: HTTPHeaders) -> Bool {
     return lhs.headers == rhs.headers
 }

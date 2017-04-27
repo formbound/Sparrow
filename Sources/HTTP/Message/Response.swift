@@ -1,16 +1,16 @@
 import Core
 
-public struct Response: Message {
+public struct HTTPResponse: HTTPMessage {
 
     public var version: Version
 
     public var status: Status
 
-    public var headers: Headers
+    public var headers: HTTPHeaders
 
     public var cookieHeaders: Set<String>
 
-    public var body: Body {
+    public var body: HTTPBody {
         didSet {
             updateHeadersForNewBody()
         }
@@ -18,7 +18,7 @@ public struct Response: Message {
 
     public var storage: [String: Any] = [:]
 
-    public init(version: Version, status: Status, headers: Headers, cookieHeaders: Set<String>, body: Body) {
+    public init(version: Version, status: Status, headers: HTTPHeaders, cookieHeaders: Set<String>, body: HTTPBody) {
         self.version = version
         self.status = status
         self.headers = headers
@@ -38,8 +38,8 @@ public struct Response: Message {
     }
 }
 
-extension Response {
-    public init(status: Status = .ok, headers: Headers = [:], body: Body) {
+extension HTTPResponse {
+    public init(status: Status = .ok, headers: HTTPHeaders = [:], body: HTTPBody) {
         self.init(
             version: Version(major: 1, minor: 1),
             status: status,
@@ -49,7 +49,7 @@ extension Response {
         )
     }
 
-    public init(status: Status = .ok, headers: Headers = [:], body: [Byte] = []) {
+    public init(status: Status = .ok, headers: HTTPHeaders = [:], body: [Byte] = []) {
         self.init(
             status: status,
             headers: headers,
@@ -57,11 +57,11 @@ extension Response {
         )
     }
 
-    public init(status: Status = .ok, headers: Headers = [:], body: DataRepresentable) {
+    public init(status: Status = .ok, headers: HTTPHeaders = [:], body: DataRepresentable) {
         self.init(status: status, headers: headers, body: body.bytes)
     }
 
-    public init(status: Status = .ok, headers: Headers = [:], body: InputStream) {
+    public init(status: Status = .ok, headers: HTTPHeaders = [:], body: InputStream) {
         self.init(
             status: status,
             headers: headers,
@@ -69,7 +69,7 @@ extension Response {
         )
     }
 
-    public init(status: Status = .ok, headers: Headers = [:], body: @escaping (OutputStream) throws -> Void) {
+    public init(status: Status = .ok, headers: HTTPHeaders = [:], body: @escaping (OutputStream) throws -> Void) {
         self.init(
             status: status,
             headers: headers,
@@ -78,7 +78,7 @@ extension Response {
     }
 }
 
-extension Response {
+extension HTTPResponse {
 
     public var isInformational: Bool {
         return status.isInformational
@@ -109,7 +109,7 @@ extension Response {
     }
 }
 
-extension Response {
+extension HTTPResponse {
     public var cookies: Set<AttributedCookie> {
         get {
             var cookies = Set<AttributedCookie>()
@@ -136,8 +136,8 @@ extension Response {
     }
 }
 
-extension Response {
-    public typealias UpgradeConnection = (Request, Stream) throws -> Void
+extension HTTPResponse {
+    public typealias UpgradeConnection = (HTTPRequest, Stream) throws -> Void
 
     public var upgradeConnection: UpgradeConnection? {
         return storage["response-connection-upgrade"] as? UpgradeConnection
@@ -148,7 +148,7 @@ extension Response {
     }
 }
 
-extension Response : CustomStringConvertible {
+extension HTTPResponse : CustomStringConvertible {
     public var statusLineDescription: String {
         return "HTTP/" + String(version.major) + "." + String(version.minor) + " " + String(status.statusCode) + " " + reasonPhrase + "\n"
     }
@@ -159,7 +159,7 @@ extension Response : CustomStringConvertible {
     }
 }
 
-extension Response : CustomDebugStringConvertible {
+extension HTTPResponse : CustomDebugStringConvertible {
     public var debugDescription: String {
         return description + "\n" + storageDescription
     }

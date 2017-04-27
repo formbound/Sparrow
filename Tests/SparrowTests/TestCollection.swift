@@ -2,8 +2,8 @@
 
 public class TestCollection: Route {
 
-    public func get(context: RequestContext) throws -> ResponseContext {
-        return ResponseContext(
+    public func get(request: Request) throws -> Response {
+        return Response(
             status: .ok,
             message: "All tests"
         )
@@ -12,11 +12,11 @@ public class TestCollection: Route {
 
 public class TestEntity: Route {
 
-    public func get(context: RequestContext) throws -> ResponseContext {
+    public func get(request: Request) throws -> Response {
 
-        let id: Int = try context.pathParameters.get(.testId)
+        let id: Int = try request.pathParameters.get(.testId)
 
-        return ResponseContext(
+        return Response(
             status: .ok,
             message: "Test #" + String(id)
         )

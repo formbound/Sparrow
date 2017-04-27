@@ -74,9 +74,13 @@ public final class HTTPClient {
     }
 }
 
-extension HTTPClient {
+extension HTTPClient: HTTPResponder {
 
-    public func request(_ request: Request) throws -> Response {
+    public func respond(to request: HTTPRequest) throws -> HTTPResponse {
+        return try self.request(request)
+    }
+
+    public func request(_ request: HTTPRequest) throws -> HTTPResponse {
         var request = request
         addHeaders(to: &request)
 
@@ -106,7 +110,7 @@ extension HTTPClient {
                 }
 
                 // we made the parser in response mode, so this is "safe"
-                let response = message as! Response
+                let response = message as! HTTPResponse
 
                 if let upgrade = request.upgradeConnection {
                     // hand off the stream to something else, for
@@ -146,14 +150,14 @@ extension HTTPClient {
                 throw StreamError.closedStream
             }
 
-            return message as! Response
+            return message as! HTTPResponse
         } catch let error as StreamError {
             self.stream = nil
             throw error
         }
     }
 
-    private func addHeaders(to request: inout Request) {
+    private func addHeaders(to request: inout HTTPRequest) {
         request.host = request.host ?? "\(host):\(port)"
 
         if addUserAgent {
@@ -211,136 +215,136 @@ extension HTTPClient {
 }
 
 extension HTTPClient {
-    public func get(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public func get(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .get, url: url, headers: headers, body: body)
     }
 
-    public func get(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public func get(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .get, url: url, headers: headers, body: body.bytes)
     }
 
-    public func head(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public func head(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .head, url: url, headers: headers, body: body)
     }
 
-    public func head(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public func head(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .head, url: url, headers: headers, body: body.bytes)
     }
 
-    public func post(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public func post(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .post, url: url, headers: headers, body: body)
     }
 
-    public func post(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public func post(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .post, url: url, headers: headers, body: body.bytes)
     }
 
-    public func put(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public func put(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .put, url: url, headers: headers, body: body)
     }
 
-    public func put(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public func put(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .put, url: url, headers: headers, body: body.bytes)
     }
 
-    public func patch(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public func patch(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .patch, url: url, headers: headers, body: body)
     }
 
-    public func patch(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public func patch(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .patch, url: url, headers: headers, body: body.bytes)
     }
 
-    public func delete(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public func delete(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .delete, url: url, headers: headers, body: body)
     }
 
-    public func delete(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public func delete(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .delete, url: url, headers: headers, body: body.bytes)
     }
 
-    public func options(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public func options(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .options, url: url, headers: headers, body: body)
     }
 
-    public func options(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public func options(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .options, url: url, headers: headers, body: body.bytes)
     }
 
-    private func request(method: Request.Method, url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    private func request(method: HTTPRequest.Method, url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         guard let url = URL(string: url) else {
             throw HTTPClientError.invalidUrl
         }
-        let req = Request(method: method, url: url, headers: headers, body: body)
+        let req = HTTPRequest(method: method, url: url, headers: headers, body: body)
         return try request(req)
     }
 }
 
 extension HTTPClient {
-    public static func get(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public static func get(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .get, url: url, headers: headers, body: body)
     }
 
-    public static func get(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public static func get(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .get, url: url, headers: headers, body: body.bytes)
     }
 
-    public static func head(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public static func head(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .head, url: url, headers: headers, body: body)
     }
 
-    public static func head(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public static func head(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .head, url: url, headers: headers, body: body.bytes)
     }
 
-    public static func post(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public static func post(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .post, url: url, headers: headers, body: body)
     }
 
-    public static func post(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public static func post(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .post, url: url, headers: headers, body: body.bytes)
     }
 
-    public static func put(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public static func put(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .put, url: url, headers: headers, body: body)
     }
 
-    public static func put(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public static func put(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .put, url: url, headers: headers, body: body.bytes)
     }
 
-    public static func patch(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public static func patch(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .patch, url: url, headers: headers, body: body)
     }
 
-    public static func patch(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public static func patch(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .patch, url: url, headers: headers, body: body.bytes)
     }
 
-    public static func delete(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public static func delete(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .delete, url: url, headers: headers, body: body)
     }
 
-    public static func delete(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public static func delete(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .delete, url: url, headers: headers, body: body.bytes)
     }
 
-    public static func options(_ url: String, headers: Headers = [:], body: [Byte] = []) throws -> Response {
+    public static func options(_ url: String, headers: HTTPHeaders = [:], body: [Byte] = []) throws -> HTTPResponse {
         return try request(method: .options, url: url, headers: headers, body: body)
     }
 
-    public static func options(_ url: String, headers: Headers = [:], body: DataRepresentable) throws -> Response {
+    public static func options(_ url: String, headers: HTTPHeaders = [:], body: DataRepresentable) throws -> HTTPResponse {
         return try request(method: .options, url: url, headers: headers, body: body.bytes)
     }
 
-    fileprivate static func request(method: Request.Method, url: String, headers: Headers = [:], body: [Byte]) throws -> Response {
+    fileprivate static func request(method: HTTPRequest.Method, url: String, headers: HTTPHeaders = [:], body: [Byte]) throws -> HTTPResponse {
         guard let clientUrl = URL(string: url) else {
             throw HTTPClientError.invalidUrl
         }
 
         let client = try getCachedClient(url: clientUrl)
 
-        let request = Request(method: method, url: clientUrl, headers: headers, body: body)
+        let request = HTTPRequest(method: method, url: clientUrl, headers: headers, body: body)
         return try client.request(request)
     }
 

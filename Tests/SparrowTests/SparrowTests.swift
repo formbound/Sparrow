@@ -13,14 +13,14 @@ public class SparrowTests: XCTestCase {
 
         router.add("error") { router in
 
-            router.respond(to: .get) { context in
+            router.respond(to: .get) { request in
 
-                if let shouldThrow: Bool = try context.queryParameters.get("throw") {
+                if let shouldThrow: Bool = try request.queryParameters.get("throw") {
                     if shouldThrow {
                         throw TestError.test
                     }
                 }
-                return ResponseContext(
+                return Response(
                     status: .ok,
                     message: "Not throwing"
                 )
@@ -29,12 +29,12 @@ public class SparrowTests: XCTestCase {
 
         router.add("echo") { router in
 
-            router.post { context in
-                return ResponseContext(
+            router.post { request in
+                return Response(
                     status: .ok,
                     content: Content(dictionary: [
                         "message": "Hello world!",
-                        "echo": context.content
+                        "echo": request.content
                     ])
                 )
             }
@@ -66,7 +66,7 @@ public class SparrowTests: XCTestCase {
         let router = Router()
         router.add(UserCollection(), to: "users").add(UserEndpoint(), to: .userId)
 
-        let request = HTTP.Request(method: .get, url: URL(string: "/users")!, headers: ["Authentication": "bearer token"])
+        let request = HTTPRequest(method: .get, url: URL(string: "/users")!, headers: ["Authentication": "bearer token"])
 
         measure {
             print(try? router.respond(to: request))

@@ -1,7 +1,7 @@
 import Core
 import Foundation
 
-public struct Request: Message {
+public struct HTTPRequest: HTTPMessage {
     public enum Method {
         case delete
         case get
@@ -18,11 +18,11 @@ public struct Request: Message {
     public var method: Method
     public var url: URL
     public var version: Version
-    public var headers: Headers
-    public var body: Body
+    public var headers: HTTPHeaders
+    public var body: HTTPBody
     public var storage: [String: Any]
 
-    public init(method: Method, url: URL, version: Version, headers: Headers, body: Body) {
+    public init(method: Method, url: URL, version: Version, headers: HTTPHeaders, body: HTTPBody) {
         self.method = method
         self.url = url
         self.version = version
@@ -42,8 +42,8 @@ public struct Request: Message {
     }
 }
 
-extension Request {
-    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: Body) {
+extension HTTPRequest {
+    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: HTTPHeaders = [:], body: HTTPBody) {
         self.init(
             method: method,
             url: url,
@@ -53,7 +53,7 @@ extension Request {
         )
     }
 
-    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: [Byte] = []) {
+    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: HTTPHeaders = [:], body: [Byte] = []) {
         self.init(
             method: method,
             url: url,
@@ -62,7 +62,7 @@ extension Request {
         )
     }
 
-    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: DataRepresentable) {
+    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: HTTPHeaders = [:], body: DataRepresentable) {
         self.init(
             method: method,
             url: url,
@@ -71,7 +71,7 @@ extension Request {
         )
     }
 
-    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: Core.InputStream) {
+    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: HTTPHeaders = [:], body: Core.InputStream) {
         self.init(
             method: method,
             url: url,
@@ -80,7 +80,7 @@ extension Request {
         )
     }
 
-    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: Headers = [:], body: @escaping (Core.OutputStream) throws -> Void) {
+    public init(method: Method = .get, url: URL = URL(string: "/")!, headers: HTTPHeaders = [:], body: @escaping (Core.OutputStream) throws -> Void) {
         self.init(
             method: method,
             url: url,
@@ -90,8 +90,8 @@ extension Request {
     }
 }
 
-extension Request {
-    public init?(method: Method = .get, url: String, headers: Headers = [:], body: [Byte] = []) {
+extension HTTPRequest {
+    public init?(method: Method = .get, url: String, headers: HTTPHeaders = [:], body: [Byte] = []) {
         guard let url = URL(string: url) else {
             return nil
         }
@@ -104,11 +104,11 @@ extension Request {
         )
     }
 
-    public init?(method: Method = .get, url: String, headers: Headers = [:], body: DataRepresentable) {
+    public init?(method: Method = .get, url: String, headers: HTTPHeaders = [:], body: DataRepresentable) {
         self.init(method: method, url: url, headers: headers, body: body.bytes)
     }
 
-    public init?(method: Method = .get, url: String, headers: Headers = [:], body: Core.InputStream) {
+    public init?(method: Method = .get, url: String, headers: HTTPHeaders = [:], body: Core.InputStream) {
         guard let url = URL(string: url) else {
             return nil
         }
@@ -121,7 +121,7 @@ extension Request {
         )
     }
 
-    public init?(method: Method = .get, url: String, headers: Headers = [:], body: @escaping (Core.OutputStream) throws -> Void) {
+    public init?(method: Method = .get, url: String, headers: HTTPHeaders = [:], body: @escaping (Core.OutputStream) throws -> Void) {
         guard let url = URL(string: url) else {
             return nil
         }
@@ -135,7 +135,7 @@ extension Request {
     }
 }
 
-extension Request {
+extension HTTPRequest {
     public var accept: [MediaType] {
         get {
             var acceptedMediaTypes: [MediaType] = []
@@ -163,9 +163,9 @@ extension Request {
         }
     }
 
-    public var cookies: Set<Cookie> {
+    public var cookies: Set<HTTPCookie> {
         get {
-            return headers["Cookie"].flatMap({Set<Cookie>(cookieHeader: $0)}) ?? []
+            return headers["Cookie"].flatMap({Set<HTTPCookie>(cookieHeader: $0)}) ?? []
         }
 
         set(cookies) {
@@ -204,8 +204,8 @@ extension Request {
     }
 }
 
-extension Request {
-    public typealias UpgradeConnection = (Response, Core.Stream) throws -> Void
+extension HTTPRequest {
+    public typealias UpgradeConnection = (HTTPResponse, Core.Stream) throws -> Void
 
     public var upgradeConnection: UpgradeConnection? {
         return storage["request-connection-upgrade"] as? UpgradeConnection
@@ -216,7 +216,7 @@ extension Request {
     }
 }
 
-extension Request : CustomStringConvertible {
+extension HTTPRequest : CustomStringConvertible {
     public var requestLineDescription: String {
         return String(describing: method) + " " + url.absoluteString + " HTTP/" + String(describing: version.major) + "." + String(describing: version.minor) + "\n"
     }
@@ -227,7 +227,7 @@ extension Request : CustomStringConvertible {
     }
 }
 
-extension Request : CustomDebugStringConvertible {
+extension HTTPRequest : CustomDebugStringConvertible {
     public var debugDescription: String {
         return description + "\n" + storageDescription
     }

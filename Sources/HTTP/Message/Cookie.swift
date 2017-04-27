@@ -1,4 +1,4 @@
-public struct Cookie: CookieProtocol {
+public struct HTTPCookie: HTTPCookieProtocol {
     public var name: String
     public var value: String
 
@@ -8,29 +8,29 @@ public struct Cookie: CookieProtocol {
     }
 }
 
-extension Cookie : Hashable {
+extension HTTPCookie : Hashable {
     public var hashValue: Int {
         return name.hashValue
     }
 }
 
-extension Cookie : Equatable {}
+extension HTTPCookie : Equatable {}
 
-public func == (lhs: Cookie, rhs: Cookie) -> Bool {
+public func == (lhs: HTTPCookie, rhs: HTTPCookie) -> Bool {
     return lhs.hashValue == rhs.hashValue
 }
 
-extension Cookie : CustomStringConvertible {
+extension HTTPCookie : CustomStringConvertible {
     public var description: String {
         return "\(name)=\(value)"
     }
 }
 
-public protocol CookieProtocol {
+public protocol HTTPCookieProtocol {
     init(name: String, value: String)
 }
 
-extension Set where Element : CookieProtocol {
+extension Set where Element : HTTPCookieProtocol {
     public init?(cookieHeader: String) {
         var cookies = Set<Element>()
         let tokens = cookieHeader.components(separatedBy: ";")
