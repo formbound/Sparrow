@@ -2,11 +2,6 @@ import HTTP
 import Core
 import Foundation
 
-public enum RequestContextError: Error {
-    case pathParameterMissing
-    case pathParameterConversionFailed(String)
-}
-
 public class RequestContext {
     public let request: HTTP.Request
     public let storage: [String: Any] = [:]
@@ -14,7 +9,7 @@ public class RequestContext {
     fileprivate(set) public var log: Logger
     internal(set) public var pathParameters: Parameters
 
-    internal init(request: Request, logger: Logger, pathParameters: Parameters = .empty) {
+    internal init(request: HTTP.Request, logger: Logger, pathParameters: Parameters = .empty) {
         self.request = request
         self.content = .null
         self.log = logger

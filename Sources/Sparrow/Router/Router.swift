@@ -419,9 +419,9 @@ extension Router {
     }
 }
 
-extension Router {
-    fileprivate func responseContext(for requestContext: RequestContext) throws -> ResponseContext {
+extension Router: RequestContextResponder {
 
+    public func respond(to requestContext: RequestContext) throws -> ResponseContext {
         do {
 
             let responseContext: ResponseContext
@@ -517,22 +517,6 @@ extension Router {
             )
 
             // Catch thrown HTTP errors – they should be presented with the content negotiator
-
-        } catch let error as RequestContextError {
-
-            switch error {
-            case .pathParameterConversionFailed(let pathParameterName):
-                throw HTTPError(
-                    error: .badRequest,
-                    reason: "Path parameter \(pathParameterName) failed to convert to expected type"
-                )
-
-            case .pathParameterMissing:
-                throw HTTPError(
-                    error: .badRequest,
-                    reason: "Missing path parameter"
-                )
-            }
 
         } catch {
             throw error
@@ -635,6 +619,5 @@ extension Router: Responder {
             // Run a recovery
             return try response(from: recovery(error), for: context.request.accept)
         }
-
     }
 }
