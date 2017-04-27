@@ -1,5 +1,5 @@
 public protocol RequestPreprocessor {
-    func process(request: Request) throws
+    func preprocess(request: Request) throws
 }
 
 public struct BasicRequestPreprocessor: RequestPreprocessor {
@@ -10,16 +10,16 @@ public struct BasicRequestPreprocessor: RequestPreprocessor {
         self.handler = handler
     }
 
-    public func process(request: Request) throws {
+    public func preprocess(request: Request) throws {
         return try handler(request)
     }
 }
 
-public protocol ResponsePreprocessor {
-    func process(response: Response) throws
+public protocol RequestPostprocessor {
+    func postprocess(response: Response) throws
 }
 
-public struct BasicResponsePreprocessor: ResponsePreprocessor {
+public struct BasicRequestPostprocessor: RequestPostprocessor {
 
     private let handler: (Response) throws -> Void
 
@@ -27,9 +27,10 @@ public struct BasicResponsePreprocessor: ResponsePreprocessor {
         self.handler = handler
     }
 
-    public func process(response: Response) throws {
+    public func postprocess(response: Response) throws {
         return try handler(response)
     }
 }
 
-public protocol ContextPreprocessor: RequestPreprocessor, ResponsePreprocessor {}
+
+public protocol RequestProcessor: RequestPreprocessor, RequestPostprocessor {}

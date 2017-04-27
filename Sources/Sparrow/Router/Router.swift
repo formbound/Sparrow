@@ -52,7 +52,7 @@ public final class Router {
 
     fileprivate var requestPreprocessors: [(HTTPRequest.Method, RequestPreprocessor)] = []
 
-    fileprivate var responsePreprocessors: [(HTTPRequest.Method, ResponsePreprocessor)] = []
+    fileprivate var requestPostprocessors: [(HTTPRequest.Method, RequestPostprocessor)] = []
 
     fileprivate var requestResponders: [HTTPRequest.Method: RequestResponder] = [:]
 
@@ -144,8 +144,8 @@ public final class Router {
 
 extension Router {
 
-    fileprivate func responsePreprocessors(for method: HTTPRequest.Method) -> [ResponsePreprocessor] {
-        return responsePreprocessors.filter { $0.0 == method }.map { $0.1 }
+    fileprivate func requestPostprocessors(for method: HTTPRequest.Method) -> [RequestPostprocessor] {
+        return requestPostprocessors.filter { $0.0 == method }.map { $0.1 }
     }
 
     fileprivate func requestPreprocessors(for method: HTTPRequest.Method) -> [RequestPreprocessor] {
@@ -232,6 +232,8 @@ extension Router {
             router.connect(handler: route.connect(request:))
             router.options(handler: route.options(request:))
             router.trace(handler: route.trace(request:))
+
+            
         }
     }
 
@@ -284,7 +286,7 @@ extension Router {
     /// - Parameters:
     ///   - methods: Methods triggering preprocessing
     ///   - handler: Handler closure invoked for the supplied methods
-    public func processRequest(for methods: [HTTPRequest.Method], handler: @escaping (Request) throws -> Void) {
+    public func preprocess(for methods: [HTTPRequest.Method], handler: @escaping (Request) throws -> Void) {
         for method in methods {
             requestPreprocessors.append((method, BasicRequestPreprocessor(handler: handler)))
         }
@@ -295,26 +297,26 @@ extension Router {
     /// - Parameters:
     ///   - method: Method triggering preprocessing
     ///   - handler: Handler closure invoked for the supplied method
-    public func processRequest(for method: HTTPRequest.Method, handler: @escaping (Request) throws -> Void) {
-        processRequest(for: [method], handler: handler)
+    public func preprocess(for method: HTTPRequest.Method, handler: @escaping (Request) throws -> Void) {
+        preprocess(for: [method], handler: handler)
     }
 
     /// Adds a request preprocessor for the supplied methods to this router
     ///
     /// - Parameters:
-    ///   - processor: Preprocessor invoked for supplied methods
+    ///   - preprocessor: Preprocessor invoked for supplied methods
     ///   - methods: Methods triggering preprocessing
-    func add(processor: RequestPreprocessor, for methods: [HTTPRequest.Method]) {
-        processRequest(for: methods, handler: processor.process)
+    func add(preprocessor: RequestPreprocessor, for methods: [HTTPRequest.Method]) {
+        preprocess(for: methods, handler: preprocessor.preprocess)
     }
 
     /// Adds a request preprocessor for the supplied method to this route
     ///
     /// - Parameters:
-    ///   - processor: Preprocessor invoked for supplied methods
+    ///   - preprocessor: Preprocessor invoked for supplied methods
     ///   - method: Method triggering preprocessing
-    func add(processor: RequestPreprocessor, for method: HTTPRequest.Method) {
-        processRequest(for: method, handler: processor.process)
+    func add(preprocessor: RequestPreprocessor, for method: HTTPRequest.Method) {
+        preprocess(for: method, handler: preprocessor.preprocess)
     }
 }
 
@@ -325,9 +327,9 @@ extension Router {
     /// - Parameters:
     ///   - methods: Methods triggering preprocessing
     ///   - handler: Handler closure invoked invoked for the supplied methods
-    public func processResponse(for methods: [HTTPRequest.Method], handler: @escaping (Response) throws -> Void) {
+    public func postprocess(for methods: [HTTPRequest.Method], handler: @escaping (Response) throws -> Void) {
         for method in methods {
-            responsePreprocessors.append((method, BasicResponsePreprocessor(handler: handler)))
+            requestPostprocessors.append((method, BasicRequestPostprocessor(handler: handler)))
         }
     }
 
@@ -336,26 +338,26 @@ extension Router {
     /// - Parameters:
     ///   - method: Method triggering preprocessing
     ///   - handler: Handler closure invoked invoked for the supplied methods
-    public func processResponse(for method: HTTPRequest.Method, handler: @escaping (Response) throws -> Void) {
-        processResponse(for: [method], handler: handler)
+    public func postprocess(for method: HTTPRequest.Method, handler: @escaping (Response) throws -> Void) {
+        postprocess(for: [method], handler: handler)
     }
 
     /// Adds a response preprocessor for the supplied methods to this route
     ///
     /// - Parameters:
-    ///   - processor: Preprocessor invoked for supplied methods
+    ///   - postprocessor: Postprocessor invoked for supplied methods
     ///   - methods: Methods triggering the preprocessor invocation
-    func add(processor: ResponsePreprocessor, for methods: [HTTPRequest.Method]) {
-        processResponse(for: methods, handler: processor.process)
+    func add(postprocessor: RequestPostprocessor, for methods: [HTTPRequest.Method]) {
+        postprocess(for: methods, handler: postprocessor.postprocess)
     }
 
     /// Adds a response preprocessor for the supplied method to this route
     ///
     /// - Parameters:
-    ///   - processor: Preprocessor invoked for supplied methods
+    ///   - postprocessor: Postprocessor invoked for supplied methods
     ///   - method: Methods triggering the preprocessor invocation
-    func add(processor: ResponsePreprocessor, for method: HTTPRequest.Method) {
-        processResponse(for: method, handler: processor.process)
+    func add(postprocessor: RequestPostprocessor, for method: HTTPRequest.Method) {
+        postprocess(for: method, handler: postprocessor.postprocess)
     }
 }
 
@@ -363,21 +365,21 @@ extension Router {
     /// Adds a request and response preprocessor for the supplied methods to this router
     ///
     /// - Parameters:
-    ///   - processor: Preprocessor invoked for supplied methods
+    ///   - processor: Processor invoked for supplied methods
     ///   - methods: Methods triggering the request and response processor
-    func add(processor: ContextPreprocessor, for methods: [HTTPRequest.Method]) {
-        processRequest(for: methods, handler: processor.process)
-        processResponse(for: methods, handler: processor.process)
+    func add(processor: RequestProcessor, for methods: [HTTPRequest.Method]) {
+        preprocess(for: methods, handler: processor.preprocess)
+        postprocess(for: methods, handler: processor.postprocess)
     }
 
     /// Adds a request and response preprocessor for the supplied method to this router
     ///
     /// - Parameters:
-    ///   - processor: Preprocessor invoked for supplied methods
+    ///   - processor: Processor invoked for supplied methods
     ///   - method: Method triggering the request and response processor
-    func add(processor: ContextPreprocessor, for method: HTTPRequest.Method) {
-        processRequest(for: method, handler: processor.process)
-        processResponse(for: method, handler: processor.process)
+    func add(processor: RequestProcessor, for method: HTTPRequest.Method) {
+        preprocess(for: method, handler: processor.preprocess)
+        postprocess(for: method, handler: processor.postprocess)
     }
 }
 
@@ -486,18 +488,19 @@ extension Router: RequestResponder {
             // Update request
             request.pathParameters = Parameters(contents: parametersByName)
 
-            // Request request preprocessors
+            // Request preprocessors
             for router in routers {
                 for requestPreprocessor in router.requestPreprocessors(for: request.httpRequest.method) {
-                    try requestPreprocessor.process(request: request)
+                    try requestPreprocessor.preprocess(request: request)
                 }
             }
 
             response = try requestResponder.respond(to: request)
 
+            // Request postprocessors
             for router in routers {
-                for responsePreprocessor in router.responsePreprocessors(for: request.httpRequest.method) {
-                    try responsePreprocessor.process(response: response)
+                for requestPostprocessor in router.requestPostprocessors(for: request.httpRequest.method) {
+                    try requestPostprocessor.postprocess(response: response)
                 }
             }
 

@@ -1,6 +1,6 @@
 import HTTP
 
-public protocol Route {
+public protocol Route: RequestProcessor {
 
     func delete(request: Request) throws -> Response
 
@@ -59,3 +59,14 @@ extension Route {
         throw HTTPError(error: .methodNotAllowed)
     }
 }
+
+extension Route {
+    public func preprocess(request: Request) throws {
+        return
+    }
+
+    public func postprocess(response: Response) throws {
+        return
+    }
+}
+
