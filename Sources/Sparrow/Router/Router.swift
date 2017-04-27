@@ -520,8 +520,6 @@ extension Router: RequestResponder {
                 reason: reason
             )
 
-            // Catch thrown HTTP errors – they should be presented with the content negotiator
-
         } catch {
             throw error
         }
@@ -555,11 +553,13 @@ extension Router: HTTPResponder {
 
         logger.debug(httpRequest.description)
 
-        do {
+        let httpResponse: HTTPResponse
+
+        process: do {
             // Process the request, creating a response
             let response = try self.respond(to: request)
 
-            return try httpResponse(from: response, for: request.httpRequest.accept)
+            httpResponse = try self.httpResponse(from: response, for: request.httpRequest.accept)
 
             // Catch HTTP errors
         } catch let error as HTTPError {
@@ -578,10 +578,11 @@ extension Router: HTTPResponder {
 
             // If the error is empty, return a response without content
             guard !errorContent.isEmpty else {
-                return try httpResponse(
+                httpResponse = try self.httpResponse(
                     from: Response(status: error.status),
                     for: request.httpRequest.accept
                 )
+                break process
             }
 
             // Content wrapping the error
@@ -589,7 +590,7 @@ extension Router: HTTPResponder {
             try content.set(value: errorContent, forKey: "error")
 
             // Return a response with the error content
-            return try httpResponse(
+            httpResponse = try self.httpResponse(
                 from: Response(status: error.status, content: content),
                 for: request.httpRequest.accept
             )
@@ -621,7 +622,10 @@ extension Router: HTTPResponder {
             }
         } catch {
             // Run a recovery
-            return try httpResponse(from: recovery(error), for: request.httpRequest.accept)
+            httpResponse = try self.httpResponse(from: recovery(error), for: request.httpRequest.accept)
         }
+
+        logger.debug(httpResponse.description)
+        return httpResponse
     }
 }
