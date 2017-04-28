@@ -8,9 +8,9 @@ public protocol DataRepresentable {
     var bytes: [Byte] { get }
 }
 
-public protocol DataConvertible: DataInitializable, DataRepresentable {}
+public protocol DataConvertible : DataInitializable, DataRepresentable {}
 
-public enum BufferConversionError: Error {
+public enum BufferConversionError : Error {
     case invalidString
 }
 
@@ -27,7 +27,7 @@ extension String : DataConvertible {
     }
 }
 
-extension Data: DataConvertible {
+extension Data : DataConvertible {
     public var bytes: [Byte] {
         return Array(self)
     }

@@ -102,15 +102,12 @@ let map: [Int32: SystemError] = [
     666: .other(errorNumber: 666)
 ]
 
-public class POSIXTests: XCTestCase {
+public class POSIXTests : XCTestCase {
     func testCreation() {
-        XCTAssertNil(SystemError(errorNumber: 0))
         for (errorNumber, error) in map {
-            guard let initializedError = SystemError(errorNumber: errorNumber) else {
-                return XCTFail("Initializing with \(errorNumber) should not be nil")
-            }
-            XCTAssertEqual(initializedError, error)
+            XCTAssertEqual(SystemError(errorNumber: errorNumber), error)
         }
+        
         XCTAssertEqual(SystemError(errorNumber: EWOULDBLOCK), .operationWouldBlock)
     }
 
@@ -122,13 +119,13 @@ public class POSIXTests: XCTestCase {
 
     func testLastOperationError() throws {
         errno = 0
-        XCTAssertNil(SystemError.lastOperationError)
-        try ensureLastOperationSucceeded()
+        XCTAssertEqual(SystemError.lastOperationError, .success)
+        
         for (errorNumber, error) in map {
             errno = errorNumber
             XCTAssertEqual(SystemError.lastOperationError, error)
             do {
-                try ensureLastOperationSucceeded()
+                throw SystemError.lastOperationError
             } catch let systemError as SystemError {
                 XCTAssertEqual(systemError, error)
             } catch {

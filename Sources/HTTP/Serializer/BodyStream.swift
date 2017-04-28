@@ -1,11 +1,11 @@
 import Core
 import Venice
 
-public enum BodyStreamError: Error {
+public enum BodyStreamError : Error {
     case receiveUnsupported
 }
 
-final class BodyStream: Stream {
+final class BodyStream : Stream {
     var closed = false
     let transport: Stream
 

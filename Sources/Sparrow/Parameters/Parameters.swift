@@ -1,110 +1,84 @@
-import HTTP
+import Foundation
 
-enum ParametersError: Error {
-    case missingValue(String)
-    case conversionFailed(String)
+// MARK: ParameterKey
+
+public struct ParameterKey {
+    let key: String
+    
+    public init(_ key: String) {
+        self.key = key
+    }
 }
 
-public protocol ParametersInitializable {
-    init(parameters: Parameters) throws
+extension ParameterKey : ExpressibleByStringLiteral {
+    public init(stringLiteral value: String) {
+        self.init(value)
+    }
+    
+    public init(unicodeScalarLiteral value: String) {
+        self.init(stringLiteral: value)
+    }
+    
+    public init(extendedGraphemeClusterLiteral value: String) {
+        self.init(stringLiteral: value)
+    }
 }
 
-public struct Parameters {
-    private let contents: [String: String]
-
-    internal init(contents: [String: String] = [:]) {
-        self.contents = contents
-    }
-
-    public func get<T: ParameterInitializable>(_ key: String) throws -> T? {
-        guard let string = contents[key] else {
-            return nil
-        }
-
-        do {
-            return try T(parameter: string)
-        } catch ParameterConversionError.conversionFailed {
-            throw ParametersError.conversionFailed(key)
-        } catch {
-            throw error
-        }
-    }
-
-    public func get<T: ParameterInitializable>(_ key: String) throws -> T {
-        guard let value: T = try get(key) else {
-            throw ParametersError.missingValue(key)
-        }
-
-        return value
-    }
-
-    public var isEmpty: Bool {
-        return contents.isEmpty
-    }
-
-    public static let empty = Parameters(contents: [:])
-}
+// MARK: ParameterInitializable
 
 public protocol ParameterInitializable {
     init(parameter: String) throws
 }
 
-public protocol ParameterRepresentable {
-    var parameter: String { get }
+// MARK: Parameters
+
+public struct NoParameters : ParameterMappable {
+    public init(mapper: ParameterMapper) throws {}
 }
 
-public protocol ParameterConvertible: ParameterInitializable, ParameterRepresentable {}
-
-extension String : ParameterConvertible {
+extension String : ParameterInitializable {
     public init(parameter: String) throws {
         self = parameter
     }
-
-    public var parameter: String {
-        return self
-    }
 }
 
-public enum ParameterConversionError: Error {
-    case conversionFailed
-}
-
-extension Int : ParameterConvertible {
+extension Int : ParameterInitializable {
     public init(parameter: String) throws {
-        guard let value = Int(parameter) else {
-            throw ParameterConversionError.conversionFailed
+        guard let int = Int(parameter) else {
+            throw RouterError.invalidParameter(parameter: parameter, type: type(of: self))
         }
-        self.init(value)
-    }
-
-    public var parameter: String {
-        return String(self)
+        
+        self.init(int)
     }
 }
 
-extension Double : ParameterConvertible {
+extension UUID : ParameterInitializable {
     public init(parameter: String) throws {
-        guard let value = Double(parameter) else {
-            throw ParameterConversionError.conversionFailed
+        guard let uuid = UUID(uuidString: parameter) else {
+            throw RouterError.invalidParameter(parameter: parameter, type: type(of: self))
         }
-        self.init(value)
-    }
-
-    public var parameter: String {
-        return String(self)
+        
+        self.init(uuid: uuid.uuid)
     }
 }
 
-extension Float : ParameterConvertible {
+extension Double : ParameterInitializable {
     public init(parameter: String) throws {
-        guard let value = Float(parameter) else {
-            throw ParameterConversionError.conversionFailed
+        guard let double = Double(parameter) else {
+            throw RouterError.invalidParameter(parameter: parameter, type: type(of: self))
         }
-        self.init(value)
+        
+        self.init(double)
     }
+}
 
-    public var parameter: String {
-        return String(self)
+extension Float : ParameterInitializable {
+    public init(parameter: String) throws {
+        guard let float = Float(parameter) else {
+            throw RouterError.invalidParameter(parameter: parameter, type: type(of: self))
+        }
+        
+        self.init(float)
     }
 }
 
@@ -116,7 +90,7 @@ extension Bool : ParameterInitializable {
         case "false", "0", "f":
             self = false
         default:
-            throw ParameterConversionError.conversionFailed
+            throw RouterError.invalidParameter(parameter: parameter, type: type(of: self))
         }
     }
 }

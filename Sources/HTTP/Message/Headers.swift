@@ -1,6 +1,6 @@
 import Core
 
-public struct HTTPHeader: RawRepresentable {
+public struct HTTPHeader : RawRepresentable {
     public let rawValue: String
 
     public init(rawValue: String) {
@@ -8,13 +8,13 @@ public struct HTTPHeader: RawRepresentable {
     }
 }
 
-extension HTTPHeader: Hashable {
+extension HTTPHeader : Hashable {
     public var hashValue: Int {
         return rawValue.hashValue
     }
 }
 
-extension HTTPHeader: Equatable {
+extension HTTPHeader : Equatable {
     public static func == (lhs: HTTPHeader, rhs: HTTPHeader) -> Bool {
         return lhs.hashValue == rhs.hashValue
     }
@@ -112,7 +112,7 @@ extension HTTPHeaders : CustomStringConvertible {
     }
 }
 
-extension HTTPHeader: CustomStringConvertible {
+extension HTTPHeader : CustomStringConvertible {
     public var description: String {
         return rawValue
     }

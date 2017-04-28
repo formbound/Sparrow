@@ -4,7 +4,6 @@ public protocol HTTPMessage {
     var version: Version { get set }
     var headers: HTTPHeaders { get set }
     var body: HTTPBody { get set }
-    var storage: [String: Any] { get set }
 }
 
 extension HTTPMessage {
@@ -72,21 +71,5 @@ extension HTTPMessage {
         set(upgrade) {
             headers["Upgrade"] = upgrade
         }
-    }
-}
-
-extension HTTPMessage {
-    public var storageDescription: String {
-        var string = "Storage:\n"
-
-        if storage.isEmpty {
-            string += "-"
-        }
-
-        for (key, value) in storage {
-            string += "\(key): \(value)\n"
-        }
-
-        return string
     }
 }

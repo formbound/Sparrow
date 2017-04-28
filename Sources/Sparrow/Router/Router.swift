@@ -1,634 +1,160 @@
 import HTTP
-import Core
 
-/// With `Router` you can incrementally structure your API
-///
-/// Complex routes are built incrementally, adding subrouters to routers as you build your API
-///
-/// The default router, created with `Router()` is created with the base path of `"/"`.
-/// To this base router, you can add subrouters using resources, or simply with closures if you like.
-///
-///     extension PathParameter {
-///         static let name = PathParameter(rawValue: "name")
-///     }
-///
-///     let router = Router()
-///
-///     // /greeting
-///     router.add(pathLiteral: "greeting") { router in
-///
-///         // /greeting/:name
-///         router.add(.name) { router in
-///             router.get { request in
-///                 return try Response(
-///                     status: .ok,
-///                     message: "Hello " + request.pathParameters.value(for: "name")
-///                 )
-///             }
-///         }
-///     }
-///
-///     // GET /
-///     router.get { request in
-///
-///         return Response(
-///             status: .ok,
-///             message: "Hello world!"
-///         )
-///     }
+public enum RouterError : Error {
+    case notFound
+    case methodNotAllowed
+    
+    case parameterNotFound(parameterKey: ParameterKey)
+    case invalidParameter(parameter: String, type: ParameterInitializable.Type)
+    
+    case contentNotFound
+    case invalidContent
+    
+    case unsupportedMediaType
+}
+
+extension RouterError : ResponseRepresentable {
+    public var response: Response {
+        switch self {
+        case .notFound:
+            return Response(status: .notFound, content: "Not found")
+        case .methodNotAllowed:
+            return Response(status: .methodNotAllowed, content: "Method not allowed")
+        case .parameterNotFound:
+            return Response(status: .internalServerError, content: "Parameter not found")
+        case .invalidParameter:
+            return Response(status: .badRequest, content: "Invalid parameter")
+        case .contentNotFound:
+            return Response(status: .internalServerError, content: "Content not found")
+        case .invalidContent:
+            return Response(status: .badRequest, content: "Invalid content")
+        case .unsupportedMediaType:
+            return Response(status: .unsupportedMediaType, content: "Unsupported media type")
+        }
+    }
+}
+
 public final class Router {
-
-    public enum PathComponent {
-        case literal(String)
-        case parameter(PathParameter)
+    fileprivate var subrouters: [String: Router] = [:]
+    fileprivate var pathParameterSubrouter: (String, Router)?
+    
+    fileprivate var preprocess: (Request) throws -> Void = { _ in }
+    fileprivate var responders: [HTTPRequest.Method: (Request) throws -> Response] = [:]
+    fileprivate var postprocess: (Response, Request) throws -> Void = { _ in }
+    fileprivate var recover: (Error) throws -> Response = { error in throw error }
+    
+    init() {}
+    
+    public convenience init(_ body: (Router) -> Void) {
+        self.init()
+        body(self)
     }
-
-    fileprivate(set) public var children: [Router] = []
-
-    /// Content negotiator of the router
-    public let contentNegotiator: ContentNegotiator
-
-    fileprivate let pathComponent: PathComponent
-
-    fileprivate var requestPreprocessors: [(HTTPRequest.Method, RequestPreprocessor)] = []
-
-    fileprivate var requestPostprocessors: [(HTTPRequest.Method, RequestPostprocessor)] = []
-
-    fileprivate var requestResponders: [HTTPRequest.Method: RequestResponder] = [:]
-
-    /// Logger used by the router
-    public let logger: Logger
-
-    lazy public var recovery: ((Error) -> Response) = { _ in
-        return Response(status: .internalServerError, message: "An unexpected error occurred")
+    
+    public func add(_ pathComponent: String, body: (Router) -> Void) {
+        let route = Router()
+        body(route)
+        return subrouters[pathComponent] = route
     }
-
-    internal init(pathComponent: PathComponent, contentNegotiator: ContentNegotiator, logger: Logger) {
-        self.pathComponent = pathComponent
-        self.contentNegotiator = contentNegotiator
-        self.logger = logger
+    
+    public func add(_ pathParameterKey: ParameterKey, body: (Router) -> Void) {
+        let route = Router()
+        body(route)
+        pathParameterSubrouter = (pathParameterKey.key, route)
     }
-
-    /// Creates a new router with path component "/"
-    ///
-    /// - Parameters:
-    ///   - contentNegotiator: Content negotiator for the router to create. Defaults to the standard content negotiator
-    ///   - logger: Logger used by the router. Defaults to the stanard logger, printing to standard out
-    public convenience init(contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
-        self.init(component: "/", contentNegotiator: contentNegotiator, logger: logger)
+    
+    public func preprocess(body: @escaping (Request) throws -> Void) {
+        preprocess = body
     }
-
-    /// Creates a new router with specified path component
-    ///
-    /// - Parameters:
-    ///   - contentNegotiator: Content negotiator for the router to create. Defaults to the standard content negotiator
-    ///   - logger: Logger used by the router. Defaults to the stanard logger, printing to standard out
-    public convenience init(component: String, contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
-        self.init(pathComponent: .literal(component), contentNegotiator: contentNegotiator, logger: logger)
+    
+    public func respond(method: HTTPRequest.Method, body: @escaping (Request) throws -> Response) {
+        responders[method] = body
     }
-
-    /// Creates a new router with specified path parameter name
-    ///
-    /// - Parameters:
-    ///   - contentNegotiator: Content negotiator for the router to create. Defaults to the standard content negotiator
-    ///   - logger: Logger used by the router. Defaults to the stanard logger, printing to standard out
-    public convenience init(parameter: PathParameter, contentNegotiator: ContentNegotiator = ContentNegotiator(), logger: Logger =  Logger()) {
-        self.init(pathComponent: .parameter(parameter), contentNegotiator: contentNegotiator, logger: logger)
+    
+    public func postprocess(body: @escaping (Response, Request) throws -> Void) {
+        postprocess = body
     }
-
-    /// Adds a router as a subrouter of this router
-    ///
-    /// - Parameter router: Router to add
-    public func add(router: Router) {
-        self.children.append(router)
-    }
-
-    /// Adds multible routers as a subrouters of this router
-    ///
-    /// - Parameter routers: Routers to add
-    public func add(routers: [Router]) {
-        self.children += routers
-    }
-
-    fileprivate func add(component: PathComponent, builder: (Router) -> Void) -> Router {
-        let router = Router(pathComponent: component, contentNegotiator: contentNegotiator, logger: logger)
-        builder(router)
-        add(router: router)
-        return router
-    }
-
-    /// Creates and adds a new subrouter of this router, with a path component, using a construction handler
-    ///
-    /// - Note: The subrouter will inherit the parent's content negotiator and logger by default
-    ///
-    /// - Parameters:
-    ///   - pathLiteral: Path component literal of the subrouter
-    ///   - builder: Handler used to configure the subrouter
-    @discardableResult
-    public func add(_ literal: String, builder: (Router) -> Void) -> Router {
-        return add(component: .literal(literal), builder: builder)
-    }
-
-    /// Creates and adds a new subrouter of this router, with a path parameter, using a construction handler
-    ///
-    /// - Note: The subrouter will inherit the parent's content negotiator and logger by default
-    ///
-    /// - Parameters:
-    ///   - parameterName: Parameter name of the subrouter
-    ///   - builder: Handler used to configure the subrouter
-    @discardableResult
-    public func add(_ parameter: PathParameter, builder: (Router) -> Void) -> Router {
-        return add(component: .parameter(parameter), builder: builder)
+    
+    public func recover(body: @escaping (Error) throws -> Response) {
+        recover = body
     }
 }
 
 extension Router {
-
-    fileprivate func requestPostprocessors(for method: HTTPRequest.Method) -> [RequestPostprocessor] {
-        return requestPostprocessors.filter { $0.0 == method }.map { $0.1 }
+    public func get(body: @escaping (Request) throws -> Response) {
+        respond(method: .get, body: body)
     }
-
-    fileprivate func requestPreprocessors(for method: HTTPRequest.Method) -> [RequestPreprocessor] {
-        return requestPreprocessors.filter { $0.0 == method }.map { $0.1 }
+    
+    public func post(body: @escaping (Request) throws -> Response) {
+        respond(method: .post, body: body)
     }
-}
-
-extension Router {
-
-    /// Creates a `DELETE` responder for this router
-    ///
-    /// - Parameter handler: Handler closure invoked when the method is called
-    public func delete(handler: @escaping (Request) throws -> Response) {
-        respond(to: .delete, handler: handler)
+    
+    public func put(body: @escaping (Request) throws -> Response) {
+        respond(method: .put, body: body)
     }
-
-    /// Creates a `GET` responder for this router
-    ///
-    /// - Parameter handler: Handler closure invoked when the method is called
-    public func get(handler: @escaping (Request) throws -> Response) {
-        respond(to: .get, handler: handler)
+    
+    public func patch(body: @escaping (Request) throws -> Response) {
+        respond(method: .patch, body: body)
     }
-
-    /// Creates a `HEAD` responder for this router
-    ///
-    /// - Parameter handler: Handler closure invoked when the method is called
-    public func head(handler: @escaping (Request) throws -> Response) {
-        respond(to: .head, handler: handler)
-    }
-
-    /// Creates a `POST` responder for this router
-    ///
-    /// - Parameter handler: Handler closure invoked when the method is called
-    public func post(handler: @escaping (Request) throws -> Response) {
-        respond(to: .post, handler: handler)
-    }
-
-    /// Creates a `PUT` responder for this router
-    ///
-    /// - Parameter handler: Handler closure invoked when the method is called
-    public func put(handler: @escaping (Request) throws -> Response) {
-        respond(to: .put, handler: handler)
-    }
-
-    /// Creates a `CONNECT` responder for this router
-    ///
-    /// - Parameter handler: Handler closure invoked when the method is called
-    public func connect(handler: @escaping (Request) throws -> Response) {
-        respond(to: .connect, handler: handler)
-    }
-
-    /// Creates a `OPTIONS` responder for this router
-    ///
-    /// - Parameter handler: Handler closure invoked when the method is called
-    public func options(handler: @escaping (Request) throws -> Response) {
-        respond(to: .options, handler: handler)
-    }
-
-    /// Creates a `TRACE` responder for this router
-    ///
-    /// - Parameter handler: Handler closure invoked when the method is called
-    public func trace(handler: @escaping (Request) throws -> Response) {
-        respond(to: .trace, handler: handler)
-    }
-
-    /// Creates a `PATCH` responder for this router
-    ///
-    /// - Parameter handler: Handler closure invoked when the method is called
-    public func patch(handler: @escaping (Request) throws -> Response) {
-        respond(to: .patch, handler: handler)
+    
+    public func delete(body: @escaping (Request) throws -> Response) {
+        respond(method: .delete, body: body)
     }
 }
 
-extension Router {
-    @discardableResult
-    fileprivate func add<T: Route>(_ route: T, to component: PathComponent) -> Router {
-
-        return add(component: component) { router in
-            router.delete(handler: route.delete(request:))
-            router.get(handler: route.get(request:))
-            router.head(handler: route.head(request:))
-            router.post(handler: route.post(request:))
-            router.put(handler: route.put(request:))
-            router.connect(handler: route.connect(request:))
-            router.options(handler: route.options(request:))
-            router.trace(handler: route.trace(request:))
-
-            
-        }
+extension Router : HTTPResponder {
+    public func respond(to httpRequest: HTTPRequest) -> HTTPResponse {
+        return respond(to: Request(httpRequest: httpRequest)).httpResponse
     }
-
-    @discardableResult
-    internal func add<T: Route>(_ route: T, to component: String) -> Router {
-        return add(route, to: .literal(component))
-    }
-
-    @discardableResult
-    internal func add<T: Route>(_ route: T, to parameter: PathParameter) -> Router {
-        return add(route, to: .parameter(parameter))
-    }
-}
-
-extension Router {
-
-    public func respond(to methods: [HTTPRequest.Method], using handler: RequestResponder) {
-        for method  in methods {
-            requestResponders[method] = handler
-        }
-    }
-
-    public func respond(to method: HTTPRequest.Method, using handler: RequestResponder) {
-        respond(to: [method], using: handler)
-    }
-
-    /// Creates a responder for this router responding to the supplied methods
-    ///
-    /// - Parameters:
-    ///   - methods: Methods to respond do
-    ///   - handler: Handler closure invoked when the methods are called
-    public func respond(to methods: [HTTPRequest.Method], handler: @escaping (Request) throws -> Response) {
-        respond(to: methods, using: BasicRequestResponder(handler: handler))
-    }
-
-    /// Creates a responder for this router responding to the supplied method
-    ///
-    /// - Parameters:
-    ///   - method: Methods to respond do
-    ///   - handler: Handler closure invoked when the method is called
-    public func respond(to method: HTTPRequest.Method, handler: @escaping (Request) throws -> Response) {
-        respond(to: method, using: BasicRequestResponder(handler: handler))
-    }
-}
-
-extension Router {
-
-    /// Creates a request preprocessor for the supplied methods to this router
-    ///
-    /// - Parameters:
-    ///   - methods: Methods triggering preprocessing
-    ///   - handler: Handler closure invoked for the supplied methods
-    public func preprocess(for methods: [HTTPRequest.Method], handler: @escaping (Request) throws -> Void) {
-        for method in methods {
-            requestPreprocessors.append((method, BasicRequestPreprocessor(handler: handler)))
-        }
-    }
-
-    /// Creates a request preprocessor for the supplied method to this route
-    ///
-    /// - Parameters:
-    ///   - method: Method triggering preprocessing
-    ///   - handler: Handler closure invoked for the supplied method
-    public func preprocess(for method: HTTPRequest.Method, handler: @escaping (Request) throws -> Void) {
-        preprocess(for: [method], handler: handler)
-    }
-
-    /// Adds a request preprocessor for the supplied methods to this router
-    ///
-    /// - Parameters:
-    ///   - preprocessor: Preprocessor invoked for supplied methods
-    ///   - methods: Methods triggering preprocessing
-    func add(preprocessor: RequestPreprocessor, for methods: [HTTPRequest.Method]) {
-        preprocess(for: methods, handler: preprocessor.preprocess)
-    }
-
-    /// Adds a request preprocessor for the supplied method to this route
-    ///
-    /// - Parameters:
-    ///   - preprocessor: Preprocessor invoked for supplied methods
-    ///   - method: Method triggering preprocessing
-    func add(preprocessor: RequestPreprocessor, for method: HTTPRequest.Method) {
-        preprocess(for: method, handler: preprocessor.preprocess)
-    }
-}
-
-extension Router {
-
-    /// Creates a response preprocessor for the supplied methods to this router
-    ///
-    /// - Parameters:
-    ///   - methods: Methods triggering preprocessing
-    ///   - handler: Handler closure invoked invoked for the supplied methods
-    public func postprocess(for methods: [HTTPRequest.Method], handler: @escaping (Response) throws -> Void) {
-        for method in methods {
-            requestPostprocessors.append((method, BasicRequestPostprocessor(handler: handler)))
-        }
-    }
-
-    /// Creates a response preprocessor for the supplied method to this router
-    ///
-    /// - Parameters:
-    ///   - method: Method triggering preprocessing
-    ///   - handler: Handler closure invoked invoked for the supplied methods
-    public func postprocess(for method: HTTPRequest.Method, handler: @escaping (Response) throws -> Void) {
-        postprocess(for: [method], handler: handler)
-    }
-
-    /// Adds a response preprocessor for the supplied methods to this route
-    ///
-    /// - Parameters:
-    ///   - postprocessor: Postprocessor invoked for supplied methods
-    ///   - methods: Methods triggering the preprocessor invocation
-    func add(postprocessor: RequestPostprocessor, for methods: [HTTPRequest.Method]) {
-        postprocess(for: methods, handler: postprocessor.postprocess)
-    }
-
-    /// Adds a response preprocessor for the supplied method to this route
-    ///
-    /// - Parameters:
-    ///   - postprocessor: Postprocessor invoked for supplied methods
-    ///   - method: Methods triggering the preprocessor invocation
-    func add(postprocessor: RequestPostprocessor, for method: HTTPRequest.Method) {
-        postprocess(for: method, handler: postprocessor.postprocess)
-    }
-}
-
-extension Router {
-    /// Adds a request and response preprocessor for the supplied methods to this router
-    ///
-    /// - Parameters:
-    ///   - processor: Processor invoked for supplied methods
-    ///   - methods: Methods triggering the request and response processor
-    func add(processor: RequestProcessor, for methods: [HTTPRequest.Method]) {
-        preprocess(for: methods, handler: processor.preprocess)
-        postprocess(for: methods, handler: processor.postprocess)
-    }
-
-    /// Adds a request and response preprocessor for the supplied method to this router
-    ///
-    /// - Parameters:
-    ///   - processor: Processor invoked for supplied methods
-    ///   - method: Method triggering the request and response processor
-    func add(processor: RequestProcessor, for method: HTTPRequest.Method) {
-        preprocess(for: method, handler: processor.preprocess)
-        postprocess(for: method, handler: processor.postprocess)
-    }
-}
-
-extension Router {
-
-    fileprivate func matchingRouterChain(
-        for pathComponents: [String],
-        depth: Array<String>.Index = 0,
-        request: Request,
-        parents: [Router] = []
-        ) -> [Router] {
-
-        guard pathComponents.count > depth else {
-            return []
-        }
-
-        if case .literal(let string) = pathComponent {
-            guard string == pathComponents[depth] else {
-                return []
-            }
-        }
-
-        guard depth != pathComponents.index(before: pathComponents.endIndex) else {
-            return parents + [self]
-        }
-
-        for child in children {
-            let matching = child.matchingRouterChain(
-                for: pathComponents,
-                depth: depth.advanced(by: 1),
-                request: request,
-                parents: parents + [self]
-            )
-
-            guard !matching.isEmpty else {
-                continue
-            }
-
-            return matching
-        }
-
-        return []
-    }
-}
-
-extension Router: RequestResponder {
-
-    public func respond(to request: Request) throws -> Response {
+    
+    public func respond(to request: Request) -> Response {
         do {
-
-            let response: Response
-
-            let urlPathComponents = request.httpRequest.url.pathComponents
-
-            let routers: [Router]
-
-            // Extract the body, and parse if, if needed
-            if
-                let contentLength = request.httpRequest.contentLength,
-                contentLength > 0,
-                let contentType = request.httpRequest.contentType {
-                request.content = try contentNegotiator.parse(body: request.httpRequest.body, mediaType: contentType, deadline: .never)
-            }
-
-            routers = matchingRouterChain(for: urlPathComponents, request: request)
-
-            // Validate chain of routers making sure that the chain isn't empty,
-            // and that the last router has an action associated with the request's method
-            guard
-                !routers.isEmpty,
-                let endpointRouter = routers.last
-                else {
-                    throw HTTPError(error: .notFound)
-            }
-
-            // Get the endpoint request responder
-            guard let requestResponder = endpointRouter.requestResponders[request.httpRequest.method] else {
-
-                // No responder found – if the responders are empty, an error with 404 status should be
-                // thrown
-                if endpointRouter.requestResponders.isEmpty {
-                    throw HTTPError(error: .notFound)
-                    // Other methods exist, but the supplied method isn't supported
-                } else {
-
-                    let validMethodsString = endpointRouter.requestResponders.keys.map({ $0.description }).joined(separator: ", ")
-
-                    throw HTTPError(
-                        error: .methodNotAllowed,
-                        reason: "Unsupported method \(request.httpRequest.method.description). Supported methods: \(validMethodsString)"
-                    )
-                }
-            }
-
-            // Extract path parameters from the router chain
-            var parametersByName: [String: String] = [:]
-
-            for (pathComponent, urlPathComponent) in zip(routers.map { $0.pathComponent }, urlPathComponents) {
-                guard case .parameter(let name) = pathComponent else {
-                    continue
-                }
-
-                parametersByName[name.rawValue] = urlPathComponent
-            }
-
-            // Update request
-            request.pathParameters = Parameters(contents: parametersByName)
-
-            // Request preprocessors
-            for router in routers {
-                for requestPreprocessor in router.requestPreprocessors(for: request.httpRequest.method) {
-                    try requestPreprocessor.preprocess(request: request)
-                }
-            }
-
-            response = try requestResponder.respond(to: request)
-
-            // Request postprocessors
-            for router in routers {
-                for requestPostprocessor in router.requestPostprocessors(for: request.httpRequest.method) {
-                    try requestPostprocessor.postprocess(response: response)
-                }
-            }
-
+            return try getResponse(for: request)
+        } catch {
+            return recover(from: error)
+        }
+    }
+    
+    private func getResponse(for request: Request) throws -> Response {
+        do {
+            try preprocess(request)
+            let response = try process(request)
+            try postprocess(response, request)
             return response
-
-            // Catch parameter errors, generating an HTTP error with status 400
-        } catch let error as ParametersError {
-
-            let reason: String
-
-            switch error {
-            case .conversionFailed(let key):
-                reason = "Illegal type of parameter \"\(key)\""
-            case .missingValue(let key):
-                reason = "Missing parameter for key \"\(key)\""
-            }
-
-            throw HTTPError(
-                error: .badRequest,
-                reason: reason
-            )
-
         } catch {
-            throw error
+            return try recover(error)
         }
     }
-}
-
-extension Router: HTTPResponder {
-
-    fileprivate func httpResponse(from response: Response, for mediaTypes: [MediaType]) throws -> HTTPResponse {
-
-        // If the response has no content to serialize, return its response
-        guard let content = response.content else {
-            return response.httpResponse
+    
+    private func process(_ request: Request) throws -> Response {
+        if let pathComponent = request.pathComponents.popFirst() {
+            let subrouter = try getSubrouter(for: pathComponent, request: request)
+            return try subrouter.getResponse(for: request)
         }
-
-        // Serialize content, modify response and return it
-        let (body, mediaType) = try contentNegotiator.serialize(content: content, mediaTypes: mediaTypes, deadline: .never)
-        var headers = response.httpResponse.headers
-        headers[HTTPHeader.contentType] = mediaType.description
-
-        response.httpResponse.headers = headers
-        response.httpResponse.body = body
-
-        return response.httpResponse
+        
+        if let respond = responders[request.httpRequest.method] {
+            return try respond(request)
+        }
+        
+        throw RouterError.methodNotAllowed
     }
-
-    public func respond(to httpRequest: HTTPRequest) throws -> HTTPResponse {
-
-        // Create a request from the request
-        let request = Request(request: httpRequest, logger: logger)
-
-        logger.debug(httpRequest.description)
-
-        let httpResponse: HTTPResponse
-
-        process: do {
-            // Process the request, creating a response
-            let response = try self.respond(to: request)
-
-            httpResponse = try self.httpResponse(from: response, for: request.httpRequest.accept)
-
-            // Catch HTTP errors
-        } catch let error as HTTPError {
-
-            var errorContent = Content()
-
-            // Add an error message to the response content, if exists
-            if let reason = error.reason {
-                try errorContent.set(value: reason, forKey: "message")
-            }
-
-            // Add an error code to the response content, if exists
-            if let code = error.code {
-                try errorContent.set(value: code, forKey: "code")
-            }
-
-            // If the error is empty, return a response without content
-            guard !errorContent.isEmpty else {
-                httpResponse = try self.httpResponse(
-                    from: Response(status: error.status),
-                    for: request.httpRequest.accept
-                )
-                break process
-            }
-
-            // Content wrapping the error
-            var content = Content()
-            try content.set(value: errorContent, forKey: "error")
-
-            // Return a response with the error content
-            httpResponse = try self.httpResponse(
-                from: Response(status: error.status, content: content),
-                for: request.httpRequest.accept
-            )
-
-            // Catch content negotiator unsupported media types error
-        } catch ContentNegotiator.Error.unsupportedMediaTypes(let mediaTypes) {
-
-            switch mediaTypes.count {
-            case 0:
-                return HTTPResponse(
-                    status: .badRequest,
-                    headers: [HTTPHeader.contentType: MediaType.plainText.description],
-                    body: "Accept header missing, or does not supply accepted media types"
-                )
-            case 1:
-                return HTTPResponse(
-                    status: .badRequest,
-                    headers: [HTTPHeader.contentType: MediaType.plainText.description],
-                    body: "Media type \"\(mediaTypes[0])\" is unsupported"
-                )
-            default:
-                let mediaTypesString = mediaTypes.map({ "\"\($0.description)\"" }).joined(separator: ", ")
-
-                return HTTPResponse(
-                    status: .badRequest,
-                    headers: [HTTPHeader.contentType: MediaType.plainText.description],
-                    body: "None of the accepted media types (\(mediaTypesString)) are supported"
-                )
-            }
-        } catch {
-            // Run a recovery
-            httpResponse = try self.httpResponse(from: recovery(error), for: request.httpRequest.accept)
+    
+    private func getSubrouter(for pathComponent: String, request: Request) throws -> Router {
+        if let subrouter = subrouters[pathComponent] {
+            return subrouter
+        } else if let (pathParameterKey, subrouter) = pathParameterSubrouter {
+            request.parameterMapper.set(pathComponent, for: pathParameterKey)
+            return subrouter
         }
-
-        logger.debug(httpResponse.description)
-        return httpResponse
+        
+        throw RouterError.notFound
+    }
+    
+    private func recover(from error: Error) -> Response {
+        switch error {
+        case let error as ResponseRepresentable:
+            return error.response
+        default:
+            return Response(status: .internalServerError, content: "Internal server error")
+        }
     }
 }

@@ -2,109 +2,181 @@ import Core
 import Venice
 import HTTP
 
-public class ContentNegotiator {
+public enum ContentNegotiationError : Error {
+    case noSuitableParser
+    case noSuitableSerializer
+    case writerBodyNotSupported
+}
 
-    fileprivate(set) public var accepts: [Support]
-    fileprivate(set) public var produces: [Support]
-
-    public enum Support {
-        case json
-
-        public static var all: [Support] {
-            return [.json]
-        }
-
-        var mediaType: MediaType {
-            switch self {
-            case .json:
-                return .json
-            }
-        }
-    }
-
-    public enum Error: Swift.Error {
-        case unsupportedMediaTypes([MediaType])
-    }
-
-    public convenience init(supportedTypes: [Support] = Support.all) {
-        self.init(accepts: supportedTypes, produces: supportedTypes)
-    }
-
-    public init(accepts: [Support], produces: [Support]) {
-        self.accepts = accepts
-        self.produces = produces
+public struct ContentType {
+    public let mediaType: MediaType
+    public let parser: ContentParser.Type
+    public let serializer: ContentSerializer.Type
+    
+    public init(mediaType: MediaType, parser: ContentParser.Type, serializer: ContentSerializer.Type) {
+        self.mediaType = mediaType
+        self.parser = parser
+        self.serializer = serializer
     }
 }
 
-public extension ContentNegotiator {
-
-    public func serialize(content: Content, mediaType: MediaType, deadline: Deadline) throws -> (HTTPBody, MediaType) {
-
-        guard let supportedMediaType = produces.filter({
-            $0.mediaType.matches(other: mediaType)
-        }).first else {
-            throw Error.unsupportedMediaTypes([mediaType])
-        }
-
-        switch supportedMediaType {
-        case .json:
-            return (try .data(JSONSerializer.serialize(content)), supportedMediaType.mediaType)
-        }
-    }
-
-    public func parse(body: HTTPBody, mediaType: MediaType, deadline: Deadline) throws -> Content {
-
-        guard let supportedMediaType = accepts.filter({
-            $0.mediaType.matches(other: mediaType)
-        }).first else {
-            throw Error.unsupportedMediaTypes([mediaType])
-        }
-
-        var body = body
-
-        switch supportedMediaType {
-        case .json:
-            return try JSONParser.parse(stream: body.becomeReader(), options: [], deadline: deadline)
-        }
-    }
+extension ContentType {
+    public static let json = ContentType(
+        mediaType: .json,
+        parser: JSONParser.self,
+        serializer: JSONSerializer.self
+    )
 }
 
-extension ContentNegotiator {
-    public func parse(body: HTTPBody, mediaTypes: [MediaType], deadline: Deadline) throws -> Content {
-
-        var mediaTypes = mediaTypes
-
-        if mediaTypes.isEmpty {
-            mediaTypes = Support.all.map { $0.mediaType }
-        }
-
-        for mediaType in mediaTypes {
-            guard let content = try? parse(body: body, mediaType: mediaType, deadline: deadline) else {
-                continue
-            }
-
-            return content
-        }
-
-        throw Error.unsupportedMediaTypes(mediaTypes)
+public struct ContentNegotiator {
+    public let contentTypes: [ContentType]
+    private let mediaTypes: [MediaType]
+    
+    public init() {
+        self.init(contentTypes: .json)
     }
-
-    public func serialize(content: Content, mediaTypes: [MediaType], deadline: Deadline) throws -> (HTTPBody, MediaType) {
-
-        var mediaTypes = mediaTypes
-
-        if mediaTypes.isEmpty {
-            mediaTypes = Support.all.map { $0.mediaType }
+    
+    public init(contentTypes: ContentType...) {
+        self.contentTypes = contentTypes
+        self.mediaTypes = contentTypes.map({$0.mediaType})
+    }
+    
+    public func parse(_ request: Request) throws {
+        if let contentType = request.httpRequest.contentType, !request.httpRequest.body.isEmpty {
+            do {
+                let content: Content
+                
+                switch request.httpRequest.body {
+                case .data(let data):
+                    content = try parse(buffer: data, mediaType: contentType)
+                case .reader(let stream):
+                    content = try parse(stream: stream, deadline: .never, mediaType: contentType)
+                case .writer:
+                    // TODO: Deal with writer bodies
+                    throw ContentNegotiationError.writerBodyNotSupported
+                }
+                
+                request.contentMapper.content = content
+            } catch ContentNegotiationError.noSuitableParser {
+                throw RouterError.unsupportedMediaType
+            }
         }
-
-        for mediaType in mediaTypes {
-            guard let result = try? serialize(content: content, mediaType: mediaType, deadline: deadline) else {
+    }
+    
+    private func parse(stream: InputStream, deadline: Deadline, mediaType: MediaType) throws -> Content {
+        let parserType = try firstParserType(for: mediaType)
+        
+        do {
+            return try parserType.parse(stream, deadline: deadline)
+        } catch {
+            throw ContentNegotiationError.noSuitableParser
+        }
+    }
+    
+    private func parse(buffer: [Byte], mediaType: MediaType) throws -> Content {
+        var lastError: Error?
+        
+        for parserType in parserTypes(for: mediaType) {
+            do {
+                return try parserType.parse(buffer)
+            } catch {
+                lastError = error
                 continue
             }
-
-            return result
         }
-
-        throw Error.unsupportedMediaTypes(mediaTypes)
+        
+        if let lastError = lastError {
+            throw lastError
+        } else {
+            throw ContentNegotiationError.noSuitableParser
+        }
+    }
+    
+    private func parserTypes(for mediaType: MediaType) -> [ContentParser.Type] {
+        var parsers: [ContentParser.Type] = []
+        
+        for contentType in contentTypes where contentType.mediaType.matches(other: mediaType) {
+            parsers.append(contentType.parser)
+        }
+        
+        return parsers
+    }
+    
+    private func firstParserType(for mediaType: MediaType) throws -> ContentParser.Type {
+        guard let first = parserTypes(for: mediaType).first else {
+            throw ContentNegotiationError.noSuitableParser
+        }
+        
+        return first
+    }
+    
+    public func serialize(_ response: Response, for request: Request) throws {
+        if case let .content(content) = response.body {
+            let mediaTypes: [MediaType]
+            
+            if let contentType = response.httpResponse.contentType {
+                mediaTypes = [contentType]
+            } else {
+                mediaTypes = request.httpRequest.accept.isEmpty ? self.mediaTypes : request.httpRequest.accept
+            }
+            
+            let (mediaType, writer) = try serializeToStream(from: content, deadline: .never, mediaTypes: mediaTypes)
+            response.contentType = mediaType
+            response.contentLength = nil
+            response.transferEncoding = "chunked"
+            response.body = .body(.writer(writer))
+        }
+    }
+    
+    private func serializeToStream(from content: Content, deadline: Deadline, mediaTypes: [MediaType]) throws -> (MediaType, (OutputStream) throws -> Void)  {
+        for acceptedType in mediaTypes {
+            for (mediaType, serializerType) in serializerTypes(for: acceptedType) {
+                return (mediaType, { stream in
+                    try serializerType.serialize(content, stream: stream, deadline: deadline)
+                })
+            }
+        }
+        
+        throw ContentNegotiationError.noSuitableSerializer
+    }
+    
+    private func serializeToBuffer(from content: Content, mediaTypes: [MediaType]) throws -> (MediaType, [Byte]) {
+        var lastError: Error?
+        
+        for acceptedType in mediaTypes {
+            for (mediaType, serializerType) in serializerTypes(for: acceptedType) {
+                do {
+                    let buffer = try serializerType.serialize(content)
+                    return (mediaType, buffer)
+                } catch {
+                    lastError = error
+                    continue
+                }
+            }
+        }
+        
+        if let lastError = lastError {
+            throw lastError
+        } else {
+            throw ContentNegotiationError.noSuitableSerializer
+        }
+    }
+    
+    private func serializerTypes(for mediaType: MediaType) -> [(MediaType, ContentSerializer.Type)] {
+        var serializers: [(MediaType, ContentSerializer.Type)] = []
+        
+        for contentType in contentTypes where contentType.mediaType.matches(other: mediaType) {
+            serializers.append(contentType.mediaType, contentType.serializer)
+        }
+        
+        return serializers
+    }
+    
+    private func firstSerializerType(for mediaType: MediaType) throws -> (MediaType, ContentSerializer.Type) {
+        guard let first = serializerTypes(for: mediaType).first else {
+            throw ContentNegotiationError.noSuitableSerializer
+        }
+        
+        return first
     }
 }

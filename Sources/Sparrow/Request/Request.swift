@@ -4,59 +4,30 @@ import Foundation
 
 public class Request {
     public let httpRequest: HTTPRequest
-    public let storage: [String: Any] = [:]
-    internal(set) public var content: Content
-    fileprivate(set) public var log: Logger
-    internal(set) public var pathParameters: Parameters
-
-    internal init(request: HTTPRequest, logger: Logger, pathParameters: Parameters = .empty) {
-        self.httpRequest = request
-        self.content = .null
-        self.log = logger
-        self.pathParameters = pathParameters
+    public var storage: [String: Any] = [:]
+    
+    var pathComponents: ArraySlice<String>
+    
+    var parameterMapper: ParameterMapper
+    var contentMapper = ContentMapper()
+    
+    init(httpRequest: HTTPRequest) {
+        self.httpRequest = httpRequest
+        self.pathComponents = httpRequest.url.pathComponents.dropFirst()
+        self.parameterMapper = ParameterMapper(url: httpRequest.url)
     }
 }
 
 extension Request {
-
-    public var queryParameters: Parameters {
-
-        guard let query = httpRequest.url.query else {
-            return Parameters()
-        }
-
-        let components = query.components(separatedBy: "&")
-
-        var result: [String: String] = [:]
-
-        for component in components {
-            let pair = component.components(separatedBy: "=")
-
-            guard pair.count == 2 else {
-                continue
-            }
-
-            result[pair[0]] = pair[1]
-        }
-
-        return Parameters(contents: result)
+    func getParameters<P : ParameterMappable>() throws -> P {
+        return try P(mapper: parameterMapper)
     }
-
-}
-
-public protocol RequestResponder {
-    func respond(to request: Request) throws -> Response
-}
-
-public struct BasicRequestResponder: RequestResponder {
-
-    private let handler: (Request) throws -> Response
-
-    internal init(handler: @escaping (Request) throws -> Response) {
-        self.handler = handler
+    
+    func getContent<C : ContentMappable>() throws -> C {
+        return try C(mapper: contentMapper)
     }
-
-    public func respond(to request: Request) throws -> Response {
-        return try handler(request)
+    
+    var content: Content {
+        return contentMapper.content
     }
 }
