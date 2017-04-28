@@ -14,29 +14,19 @@ struct App {
 
 struct PostgreSQL : Database {}
 
-// MARK: Web Module
-
-enum AuthenticationError : Error {
-    case accessDenied
-}
-
-func authenticate(_ request: Request) throws {
-    if request.httpRequest.headers["Authentication"] != "bearer token" {
-        throw AuthenticationError.accessDenied
-    }
-}
-
 // MARK: Root Route
 
 struct RootRoute : Route {
     let app: App
     let messageLogger: MessageLogger
     let contentNegotiator: ContentNegotiator
+    let authenticator: Authenticator
     
     init(app: App, logger: Logger) {
         self.app = app
         self.messageLogger = MessageLogger(logger: logger)
         self.contentNegotiator = ContentNegotiator()
+        self.authenticator = Authenticator()
     }
     
     func configure(router root: Router) {
@@ -45,7 +35,14 @@ struct RootRoute : Route {
     }
     
     func preprocess(request: Request) throws {
-        try authenticate(request)
+        try authenticator.basicAuth(request) { username, password in
+            guard username == "username" && password == "password" else {
+                return .accessDenied
+            }
+            
+            return .authenticated
+        }
+        
         try contentNegotiator.parse(request)
     }
     
@@ -57,26 +54,9 @@ struct RootRoute : Route {
         try contentNegotiator.serialize(response, for: request)
         messageLogger.log(response, for: request)
     }
-    
-    func recover(error: Error) throws -> Response {
-        switch error {
-        case AuthenticationError.accessDenied:
-            return Response(status: .unauthorized, content: "Access denied")
-        default:
-            throw error
-        }
-    }
 }
 
 // MARK: Users Route
-
-struct UserParameters : ParameterMappable {
-    let userID: Int
-    
-    init(mapper: ParameterMapper) throws {
-        userID = try mapper.get(UsersResource.parameterKey)
-    }
-}
 
 struct UsersResource : Resource {
     let app: App
@@ -93,6 +73,14 @@ struct UsersResource : Resource {
         user.add("photos", resource: UserPhotosResource(app: app))
     }
     
+    struct Parameters : ParameterMappable {
+        let userID: Int
+        
+        init(mapper: ParameterMapper) throws {
+            userID = try mapper.get(UsersResource.parameterKey)
+        }
+    }
+    
     func list(parameters: NoParameters) throws -> String {
         return "List all users"
     }
@@ -105,63 +93,63 @@ struct UsersResource : Resource {
         return "Remove all users"
     }
     
-    func show(parameters: UserParameters) throws -> String {
+    func show(parameters: Parameters) throws -> String {
         return "Show user \(parameters.userID)"
     }
     
-    func insert(parameters: UserParameters, content: NoContent) throws -> String {
+    func insert(parameters: Parameters, content: NoContent) throws -> String {
         return "Insert user \(parameters.userID)"
     }
     
-    func update(parameters: UserParameters, content: NoContent) throws -> String {
+    func update(parameters: Parameters, content: NoContent) throws -> String {
         return "Update user \(parameters.userID)"
     }
     
-    func remove(parameters: UserParameters) throws -> String {
+    func remove(parameters: Parameters) throws -> String {
         return "Remove user \(parameters.userID)"
     }
 }
 
 // MARK: User Photos Route
 
-struct UserPhotoParameters : ParameterMappable {
-    let userID: Int
-    let photoID: Int
-    
-    init(mapper: ParameterMapper) throws {
-        userID = try mapper.get(UsersResource.parameterKey)
-        photoID = try mapper.get(UserPhotosResource.parameterKey)
-    }
-}
-
 struct UserPhotosResource : Resource {
     let app: App
     
-    func list(parameters: UserParameters) throws -> String {
+    struct Parameters : ParameterMappable {
+        let userID: Int
+        let photoID: Int
+        
+        init(mapper: ParameterMapper) throws {
+            userID = try mapper.get(UsersResource.parameterKey)
+            photoID = try mapper.get(UserPhotosResource.parameterKey)
+        }
+    }
+    
+    func list(parameters: UsersResource.Parameters) throws -> String {
         return "List all photos for user \(parameters.userID)"
     }
     
-    func create(parameters: UserParameters, content: NoContent) throws -> String {
+    func create(parameters: UsersResource.Parameters, content: NoContent) throws -> String {
         return "Create photo for user \(parameters.userID)"
     }
     
-    func removeAll(parameters: UserParameters) throws -> String {
+    func removeAll(parameters: UsersResource.Parameters) throws -> String {
         return "Remove all photos for user \(parameters.userID)"
     }
     
-    func show(parameters: UserPhotoParameters) throws -> String {
+    func show(parameters: Parameters) throws -> String {
         return "Show photo \(parameters.photoID) for user \(parameters.userID)"
     }
     
-    func insert(parameters: UserPhotoParameters, content: NoContent) throws -> String {
+    func insert(parameters: Parameters, content: NoContent) throws -> String {
         return "Insert photo \(parameters.photoID) for user \(parameters.userID)"
     }
     
-    func update(parameters: UserPhotoParameters, content: NoContent) throws -> String {
+    func update(parameters: Parameters, content: NoContent) throws -> String {
         return "Update photo \(parameters.photoID) for user \(parameters.userID)"
     }
     
-    func remove(parameters: UserPhotoParameters) throws -> String {
+    func remove(parameters: Parameters) throws -> String {
         return "Remove photo \(parameters.photoID) for user \(parameters.userID)"
     }
 }
@@ -204,7 +192,7 @@ class RouterTests : XCTestCase {
     let headers: HTTPHeaders = ["Authentication": "bearer token"]
     
     func testIndex() throws {
-        let request = HTTPRequest(
+        let request = Request(
             method: .get,
             url: "/",
             headers: headers
@@ -213,11 +201,11 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .ok)
-        response.assert(body: "\"Welcome!\"")
+        response.assert(content: "Welcome!")
     }
     
     func testShowUserPhoto() throws {
-        let request = HTTPRequest(
+        let request = Request(
             method: .get,
             url: "/users/23/photos/14",
             headers: headers
@@ -226,11 +214,11 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .ok)
-        response.assert(body: "\"Show photo 14 for user 23\"")
+        response.assert(content: "\"Show photo 14 for user 23\"")
     }
     
     func testListUsers() throws {
-        let request = HTTPRequest(
+        let request = Request(
             method: .get,
             url: "/users",
             headers: headers
@@ -239,11 +227,11 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .ok)
-        response.assert(body: "\"List all users\"")
+        response.assert(content: "\"List all users\"")
     }
     
     func testCreateUser() throws {
-        let request = HTTPRequest(
+        let request = Request(
             method: .post,
             url: "/users",
             headers: headers
@@ -251,11 +239,11 @@ class RouterTests : XCTestCase {
         
         let response = router.respond(to: request)
         response.assert(status: .created)
-        response.assert(body: "\"Create user\"")
+        response.assert(content: "\"Create user\"")
     }
     
     func testShowUser() throws {
-        let request = HTTPRequest(
+        let request = Request(
             method: .get,
             url: "/users/23",
             headers: headers
@@ -264,11 +252,11 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .ok)
-        response.assert(body: "\"Show user 23\"")
+        response.assert(content: "\"Show user 23\"")
     }
     
     func testListUserPhotos() throws {
-        let request = HTTPRequest(
+        let request = Request(
             method: .get,
             url: "/users/23/photos",
             headers: headers
@@ -277,11 +265,11 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .ok)
-        response.assert(body: "\"List all photos for user 23\"")
+        response.assert(content: "\"List all photos for user 23\"")
     }
     
     func testShowProfile() throws {
-        let request = HTTPRequest(
+        let request = Request(
             method: .get,
             url: "/profile",
             headers: headers
@@ -290,11 +278,11 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .ok)
-        response.assert(body: "\"Show profile\"")
+        response.assert(content: "\"Show profile\"")
     }
     
     func testNotFound() throws {
-        let request = HTTPRequest(
+        let request = Request(
             method: .get,
             url: "/profile/not/found",
             headers: headers
@@ -303,11 +291,11 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .notFound)
-        response.assert(body: "\"Not found\"")
+        response.assert(content: "\"Not found\"")
     }
     
     func testInvalidParameter() throws {
-        let request = HTTPRequest(
+        let request = Request(
             method: .get,
             url: "/users/invalid-path-parameter",
             headers: headers
@@ -316,11 +304,11 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .badRequest)
-        response.assert(body: "\"Invalid parameter\"")
+        response.assert(content: "\"Invalid parameter\"")
     }
     
     func testMethodNotAllowed() throws {
-        let request = HTTPRequest(
+        let request = Request(
             method: .put,
             url: "/users",
             headers: headers
@@ -329,11 +317,11 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .methodNotAllowed)
-        response.assert(body: "\"Method not allowed\"")
+        response.assert(content: "\"Method not allowed\"")
     }
     
     func testAccessDenied() throws {
-        let request = HTTPRequest(
+        let request = Request(
             method: .get,
             url: "/access-denied"
         )!
@@ -341,11 +329,11 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .unauthorized)
-        response.assert(body: "\"Access denied\"")
+        response.assert(content: "\"Access denied\"")
     }
     
     func testPerformance() throws {
-        let request = HTTPRequest(
+        let request = Request(
             method: .get,
             url: "/users/active/today",
             headers: headers
@@ -357,7 +345,7 @@ class RouterTests : XCTestCase {
     }
     
     func testPerformanceWithPathParameter() {
-        let request = HTTPRequest(
+        let request = Request(
             method: .get,
             url: "/users/23/photos",
             headers: headers

@@ -25,8 +25,10 @@ extension AuthenticationError : ResponseRepresentable {
 
 public struct Authenticator {
     public typealias AuthenticateBasicAuth = (_ username: String, _ password: String) throws -> AuthenticationResult
+    
+    public init() {}
 
-    func basicAuth(_ request: Request, realm: String?, authenticate: AuthenticateBasicAuth) throws {
+    public func basicAuth(_ request: Request, realm: String? = nil, authenticate: AuthenticateBasicAuth) throws {
         let accessDenied = AuthenticationError.accessDenied(realm: realm)
         
         guard let authorization = request.httpRequest.authorization else {
