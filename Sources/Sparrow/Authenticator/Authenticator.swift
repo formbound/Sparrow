@@ -1,4 +1,5 @@
 import Foundation
+import Router
 
 public enum AuthenticationResult {
     case accessDenied
@@ -31,7 +32,7 @@ public struct Authenticator {
     public func basicAuth(_ request: Request, realm: String? = nil, authenticate: AuthenticateBasicAuth) throws {
         let accessDenied = AuthenticationError.accessDenied(realm: realm)
         
-        guard let authorization = request.httpRequest.authorization else {
+        guard let authorization = request.authorization else {
             throw accessDenied
         }
         

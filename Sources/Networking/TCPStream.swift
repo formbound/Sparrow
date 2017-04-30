@@ -2,8 +2,7 @@ import Core
 import Venice
 import POSIX
 
-public final class TCPStream: Stream {
-
+public final class TCPStream : Stream {
     private var socket: FileDescriptor?
 
     public private(set) var ip: IP
@@ -15,10 +14,14 @@ public final class TCPStream: Stream {
         self.closed = false
     }
 
-    public init(host: String, port: Int, deadline: Deadline = 1.minute.fromNow()) throws {
+    public init(host: String, port: Int, deadline: Deadline) throws {
         self.ip = try IP(address: host, port: port, deadline: deadline)
         self.socket = nil
         self.closed = true
+    }
+    
+    deinit {
+        close()
     }
 
     public func open(deadline: Deadline) throws {
@@ -59,27 +62,39 @@ public final class TCPStream: Stream {
 
         loop: while true {
             var remaining: UnsafeBufferPointer<UInt8> = bytes
+            
             do {
-                let bytesWritten = try POSIX.send(socket: socket, bytes: remaining.baseAddress!, count: remaining.count, flags: .noSignal)
-                guard bytesWritten > 0 else {
-                    throw SystemError.other(errorNumber: -1)
-                }
+                let bytesWritten = try POSIX.send(
+                    socket: socket,
+                    bytes: remaining.baseAddress!,
+                    count: remaining.count,
+                    flags: .noSignal
+                )
+                
                 guard bytesWritten < remaining.count else {
                     return
                 }
-
-                let remainingCount = remaining.startIndex.advanced(by: bytesWritten).distance(to: remaining.endIndex)
-                remaining = UnsafeBufferPointer<UInt8>(start: remaining.baseAddress!.advanced(by: bytesWritten), count: remainingCount)
+        
+                let remainingCount = remaining.startIndex
+                    .advanced(by: bytesWritten)
+                    .distance(to: remaining.endIndex)
+                
+                remaining = UnsafeBufferPointer<UInt8>(
+                    start: remaining.baseAddress!.advanced(by: bytesWritten),
+                    count: remainingCount
+                )
+                
+                continue loop
             } catch {
+                print(".")
                 switch error {
                 case SystemError.resourceTemporarilyUnavailable, SystemError.operationWouldBlock:
                     do {
                         try poll(socket, event: .write, deadline: deadline)
+                        continue loop
                     } catch VeniceError.timeout {
                         throw StreamError.timeout
                     }
-                    
-                    continue loop
                 case SystemError.connectionResetByPeer, SystemError.brokenPipe:
                     close()
                     throw StreamError.closedStream
@@ -143,6 +158,7 @@ public final class TCPStream: Stream {
         guard let socket = self.socket else {
             throw SystemError.socketIsNotConnected
         }
+        
         return socket
     }
 
@@ -150,9 +166,5 @@ public final class TCPStream: Stream {
         if closed {
             throw StreamError.closedStream
         }
-    }
-
-    deinit {
-        close()
     }
 }

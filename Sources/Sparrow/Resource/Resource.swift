@@ -1,5 +1,6 @@
 import HTTP
 import Core
+import Router
 
 public protocol Resource {
     static var parameterKey: ParameterKey { get }
@@ -86,7 +87,7 @@ public extension Resource {
     }
 }
 
-private func response(from output: ResponseRepresentable, status: HTTPResponse.Status = .ok) -> Response {
+private func response(from output: ResponseRepresentable, status: Status = .ok) -> Response {
     if let output = output as? ContentRepresentable {
         return Response(status: status, content: output.content)
     }

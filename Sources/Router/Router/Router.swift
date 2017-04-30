@@ -3,33 +3,15 @@ import HTTP
 public enum RouterError : Error {
     case notFound
     case methodNotAllowed
-    
-    case parameterNotFound(parameterKey: ParameterKey)
-    case invalidParameter(parameter: String, type: ParameterInitializable.Type)
-    
-    case contentNotFound
-    case invalidContent
-    
-    case unsupportedMediaType
 }
 
 extension RouterError : ResponseRepresentable {
     public var response: Response {
         switch self {
         case .notFound:
-            return Response(status: .notFound, content: "Not found")
+            return Response(status: .notFound)
         case .methodNotAllowed:
-            return Response(status: .methodNotAllowed, content: "Method not allowed")
-        case .parameterNotFound:
-            return Response(status: .internalServerError, content: "Parameter not found")
-        case .invalidParameter:
-            return Response(status: .badRequest, content: "Invalid parameter")
-        case .contentNotFound:
-            return Response(status: .internalServerError, content: "Content not found")
-        case .invalidContent:
-            return Response(status: .badRequest, content: "Invalid content")
-        case .unsupportedMediaType:
-            return Response(status: .unsupportedMediaType, content: "Unsupported media type")
+            return Response(status: .methodNotAllowed)
         }
     }
 }
@@ -39,7 +21,7 @@ public final class Router {
     fileprivate var pathParameterSubrouter: (String, Router)?
     
     fileprivate var preprocess: (Request) throws -> Void = { _ in }
-    fileprivate var responders: [HTTPRequest.Method: (Request) throws -> Response] = [:]
+    fileprivate var responders: [Method: (Request) throws -> Response] = [:]
     fileprivate var postprocess: (Response, Request) throws -> Void = { _ in }
     fileprivate var recover: (Error) throws -> Response = { error in throw error }
     
@@ -66,7 +48,7 @@ public final class Router {
         preprocess = body
     }
     
-    public func respond(method: HTTPRequest.Method, body: @escaping (Request) throws -> Response) {
+    public func respond(method: Method, body: @escaping (Request) throws -> Response) {
         responders[method] = body
     }
     
@@ -101,9 +83,9 @@ extension Router {
     }
 }
 
-extension Router : HTTPResponder {
-    public func respond(to httpRequest: HTTPRequest) -> HTTPResponse {
-        return respond(to: Request(httpRequest: httpRequest)).httpResponse
+extension Router {
+    public func respond(to incomingRequest: IncomingRequest) -> OutgoingResponse {
+        return respond(to: Request(incomingRequest)).outgoing
     }
     
     public func respond(to request: Request) -> Response {
@@ -131,7 +113,7 @@ extension Router : HTTPResponder {
             return try subrouter.getResponse(for: request)
         }
         
-        if let respond = responders[request.httpRequest.method] {
+        if let respond = responders[request.method] {
             return try respond(request)
         }
         
@@ -154,7 +136,7 @@ extension Router : HTTPResponder {
         case let error as ResponseRepresentable:
             return error.response
         default:
-            return Response(status: .internalServerError, content: "Internal server error")
+            return Response(status: .internalServerError)
         }
     }
 }

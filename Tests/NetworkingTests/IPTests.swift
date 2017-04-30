@@ -1,7 +1,10 @@
 import XCTest
+import Venice
 @testable import Networking
 
 public class IPTests: XCTestCase {
+    let deadline: Deadline = .never
+    
     func testErrorDescription() {
         XCTAssertEqual(String(describing: IPError.invalidPort), "Port number should be between 0 and 0xffff")
     }
@@ -23,19 +26,19 @@ public class IPTests: XCTestCase {
     }
 
     func testLocalIPV4() throws {
-        _ = try IP(address: "127.0.0.1", port: 5555, mode: .ipv4)
+        _ = try IP(address: "127.0.0.1", port: 5555, mode: .ipv4, deadline: deadline)
     }
 
     func testLocalIPV6() throws {
-        _ = try IP(address: "::1", port: 5555, mode: .ipv6)
+        _ = try IP(address: "::1", port: 5555, mode: .ipv6, deadline: deadline)
     }
 
     func testLocalIPV4Prefered() throws {
-        _ = try IP(address: "127.0.0.1", port: 5555, mode: .ipv4Prefered)
+        _ = try IP(address: "127.0.0.1", port: 5555, mode: .ipv4Prefered, deadline: deadline)
     }
 
     func testLocalIPV6Prefered() throws {
-        _ = try IP(address: "::1", port: 5555, mode: .ipv6Prefered)
+        _ = try IP(address: "::1", port: 5555, mode: .ipv6Prefered, deadline: deadline)
     }
 
     func testRemoteIPV4() throws {
@@ -72,19 +75,19 @@ public class IPTests: XCTestCase {
     }
 
     func testInvalidLocalIPV4() throws {
-        XCTAssertThrowsError(try IP(address: "yo-yo ma", port: 5555, mode: .ipv4))
+        XCTAssertThrowsError(try IP(address: "yo-yo ma", port: 5555, mode: .ipv4, deadline: deadline))
     }
 
     func testInvalidLocalIPV6() throws {
-        XCTAssertThrowsError(try IP(address: "yo-yo ma", port: 5555, mode: .ipv6))
+        XCTAssertThrowsError(try IP(address: "yo-yo ma", port: 5555, mode: .ipv6, deadline: deadline))
     }
 
     func testInvalidLocalIPV4Prefered() throws {
-        XCTAssertThrowsError(try IP(address: "yo-yo ma", port: 5555, mode: .ipv4Prefered))
+        XCTAssertThrowsError(try IP(address: "yo-yo ma", port: 5555, mode: .ipv4Prefered, deadline: deadline))
     }
 
     func testInvalidLocalIPV6Prefered() throws {
-        XCTAssertThrowsError(try IP(address: "yo-yo ma", port: 5555, mode: .ipv6Prefered))
+        XCTAssertThrowsError(try IP(address: "yo-yo ma", port: 5555, mode: .ipv6Prefered, deadline: deadline))
     }
 
     func testRemoteInvalidPortIPV4() throws {

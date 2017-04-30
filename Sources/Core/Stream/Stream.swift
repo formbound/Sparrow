@@ -40,17 +40,21 @@ extension InputStream {
         try bytes.withUnsafeMutableBufferPointer { pointer in
             var address = pointer.baseAddress!
             var remaining = byteCount
+            
             while remaining > 0 {
-                let chunk = try read(into: UnsafeMutableBufferPointer(start: address, count: remaining), deadline: deadline)
+                let buffer = UnsafeMutableBufferPointer(start: address, count: remaining)
+                let chunk = try read(into: buffer, deadline: deadline)
+                
                 guard chunk.count > 0 else {
                     throw StreamError.closedStream
                 }
+                
                 address = address.advanced(by: chunk.count)
                 remaining -= chunk.count
             }
         }
 
-        return [Byte](bytes)
+        return bytes
     }
 
     /// Drains the `Stream` and returns the contents in a `Buffer`. At the end of this operation the stream will be closed.

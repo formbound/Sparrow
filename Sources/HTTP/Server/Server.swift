@@ -1,152 +1,96 @@
+import POSIX
 import Core
 import Networking
 import Venice
-import POSIX
 
-public struct HTTPServer {
+public typealias Respond = (IncomingRequest) -> OutgoingResponse
 
-    /// TCP host of the HTTP server
-    public let tcpHost: Host
-
-    /// First responder of the HTTP server
-    /// For example, a `Router` is a type of responder.
-    /// You can also write your own responders, implementing the `Responder` protocol
-    public let responder: HTTPResponder
-
-    /// Error handler of the HTTP server
-    /// If the responder throws an error,
-    public var errorHandler: (Error) -> Void
-
-    /// Server host
-    public let host: String
-
-    /// Server port
-    public let port: Int
-
+public struct Server {
     /// Server buffer size
     public let bufferSize: Int
-
-    fileprivate let coroutineGroup = CoroutineGroup()
+    
+    /// Parse timeout
+    public let parseTimeout: TimeInterval
+    
+    /// Serialization timeout
+    public let serializeTimeout: TimeInterval
+    
+    private let logger: Logger
+    private let coroutineGroup = CoroutineGroup()
 
     /// Creates a new HTTP server
     public init(
+        bufferSize: Int = 4096,
+        parseTimeout: TimeInterval = 5.minutes,
+        serializeTimeout: TimeInterval = 5.minutes,
+        logAppenders: [LogAppender] = [defaultAppender]
+    ) {
+        self.bufferSize = bufferSize
+        self.parseTimeout = parseTimeout
+        self.serializeTimeout = serializeTimeout
+        self.logger = Logger(name: "HTTP server", appenders: logAppenders)
+    }
+
+    /// Start server
+    public func start(
         host: String = "0.0.0.0",
         port: Int = 8080,
         backlog: Int = 128,
         reusePort: Bool = false,
-        bufferSize: Int = 4096,
-        responder: HTTPResponder,
-        errorHandler: @escaping (Error) -> Void = { error in print("\(error)") }
+        deadline: Deadline = 1.minute.fromNow(),
+        header: String = defaultHeader,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line,
+        column: Int = #column,
+        respond: @escaping Respond
     ) throws {
-        self.tcpHost = try TCPHost(
+        let tcp = try TCPHost(
             host: host,
             port: port,
             backlog: backlog,
-            reusePort: reusePort
+            reusePort: reusePort,
+            deadline: deadline
         )
-        self.host = host
-        self.port = port
-        self.bufferSize = bufferSize
-        self.responder = responder
-        self.errorHandler = errorHandler
+        
+        log(
+            header: header,
+            host: host,
+            port: port,
+            locationInfo: Logger.LocationInfo(
+                file: file,
+                line: line,
+                column: column,
+                function: function
+            )
+        )
+        
+        try start(host: tcp, respond: respond)
     }
-}
-
-func retry(times: Int, waiting duration: Venice.TimeInterval, work: (Void) throws -> Void) throws {
-    var failCount = 0
-    var lastError: Error!
-
-    while failCount < times {
-        do {
-            try work()
-        } catch {
-            failCount += 1
-            lastError = error
-            print("Error: \(error)")
-            print("Retrying in \(duration) seconds.")
-
-            print("Retrying.")
+    
+    /// Start server
+    public func start(host: Host, respond: @escaping Respond) throws {
+        while true {
+            do {
+                try accept(host, respond: respond)
+            } catch VeniceError.canceledCoroutine {
+                break
+            }
         }
     }
     
-    throw lastError
-}
-
-extension HTTPServer {
-    public func startInBackground() throws {
-        try coroutineGroup.addCoroutine {
-            do {
-                try self.start()
-            } catch {
-                self.errorHandler(error)
-            }
-        }
+    /// Stop server
+    public func stop() throws {
+        self.logger.info("Stopping HTTP server.")
+        try coroutineGroup.cancel()
     }
-
-    public func start() throws {
-        printHeader()
-        try retry(times: 10, waiting: 5.seconds) {
-            while true {
-                let stream = try tcpHost.accept(deadline: .never)
-
-                try coroutineGroup.addCoroutine {
-                    do {
-                        try self.process(stream: stream)
-                    } catch {
-                        self.errorHandler(error)
-                    }
-                }
-            }
-        }
+    
+    private static var defaultAppender: LogAppender {
+        return StandardOutputAppender(name: "HTTP server", levels: [.error, .info])
     }
-
-    public func process(stream: Stream) throws {
-        let bytes = UnsafeMutableBufferPointer<Byte>(capacity: bufferSize)
-        defer { bytes.deallocate(capacity: bufferSize) }
-
-        let parser = MessageParser(mode: .request)
-        let serializer = ResponseSerializer(stream: stream, bufferSize: bufferSize)
-
-        while !stream.closed {
-            do {
-                // TODO: Add timeout parameter
-                let bytesRead = try stream.read(into: bytes, deadline: 30.seconds.fromNow())
-
-                for message in try parser.parse(bytesRead) {
-                    let request = message as! HTTPRequest
-                    let response = responder.respond(to: request)
-                    // TODO: Add timeout parameter
-                    try serializer.serialize(response, deadline: 5.minutes.fromNow())
-
-                    if let upgrade = response.upgradeConnection {
-                        try upgrade(request, stream)
-                        stream.close()
-                    }
-
-                    if !request.isKeepAlive {
-                        stream.close()
-                    }
-                }
-            } catch SystemError.brokenPipe {
-                break
-            } catch StreamError.timeout {
-                if stream.closed {
-                    break
-                }
-                
-                continue
-            }  catch {
-                if stream.closed {
-                    break
-                }
-
-                throw error
-            }
-        }
-    }
-
-    public func printHeader() {
-        var header = ""
+    
+    private static var defaultHeader: String {
+        var header = "\n"
         header += "   _____                                          \n"
         header += "  / ___/ ____   ____ _ _____ _____ ____  _      __\n"
         header += "  \\__ \\ / __ \\ / __ `// ___// ___// __ \\| | /| / /\n"
@@ -154,7 +98,61 @@ extension HTTPServer {
         header += "/____// .___/ \\__,_//_/   /_/    \\____/ |__/|__/  \n"
         header += "     /_/                                          \n"
         header += "--------------------------------------------------\n"
+        return header
+    }
+    
+    @inline(__always)
+    private func log(header: String, host: String, port: Int, locationInfo: Logger.LocationInfo) {
+        var header = header
         header += "Started HTTP server at \(host), listening on port \(port)."
-        print(header)
+        logger.info(header, locationInfo: locationInfo)
+    }
+    
+    @inline(__always)
+    private func accept(_ host: Host, respond: @escaping Respond) throws {
+        let stream = try host.accept(deadline: .never)
+        
+        try coroutineGroup.addCoroutine {
+            do {
+                try self.process(stream, respond: respond)
+            } catch SystemError.brokenPipe {
+                return
+            } catch SystemError.connectionResetByPeer {
+                return
+            } catch VeniceError.canceledCoroutine {
+                return
+            } catch {
+                self.logger.error("HTTP Server Error", error: error)
+            }
+        }
+    }
+
+    @inline(__always)
+    private func process(_ stream: Stream, respond: @escaping Respond) throws {
+        let parser = RequestParser(stream: stream, bufferSize: bufferSize)
+        let serializer = ResponseSerializer(stream: stream, bufferSize: bufferSize)
+        
+        try parser.parse(timeout: parseTimeout) { request in
+            let response = respond(request)
+            try serializer.serialize(response, timeout: self.serializeTimeout)
+            
+            if let upgrade = response.upgradeConnection {
+                try upgrade(request, stream)
+                stream.close()
+            }
+            
+            if !self.isKeepAlive(request) {
+                stream.close()
+            }
+        }
+    }
+    
+    @inline(__always)
+    private func isKeepAlive(_ request: IncomingRequest) -> Bool {
+        if request.version.minor == 0 {
+            return request.headers["Connection"]?.lowercased() == "keep-alive"
+        }
+        
+        return request.headers["Connection"]?.lowercased() != "close"
     }
 }

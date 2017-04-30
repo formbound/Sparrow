@@ -1,3 +1,4 @@
+import Router
 import Sparrow
 import HTTP
 import Core
@@ -43,7 +44,7 @@ struct RootRoute : Route {
             return .authenticated
         }
         
-        try contentNegotiator.parse(request)
+        try contentNegotiator.parse(request, deadline: 1.minute.fromNow())
     }
     
     func get(request: Request) throws -> Response {
@@ -51,7 +52,7 @@ struct RootRoute : Route {
     }
     
     func postprocess(response: Response, for request: Request) throws {
-        try contentNegotiator.serialize(response, for: request)
+        try contentNegotiator.serialize(response, for: request, deadline: 1.minute.fromNow())
         messageLogger.log(response, for: request)
     }
 }
@@ -189,7 +190,7 @@ import Crest
 class RouterTests : XCTestCase {
     let router = Router(route: root)
     
-    let headers: HTTPHeaders = ["Authentication": "bearer token"]
+    let headers: Headers = ["Authorization": "Basic dXNlcm5hbWU6cGFzc3dvcmQ="]
     
     func testIndex() throws {
         let request = Request(
@@ -214,7 +215,7 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .ok)
-        response.assert(content: "\"Show photo 14 for user 23\"")
+        response.assert(content: "Show photo 14 for user 23")
     }
     
     func testListUsers() throws {
@@ -227,7 +228,7 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .ok)
-        response.assert(content: "\"List all users\"")
+        response.assert(content: "List all users")
     }
     
     func testCreateUser() throws {
@@ -239,7 +240,7 @@ class RouterTests : XCTestCase {
         
         let response = router.respond(to: request)
         response.assert(status: .created)
-        response.assert(content: "\"Create user\"")
+        response.assert(content: "Create user")
     }
     
     func testShowUser() throws {
@@ -252,7 +253,7 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .ok)
-        response.assert(content: "\"Show user 23\"")
+        response.assert(content: "Show user 23")
     }
     
     func testListUserPhotos() throws {
@@ -265,7 +266,7 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .ok)
-        response.assert(content: "\"List all photos for user 23\"")
+        response.assert(content: "List all photos for user 23")
     }
     
     func testShowProfile() throws {
@@ -278,7 +279,7 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .ok)
-        response.assert(content: "\"Show profile\"")
+        response.assert(content: "Show profile")
     }
     
     func testNotFound() throws {
@@ -291,7 +292,6 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .notFound)
-        response.assert(content: "\"Not found\"")
     }
     
     func testInvalidParameter() throws {
@@ -304,7 +304,6 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .badRequest)
-        response.assert(content: "\"Invalid parameter\"")
     }
     
     func testMethodNotAllowed() throws {
@@ -317,7 +316,6 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .methodNotAllowed)
-        response.assert(content: "\"Method not allowed\"")
     }
     
     func testAccessDenied() throws {
@@ -329,7 +327,6 @@ class RouterTests : XCTestCase {
         let response = router.respond(to: request)
         
         response.assert(status: .unauthorized)
-        response.assert(content: "\"Access denied\"")
     }
     
     func testPerformance() throws {

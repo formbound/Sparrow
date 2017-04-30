@@ -3,6 +3,8 @@ import XCTest
 @testable import Core
 @testable import Venice
 
+let deadline: Deadline = .never
+
 public class TCPTests: XCTestCase {
     func testConnectionRefused() throws {
         let connection = try TCPStream(host: "127.0.0.1", port: 1111, deadline: 1.second.fromNow())
@@ -15,7 +17,7 @@ public class TCPTests: XCTestCase {
         let channel = try Channel<Void>()
 
         let coroutine = try Coroutine {
-            let host = try TCPHost(host: "0.0.0.0", port: port)
+            let host = try TCPHost(host: "0.0.0.0", port: port, deadline: deadline)
             _ = try host.accept(deadline: 1.second.fromNow())
             try channel.send((), deadline: .never)
         }
@@ -34,7 +36,7 @@ public class TCPTests: XCTestCase {
         let channel = try Channel<Void>()
 
         let coroutine = try Coroutine {
-            let host = try TCPHost(host: "127.0.0.1", port: port)
+            let host = try TCPHost(host: "127.0.0.1", port: port, deadline: deadline)
             _ = try host.accept(deadline: 1.second.fromNow())
             try channel.send((), deadline: .never)
         }
@@ -53,7 +55,7 @@ public class TCPTests: XCTestCase {
         let channel = try Channel<Void>()
 
         let coroutine = try Coroutine {
-            let host = try TCPHost(host: "127.0.0.1", port: port)
+            let host = try TCPHost(host: "127.0.0.1", port: port, deadline: deadline)
             _ = try host.accept(deadline: 1.second.fromNow())
             try channel.send((), deadline: .never)
         }
@@ -72,7 +74,7 @@ public class TCPTests: XCTestCase {
         let channel = try Channel<Void>()
 
         let coroutine = try Coroutine {
-            let host = try TCPHost(host: "127.0.0.1", port: port)
+            let host = try TCPHost(host: "127.0.0.1", port: port, deadline: deadline)
             let connection = try host.accept(deadline: 1.second.fromNow())
             let buffer = try connection.read(upTo: 1, deadline: 1.second.fromNow())
 
@@ -95,7 +97,7 @@ public class TCPTests: XCTestCase {
         let channel = try Channel<Void>()
 
         let coroutine = try Coroutine {
-            let host = try TCPHost(host: "127.0.0.1", port: port)
+            let host = try TCPHost(host: "127.0.0.1", port: port, deadline: deadline)
             let stream = try host.accept(deadline: deadline)
 
             try stream.write("ABC", deadline: deadline)

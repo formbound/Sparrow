@@ -45,7 +45,7 @@ extension String : ParameterInitializable {
 extension Int : ParameterInitializable {
     public init(parameter: String) throws {
         guard let int = Int(parameter) else {
-            throw RouterError.invalidParameter(parameter: parameter, type: type(of: self))
+            throw ParameterError.invalidParameter(parameter: parameter, type: type(of: self))
         }
         
         self.init(int)
@@ -55,7 +55,7 @@ extension Int : ParameterInitializable {
 extension UUID : ParameterInitializable {
     public init(parameter: String) throws {
         guard let uuid = UUID(uuidString: parameter) else {
-            throw RouterError.invalidParameter(parameter: parameter, type: type(of: self))
+            throw ParameterError.invalidParameter(parameter: parameter, type: type(of: self))
         }
         
         self.init(uuid: uuid.uuid)
@@ -65,7 +65,7 @@ extension UUID : ParameterInitializable {
 extension Double : ParameterInitializable {
     public init(parameter: String) throws {
         guard let double = Double(parameter) else {
-            throw RouterError.invalidParameter(parameter: parameter, type: type(of: self))
+            throw ParameterError.invalidParameter(parameter: parameter, type: type(of: self))
         }
         
         self.init(double)
@@ -75,7 +75,7 @@ extension Double : ParameterInitializable {
 extension Float : ParameterInitializable {
     public init(parameter: String) throws {
         guard let float = Float(parameter) else {
-            throw RouterError.invalidParameter(parameter: parameter, type: type(of: self))
+            throw ParameterError.invalidParameter(parameter: parameter, type: type(of: self))
         }
         
         self.init(float)
@@ -90,7 +90,7 @@ extension Bool : ParameterInitializable {
         case "false", "0", "f":
             self = false
         default:
-            throw RouterError.invalidParameter(parameter: parameter, type: type(of: self))
+            throw ParameterError.invalidParameter(parameter: parameter, type: type(of: self))
         }
     }
 }

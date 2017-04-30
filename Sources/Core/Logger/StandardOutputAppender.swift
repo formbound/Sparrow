@@ -1,7 +1,6 @@
-public class StandardOutputAppender: Appender {
+public struct StandardOutputAppender : LogAppender {
     public let name: String
-    public var levels: Logger.Level
-    var lastMessage: String = ""
+    public let levels: Logger.Level
 
     public init(name: String = "Standard Output Appender", levels: Logger.Level = .all) {
         self.name = name
@@ -11,16 +10,8 @@ public class StandardOutputAppender: Appender {
     public func append(event: Logger.Event) {
         var logMessage = ""
 
-        defer {
-            lastMessage = logMessage
-        }
-
-        guard levels.contains(event.level) else {
-            return
-        }
-
-        logMessage += "[" + event.timestamp + "]"
-        logMessage += "[" + String(describing: event.locationInfo) + "]"
+        logMessage += "[" + event.timestamp.description + "]"
+        logMessage += "[" + event.locationInfo.description + "]"
 
         if let message = event.message {
             logMessage += ":" + String(describing: message)

@@ -1,9 +1,8 @@
 import Core
 import POSIX
 import Venice
-import Powerline
 
-public enum TCPError: Error {
+public enum TCPError : Error {
     case failedToCreateSocket
     case failedToConnectSocket
     case failedToBindSocket
@@ -15,7 +14,7 @@ public enum TCPError: Error {
     case invalidFileDescriptor
 }
 
-public final class TCPHost: Host {
+public final class TCPHost : Host {
     private let socket: FileDescriptor
     public let ip: IP
 
@@ -26,6 +25,7 @@ public final class TCPHost: Host {
 
     public convenience init(ip: IP, backlog: Int, reusePort: Bool) throws {
         var address = ip.address
+        
         guard let socket = try? POSIX.socket(family: address.family, type: .stream, protocol: 0) else {
             throw TCPError.failedToCreateSocket
         }
@@ -58,37 +58,18 @@ public final class TCPHost: Host {
         self.init(socket: socket, ip: ip)
     }
 
-    public convenience init(host: String = "0.0.0.0", port: Int = 8080, backlog: Int = 128, reusePort: Bool = false) throws {
-        let ip = try IP(address: host, port: port)
+    public convenience init(
+        host: String = "0.0.0.0",
+        port: Int = 8080,
+        backlog: Int = 128,
+        reusePort: Bool = false,
+        deadline: Deadline
+    ) throws {
+        let ip = try IP(address: host, port: port, deadline: deadline)
         try self.init(ip: ip, backlog: backlog, reusePort: reusePort)
     }
 
-    public convenience init(arguments: [String] = CommandLine.arguments) throws {
-        let hostArgument = NamedArgument(name: "host", character: "h", summary: "TCP host address. Defaults to 0.0.0.0", valuePlaceholder: "ip/host")
-        let portArgument = NamedArgument(name: "port", character: "p", summary: "TCP host port. Defaults to 8080", valuePlaceholder: "port")
-        let backlogArgument = NamedArgument(name: "backlog", character: "b", summary: "TCP backlog. Defaults to 128", valuePlaceholder: "backlog")
-        let reusePortArgument = NamedArgument(name: "reuseport", character: "r", summary: "Whether to reuse port. Defaults to false", valuePlaceholder: "true/false")
-
-        let result = try Command(
-            name: "sparrow-tcphostrun",
-            summary: "Runs TCP hosst",
-            namedArguments: [
-                hostArgument,
-                portArgument,
-                backlogArgument,
-                reusePortArgument
-            ]
-            ).run(arguments: arguments)
-
-        try self.init(
-            host: try result.value(for: hostArgument) ?? "0.0.0.0",
-            port: try result.value(for: portArgument) ?? 8080,
-            backlog: try result.value(for: backlogArgument) ?? 128,
-            reusePort: try result.value(for: reusePortArgument) ?? false
-        )
-    }
-
-    public func accept(deadline: Deadline = 1.minute.fromNow()) throws -> Stream {
+    public func accept(deadline: Deadline) throws -> Stream {
         loop: while true {
             do {
                 // Try to get new connection (non-blocking).

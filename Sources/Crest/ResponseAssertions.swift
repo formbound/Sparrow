@@ -1,16 +1,17 @@
 import HTTP
+import Router
 import XCTest
 
 extension Response {
     public func assert(content otherContent: ContentRepresentable) {
-        guard case let .content(content) = body else {
-            return XCTFail("Invalid body")
+        guard let content = content else {
+            return XCTFail("Body is not content")
         }
         
         XCTAssertEqual(content, otherContent.content)
     }
     
-    public func assert(status: HTTPResponse.Status) {
+    public func assert(status: Status) {
         XCTAssertEqual(self.status, status)
     }
 }

@@ -7,8 +7,10 @@ let package = Package(
         Target(name: "POSIX"),
         Target(name: "Networking", dependencies: ["Core", "POSIX"]),
         Target(name: "HTTP", dependencies: ["Networking"]),
-        Target(name: "Crest", dependencies: ["HTTP"]),
-        Target(name: "Sparrow", dependencies: ["Crest", "HTTP"]),
+        Target(name: "Router", dependencies: ["HTTP"]),
+        Target(name: "Crest", dependencies: ["Router"]),
+        Target(name: "Sparrow", dependencies: ["Router", "Crest"]),
+        Target(name: "Example", dependencies: ["Sparrow"]),
     ],
     dependencies: [
         .Package(url: "https://github.com/formbound/Venice.git", majorVersion: 0),

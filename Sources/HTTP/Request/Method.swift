@@ -1,4 +1,17 @@
-extension HTTPRequest.Method {
+public enum Method {
+    case delete
+    case get
+    case head
+    case post
+    case put
+    case connect
+    case options
+    case trace
+    case patch
+    case other(method: String)
+}
+
+extension Method {
     init(_ rawValue: String) {
         let method = rawValue.uppercased()
         switch method {
@@ -16,7 +29,7 @@ extension HTTPRequest.Method {
     }
 }
 
-extension HTTPRequest.Method : CustomStringConvertible {
+extension Method : CustomStringConvertible {
     public var description: String {
         switch self {
         case .delete:            return "DELETE"
@@ -33,7 +46,7 @@ extension HTTPRequest.Method : CustomStringConvertible {
     }
 }
 
-extension HTTPRequest.Method : Hashable {
+extension Method : Hashable {
     public var hashValue: Int {
         switch self {
         case .delete:            return 0
@@ -50,6 +63,6 @@ extension HTTPRequest.Method : Hashable {
     }
 }
 
-public func ==(lhs: HTTPRequest.Method, rhs: HTTPRequest.Method) -> Bool {
+public func ==(lhs: Method, rhs: Method) -> Bool {
     return lhs.description == rhs.description
 }

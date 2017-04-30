@@ -38,21 +38,24 @@ public struct IP {
     public init(port: Int, mode: IPMode = .ipv4Prefered) throws {
         try assertValidPort(port)
         let address: Address
+        
         switch mode {
         case .ipv4, .ipv4Prefered:
             address = Address(family: .ipv4, port: port)
         case .ipv6, .ipv6Prefered:
             address = Address(family: .ipv6, port: port)
         }
+        
         self.init(address: address)
     }
 
     // TODO:
     // get address from interface name
 
-    public init(address literal: String, port: Int, mode: IPMode = .ipv4Prefered, deadline: Deadline = 10.seconds.fromNow()) throws {
+    public init(address literal: String, port: Int, mode: IPMode = .ipv4Prefered, deadline: Deadline) throws {
         try assertValidPort(port)
         let address: Address
+        
         do {
             switch mode {
             case .ipv4:
@@ -75,6 +78,7 @@ public struct IP {
         } catch {
             address = try Address(address: literal, port: port, mode: mode, deadline: deadline)
         }
+        
         self.init(address: address)
     }
 }

@@ -1,12 +1,16 @@
-import Foundation
+#if os(Linux)
+    import Glibc
+#else
+    import Darwin.C
+#endif
 
-public protocol Appender {
+public protocol LogAppender {
     var name: String { get }
     var levels: Logger.Level { get }
     func append(event: Logger.Event)
 }
 
-public final class Logger {
+public struct Logger {
     public struct Level: OptionSet {
         public let rawValue: Int32
 
@@ -25,9 +29,8 @@ public final class Logger {
 
     public struct Event {
         public let locationInfo: LocationInfo
-        public let timestamp: String
+        public let timestamp: Int
         public let level: Logger.Level
-        public let name: String
         public let logger: Logger
         public var message: Any?
         public var error: Error?
@@ -38,52 +41,73 @@ public final class Logger {
         public let line: Int
         public let column: Int
         public let function: String
+        
+        public init(
+            file: String,
+            line: Int,
+            column: Int,
+            function: String
+        ) {
+            self.file = file
+            self.line = line
+            self.column = column
+            self.function = function
+        }
     }
 
-    var appenders = [Appender]()
-    var name: String
+    public let name: String
+    public let appenders: [LogAppender]
 
-    public init(name: String = "Logger", appenders: [Appender] = [StandardOutputAppender()]) {
-        self.appenders.append(contentsOf: appenders)
+    public init(name: String = "Logger", appenders: [LogAppender] = [StandardOutputAppender()]) {
+        self.appenders = appenders
         self.name = name
     }
-
-    public static let logTimeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        let format = DateFormatter.dateFormat(fromTemplate: "yyMMdd HHmmssSSS", options: 0, locale: .current)
-        formatter.dateFormat = format
-        return formatter
-    }()
-}
-
-extension Logger.LocationInfo : CustomStringConvertible {
-    public var description: String {
-        return "\(file):\(function):\(line):\(column)"
-    }
-}
-
-extension Logger {
-    public func log(level: Level, item: Any?, error: Error? = nil, file: String = #file, function: String = #function, line: Int = #line, column: Int = #column) {
+    
+    public func log(level: Level, item: Any?, error: Error?, locationInfo: LocationInfo) {
         let event = Event(
+            locationInfo: locationInfo,
+            timestamp: timestamp,
+            level: level,
+            logger: self,
+            message: item,
+            error: error
+        )
+        
+        for apender in appenders where apender.levels.contains(event.level) {
+            apender.append(event: event)
+        }
+    }
+    
+    public func log(
+        level: Level,
+        item: Any?,
+        error: Error? = nil,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line,
+        column: Int = #column
+    ) {
+        log(
+            level: level,
+            item: item,
+            error: error,
             locationInfo: LocationInfo(
                 file: file,
                 line: line,
                 column: column,
                 function: function
-            ),
-            timestamp: currentTime,
-            level: level,
-            name: self.name,
-            logger: self,
-            message: item,
-            error: error
+            )
         )
-        for apender in appenders {
-            apender.append(event: event)
-        }
     }
 
-    public func trace(_ item: Any?, error: Error? = nil, file: String = #file, function: String = #function, line: Int = #line, column: Int = #column) {
+    public func trace(
+        _ item: Any?,
+        error: Error? = nil,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line,
+        column: Int = #column
+    ) {
         log(
             level: .trace,
             item: item,
@@ -94,8 +118,28 @@ extension Logger {
             column: column
         )
     }
+    
+    public func trace(
+        _ item: Any?,
+        error: Error? = nil,
+        locationInfo: LocationInfo
+    ) {
+        log(
+            level: .trace,
+            item: item,
+            error: error,
+            locationInfo: locationInfo
+        )
+    }
 
-    public func debug(_ item: Any?, error: Error? = nil, file: String = #file, function: String = #function, line: Int = #line, column: Int = #column) {
+    public func debug(
+        _ item: Any?,
+        error: Error? = nil,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line,
+        column: Int = #column
+    ) {
         log(
             level: .debug,
             item: item,
@@ -106,8 +150,28 @@ extension Logger {
             column: column
         )
     }
+    
+    public func debug(
+        _ item: Any?,
+        error: Error? = nil,
+        locationInfo: LocationInfo
+    ) {
+        log(
+            level: .debug,
+            item: item,
+            error: error,
+            locationInfo: locationInfo
+        )
+    }
 
-    public func info(_ item: Any?, error: Error? = nil, file: String = #file, function: String = #function, line: Int = #line, column: Int = #column) {
+    public func info(
+        _ item: Any?,
+        error: Error? = nil,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line,
+        column: Int = #column
+    ) {
         log(
             level: .info,
             item: item,
@@ -118,8 +182,28 @@ extension Logger {
             column: column
         )
     }
+    
+    public func info(
+        _ item: Any?,
+        error: Error? = nil,
+        locationInfo: LocationInfo
+    ) {
+        log(
+            level: .info,
+            item: item,
+            error: error,
+            locationInfo: locationInfo
+        )
+    }
 
-    public func warning(_ item: Any?, error: Error? = nil, file: String = #file, function: String = #function, line: Int = #line, column: Int = #column) {
+    public func warning(
+        _ item: Any?,
+        error: Error? = nil,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line,
+        column: Int = #column
+    ) {
         log(
             level: .warning,
             item: item,
@@ -130,8 +214,28 @@ extension Logger {
             column: column
         )
     }
+    
+    public func warning(
+        _ item: Any?,
+        error: Error? = nil,
+        locationInfo: LocationInfo
+    ) {
+        log(
+            level: .warning,
+            item: item,
+            error: error,
+            locationInfo: locationInfo
+        )
+    }
 
-    public func error(_ item: Any?, error: Error? = nil, file: String = #file, function: String = #function, line: Int = #line, column: Int = #column) {
+    public func error(
+        _ item: Any?,
+        error: Error? = nil,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line,
+        column: Int = #column
+    ) {
         log(
             level: .error,
             item: item,
@@ -142,8 +246,28 @@ extension Logger {
             column: column
         )
     }
+    
+    public func error(
+        _ item: Any?,
+        error: Error? = nil,
+        locationInfo: LocationInfo
+    ) {
+        log(
+            level: .error,
+            item: item,
+            error: error,
+            locationInfo: locationInfo
+        )
+    }
 
-    public func fatal(_ item: Any?, error: Error? = nil, file: String = #file, function: String = #function, line: Int = #line, column: Int = #column) {
+    public func fatal(
+        _ item: Any?,
+        error: Error? = nil,
+        file: String = #file,
+        function: String = #function,
+        line: Int = #line,
+        column: Int = #column
+    ) {
         log(
             level: .fatal,
             item: item,
@@ -154,8 +278,29 @@ extension Logger {
             column: column
         )
     }
+    
+    public func fatal(
+        _ item: Any?,
+        error: Error? = nil,
+        locationInfo: LocationInfo
+    ) {
+        log(
+            level: .fatal,
+            item: item,
+            error: error,
+            locationInfo: locationInfo
+        )
+    }
 
-    private var currentTime: String {
-        return Logger.logTimeFormatter.string(from: Date())
+    private var timestamp: Int {
+        var time: timeval = timeval(tv_sec: 0, tv_usec: 0)
+        gettimeofday(&time, nil)
+        return time.tv_sec
+    }
+}
+
+extension Logger.LocationInfo : CustomStringConvertible {
+    public var description: String {
+        return "\(file):\(function):\(line):\(column)"
     }
 }

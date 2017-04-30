@@ -1,5 +1,21 @@
 import Foundation
 
+public enum ParameterError : Error {
+    case parameterNotFound(parameterKey: ParameterKey)
+    case invalidParameter(parameter: String, type: ParameterInitializable.Type)
+}
+
+extension ParameterError : ResponseRepresentable {
+    public var response: Response {
+        switch self {
+        case .parameterNotFound:
+            return Response(status: .internalServerError)
+        case .invalidParameter:
+            return Response(status: .badRequest)
+        }
+    }
+}
+
 public protocol ParameterMappable {
     init(mapper: ParameterMapper) throws
 }
@@ -17,13 +33,13 @@ public final class ParameterMapper {
     
     public func get<P : ParameterInitializable>(_ parameterKey: ParameterKey) throws -> P {
         guard let parameter = parameters[parameterKey.key] else {
-            throw RouterError.parameterNotFound(parameterKey: parameterKey)
+            throw ParameterError.parameterNotFound(parameterKey: parameterKey)
         }
         
         do {
             return try P(parameter: parameter)
         } catch {
-            throw RouterError.invalidParameter(parameter: parameter, type: P.self)
+            throw ParameterError.invalidParameter(parameter: parameter, type: P.self)
         }
     }
 }

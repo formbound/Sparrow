@@ -5,6 +5,23 @@ public enum ContentError : Error {
     case notFound(keypath: String)
     case illegalType(keyPath: String)
     case failedContentInitialization(Content)
+    
+    
+    case contentNotFound
+    case invalidContent
+}
+
+extension ContentError : ResponseRepresentable {
+    public var response: Response {
+        switch self {
+        case .contentNotFound:
+            return Response(status: .internalServerError)
+        case .invalidContent:
+            return Response(status: .badRequest)
+        default:
+            fatalError() // TODO: Implement
+        }
+    }
 }
 
 public protocol ContentInitializable {
@@ -382,9 +399,10 @@ extension ContentError : CustomDebugStringConvertible {
 
         case .illegalType(let keypath):
             return "Type of one or more values found at \"\(keypath)\" does not correspond to the inferred type"
-
         case .failedContentInitialization(let content):
             return "Failed to initialize value with content:\n\(content)"
+        default:
+            fatalError() // TODO: Implement
         }
     }
 }

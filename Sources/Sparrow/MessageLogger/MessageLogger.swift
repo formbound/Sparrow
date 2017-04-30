@@ -1,4 +1,5 @@
 import Core
+import Router
 
 public struct MessageLogger {
     public let logger: Logger
@@ -13,8 +14,8 @@ public struct MessageLogger {
         logger.log(
             level: level,
             item:
-                "\n" + request.httpRequest.description +
-                "\n" + response.httpResponse.description,
+                "\n" + request.description +
+                "\n" + response.description,
             file: file,
             function: function,
             line: line,
