@@ -17,13 +17,18 @@ extension RouterError : ResponseRepresentable {
 }
 
 public final class Router {
+    public typealias Preprocess = (Request) throws -> Void
+    public typealias Postprocess = (Response, Request) throws -> Void
+    public typealias Recover = (Error) throws -> Response
+    public typealias Respond = (Request) throws -> Response
+    
     fileprivate var subrouters: [String: Router] = [:]
     fileprivate var pathParameterSubrouter: (String, Router)?
     
-    fileprivate var preprocess: (Request) throws -> Void = { _ in }
-    fileprivate var responders: [Method: (Request) throws -> Response] = [:]
-    fileprivate var postprocess: (Response, Request) throws -> Void = { _ in }
-    fileprivate var recover: (Error) throws -> Response = { error in throw error }
+    fileprivate var preprocess: Preprocess = { _ in }
+    fileprivate var responders: [Method: Respond] = [:]
+    fileprivate var postprocess: Postprocess = { _ in }
+    fileprivate var recover: Recover = { error in throw error }
     
     init() {}
     
@@ -84,8 +89,8 @@ extension Router {
 }
 
 extension Router {
-    public func respond(to incomingRequest: IncomingRequest) -> OutgoingResponse {
-        return respond(to: Request(incomingRequest)).outgoing
+    public func respond(to incoming: IncomingRequest) -> OutgoingResponse {
+        return respond(to: Request(incoming)).outgoing
     }
     
     public func respond(to request: Request) -> Response {
@@ -96,6 +101,7 @@ extension Router {
         }
     }
     
+    @inline(__always)
     private func getResponse(for request: Request) throws -> Response {
         do {
             try preprocess(request)
@@ -107,6 +113,7 @@ extension Router {
         }
     }
     
+    @inline(__always)
     private func process(_ request: Request) throws -> Response {
         if let pathComponent = request.pathComponents.popFirst() {
             let subrouter = try getSubrouter(for: pathComponent, request: request)
@@ -120,6 +127,7 @@ extension Router {
         throw RouterError.methodNotAllowed
     }
     
+    @inline(__always)
     private func getSubrouter(for pathComponent: String, request: Request) throws -> Router {
         if let subrouter = subrouters[pathComponent] {
             return subrouter
@@ -131,6 +139,7 @@ extension Router {
         throw RouterError.notFound
     }
     
+    @inline(__always)
     private func recover(from error: Error) -> Response {
         switch error {
         case let error as ResponseRepresentable:

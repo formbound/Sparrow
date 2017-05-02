@@ -9,7 +9,7 @@ let package = Package(
         Target(name: "HTTP", dependencies: ["Networking"]),
         Target(name: "Router", dependencies: ["HTTP"]),
         Target(name: "Crest", dependencies: ["Router"]),
-        Target(name: "Sparrow", dependencies: ["Router", "Crest"]),
+        Target(name: "Sparrow", dependencies: ["Router"]),
         Target(name: "Example", dependencies: ["Sparrow"]),
     ],
     dependencies: [
