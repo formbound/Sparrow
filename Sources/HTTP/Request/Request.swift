@@ -1,43 +1,40 @@
-import HTTP
 import Core
 import struct Foundation.URL
 
-public class Request : Message {
-    public var incoming: IncomingRequest
+public final class Request : Message {
+    public let method: Method
+    public let url: URL
+    public let version: Version
+    public let headers: Headers
+    public let body: InputStream
+    
     public var content: Content?
     public var storage: Storage = [:]
         
     var pathComponents: ArraySlice<String>
     
-    var parameterMapper: ParameterMapper
-    var contentMapper = ContentMapper()
+//    var parameterMapper: ParameterMapper
+//    var contentMapper = ContentMapper()
     
-    public init(_ incoming: IncomingRequest) {
-        self.incoming = incoming
-        self.pathComponents = incoming.url.pathComponents.dropFirst()
-        self.parameterMapper = ParameterMapper(url: incoming.url)
-    }
-}
-
-extension Request {
-    public convenience init(
+    public init(
         method: Method,
         url: URL,
         version: Version = .oneDotOne,
         headers: Headers = [:],
         body: InputStream = DataStream()
     ) {
-        let incoming = IncomingRequest(
-            method: method,
-            url: url,
-            version: version,
-            headers: headers,
-            body: body
-        )
+        self.method = method
+        self.url = url
+        self.version = version
+        self.headers = headers
+        self.body = body
         
-        self.init(incoming)
+        self.pathComponents = url.pathComponents.dropFirst()
+//        self.parameterMapper = ParameterMapper(url: url)
     }
-    
+}
+
+extension Request {
     public convenience init?(
         method: Method,
         url: String,
@@ -56,24 +53,6 @@ extension Request {
             headers: headers,
             body: body
         )
-    }
-}
-
-extension Request {
-    public var method: HTTP.Method {
-        return incoming.method
-    }
-    
-    public var url: URL {
-        return incoming.url
-    }
-    
-    public var version: Version {
-        return incoming.version
-    }
-    
-    public var headers: Headers {
-        return incoming.headers
     }
 }
 
@@ -137,12 +116,12 @@ extension Request : CustomStringConvertible {
 }
 
 
-extension Request {
-    public func getParameters<P : ParameterMappable>() throws -> P {
-        return try P(mapper: parameterMapper)
-    }
-    
-    public func getContent<C : ContentMappable>() throws -> C {
-        return try C(mapper: contentMapper)
-    }
-}
+//extension Request {
+//    public func getParameters<P : ParameterMappable>() throws -> P {
+//        return try P(mapper: parameterMapper)
+//    }
+//    
+//    public func getContent<C : ContentMappable>() throws -> C {
+//        return try C(mapper: contentMapper)
+//    }
+//}

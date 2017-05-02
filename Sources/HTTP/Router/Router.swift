@@ -1,5 +1,3 @@
-import HTTP
-
 public enum RouterError : Error {
     case notFound
     case methodNotAllowed
@@ -89,10 +87,6 @@ extension Router {
 }
 
 extension Router {
-    public func respond(to incoming: IncomingRequest) -> OutgoingResponse {
-        return respond(to: Request(incoming)).outgoing
-    }
-    
     public func respond(to request: Request) -> Response {
         do {
             return try getResponse(for: request)
@@ -132,7 +126,7 @@ extension Router {
         if let subrouter = subrouters[pathComponent] {
             return subrouter
         } else if let (pathParameterKey, subrouter) = pathParameterSubrouter {
-            request.parameterMapper.set(pathComponent, for: pathParameterKey)
+//            request.parameterMapper.set(pathComponent, for: pathParameterKey)
             return subrouter
         }
         

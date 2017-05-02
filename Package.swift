@@ -7,9 +7,8 @@ let package = Package(
         Target(name: "POSIX"),
         Target(name: "Networking", dependencies: ["Core", "POSIX"]),
         Target(name: "HTTP", dependencies: ["Networking"]),
-        Target(name: "Router", dependencies: ["HTTP"]),
-        Target(name: "Crest", dependencies: ["Router"]),
-        Target(name: "Sparrow", dependencies: ["Router"]),
+        Target(name: "Crest", dependencies: ["HTTP"]),
+        Target(name: "Sparrow", dependencies: ["HTTP"]),
         Target(name: "Example", dependencies: ["Sparrow"]),
     ],
     dependencies: [

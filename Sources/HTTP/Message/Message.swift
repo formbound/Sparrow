@@ -1,5 +1,4 @@
 import Core
-import HTTP
 
 public typealias Storage = [String: Any]
 

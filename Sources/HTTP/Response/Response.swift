@@ -1,5 +1,4 @@
 import Core
-import HTTP
 import Venice
 
 public protocol ResponseRepresentable {
@@ -7,7 +6,17 @@ public protocol ResponseRepresentable {
 }
 
 public final class Response : Message {
-    public var outgoing: OutgoingResponse
+    public typealias Body = (OutputStream) throws -> Void
+    
+    public var version: Version
+    public var status: Status
+    public var headers: Headers
+    public var cookieHeaders: Set<String>
+    public var body: Body
+    
+    public typealias UpgradeConnection = (Request, Stream) throws -> Void
+    public var upgradeConnection: UpgradeConnection?
+    
     public var content: Content?
     public var storage: Storage = [:]
     
@@ -16,7 +25,7 @@ public final class Response : Message {
         status: Status = .ok,
         headers: Headers = [:],
         cookies: Set<AttributedCookie> = [],
-        body: @escaping OutgoingResponse.Body
+        body: @escaping Body
     ) {
         var cookieHeaders = Set<String>()
 
@@ -24,13 +33,11 @@ public final class Response : Message {
             cookieHeaders.insert(cookie.description)
         }
         
-        self.outgoing = OutgoingResponse(
-            version: version,
-            status: status,
-            headers: headers,
-            cookieHeaders: cookieHeaders,
-            body: body
-        )
+        self.version = version
+        self.status = status
+        self.headers = headers
+        self.cookieHeaders = cookieHeaders
+        self.body = body
     }
 }
 
@@ -75,50 +82,10 @@ extension Response {
 }
 
 extension Response {
-    public var status: Status {
-        get {
-            return outgoing.status
-        }
-        
-        set(status) {
-            return outgoing.status = status
-        }
-    }
-    
-    public var version: Version {
-        get {
-            return outgoing.version
-        }
-        
-        set(version) {
-            outgoing.version = version
-        }
-    }
-    
-    public var headers: Headers {
-        get {
-            return outgoing.headers
-        }
-        
-        set(headers) {
-            outgoing.headers = headers
-        }
-    }
-    
-    public var body: OutgoingResponse.Body {
-        get {
-            return outgoing.body
-        }
-        
-        set(body) {
-            outgoing.body = body
-        }
-    }
-    
     public var cookies: Set<AttributedCookie> {
         var cookies = Set<AttributedCookie>()
 
-        for header in outgoing.cookieHeaders {
+        for header in cookieHeaders {
             if let cookie = AttributedCookie(header) {
                 cookies.insert(cookie)
             }

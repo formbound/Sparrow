@@ -1,5 +1,5 @@
 import Core
-import Router
+import HTTP
 
 public struct MessageLogger {
     public let logger: Logger

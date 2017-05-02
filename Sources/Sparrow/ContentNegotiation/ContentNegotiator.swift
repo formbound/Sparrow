@@ -1,7 +1,6 @@
 import Core
 import Venice
 import HTTP
-import Router
 
 public enum ContentNegotiationError : Error {
     case noSuitableParser
@@ -58,7 +57,7 @@ public struct ContentNegotiator {
         }
         
         let content = try parse(
-            stream: request.incoming.body,
+            stream: request.body,
             deadline: deadline,
             mediaType: contentType
         )

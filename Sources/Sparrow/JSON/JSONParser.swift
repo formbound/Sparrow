@@ -6,7 +6,7 @@
 
 import CYAJL
 import Core
-import Router
+import HTTP
 
 public struct JSONMapParserOptions : OptionSet {
     public let rawValue: Int

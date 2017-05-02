@@ -7,7 +7,7 @@
 import CYAJL
 import Venice
 import Core
-import Router
+import HTTP
 
 public struct JSONSerializerError : Error, CustomStringConvertible {
     let reason: String

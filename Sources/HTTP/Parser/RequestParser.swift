@@ -96,9 +96,9 @@ public final class RequestParser {
     private var context = Context()
     private var bytes: [Byte] = []
     
-    private var requests: [IncomingRequest] = []
+    private var requests: [Request] = []
     
-    private var body: (IncomingRequest) throws -> Void = { _ in }
+    private var body: (Request) throws -> Void = { _ in }
     
     public init(stream: Core.InputStream, bufferSize: Int = 2048) {
         self.stream = stream
@@ -131,7 +131,7 @@ public final class RequestParser {
         buffer.deallocate(capacity: bufferSize)
     }
     
-    public func parse(timeout: Venice.TimeInterval, _ body: @escaping (IncomingRequest) throws -> Void) throws {
+    public func parse(timeout: Venice.TimeInterval, _ body: @escaping (Request) throws -> Void) throws {
         self.body = body
         
         while !stream.closed {
@@ -169,7 +169,7 @@ public final class RequestParser {
         }
     }
     
-    private func parse(_ buffer: UnsafeBufferPointer<Byte>) throws -> [IncomingRequest] {
+    private func parse(_ buffer: UnsafeBufferPointer<Byte>) throws -> [Request] {
         let final = buffer.isEmpty
         let needsMessage: Bool
         
@@ -265,7 +265,7 @@ public final class RequestParser {
                 context.currentHeaderField = nil
                 let bodyStream = RequestBodyStream(parser: self)
                 
-                let request = IncomingRequest(
+                let request = Request(
                     method: Method(code: http_method(rawValue: parser.method)),
                     url: context.url!,
                     version: Version(major: Int(parser.http_major), minor: Int(parser.http_minor)),

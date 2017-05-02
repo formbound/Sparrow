@@ -3,7 +3,7 @@ import Core
 import Networking
 import Venice
 
-public typealias Respond = (IncomingRequest) -> OutgoingResponse
+public typealias Respond = (Request) -> Response
 
 public struct Server {
     /// Server buffer size
@@ -35,7 +35,7 @@ public struct Server {
     public func start(
         host: String = "0.0.0.0",
         port: Int = 8080,
-        backlog: Int = 128,
+        backlog: Int = 2048,
         reusePort: Bool = false,
         deadline: Deadline = 1.minute.fromNow(),
         header: String = defaultHeader,
@@ -148,7 +148,7 @@ public struct Server {
     }
     
     @inline(__always)
-    private func isKeepAlive(_ request: IncomingRequest) -> Bool {
+    private func isKeepAlive(_ request: Request) -> Bool {
         if request.version.minor == 0 {
             return request.headers["Connection"]?.lowercased() == "keep-alive"
         }

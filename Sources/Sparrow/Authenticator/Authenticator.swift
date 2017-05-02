@@ -1,5 +1,5 @@
 import Foundation
-import Router
+import HTTP
 
 public enum AuthenticationResult {
     case accessDenied

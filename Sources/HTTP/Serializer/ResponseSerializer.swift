@@ -14,7 +14,7 @@ public final class ResponseSerializer {
         self.bufferSize = bufferSize
     }
 
-    public func serialize(_ response: OutgoingResponse, timeout: TimeInterval) throws {
+    public func serialize(_ response: Response, timeout: TimeInterval) throws {
         let deadline = timeout.fromNow()
         
         try writeHeaders(for: response, deadline: deadline)
@@ -29,7 +29,7 @@ public final class ResponseSerializer {
     }
     
     @inline(__always)
-    private func writeHeaders(for response: OutgoingResponse, deadline: Deadline) throws {
+    private func writeHeaders(for response: Response, deadline: Deadline) throws {
         var header = response.version.description
         
         header += " "
@@ -57,7 +57,7 @@ public final class ResponseSerializer {
     }
     
     @inline(__always)
-    private func writeBody(for response: OutgoingResponse, contentLength: Int, deadline: Deadline) throws {
+    private func writeBody(for response: Response, contentLength: Int, deadline: Deadline) throws {
         if contentLength < 0 {
             throw ResponseSerializerError.invalidContentLength
         }
@@ -72,7 +72,7 @@ public final class ResponseSerializer {
     }
     
     @inline(__always)
-    private func writeChunkedBody(for response: OutgoingResponse, deadline: Deadline) throws {
+    private func writeChunkedBody(for response: Response, deadline: Deadline) throws {
         let bodyStream = ResponseBodyStream(stream, mode: .chunkedEncoding)
         try response.body(bodyStream)
         try stream.write("0\r\n\r\n", deadline: deadline)
@@ -80,7 +80,7 @@ public final class ResponseSerializer {
     }
     
     @inline(__always)
-    private func writeBody(for response: OutgoingResponse, deadline: Deadline) throws {
+    private func writeBody(for response: Response, deadline: Deadline) throws {
         try response.body(stream)
         try stream.flush(deadline: deadline)
         stream.close()

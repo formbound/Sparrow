@@ -1,5 +1,4 @@
 import HTTP
-import Router
 import XCTest
 
 extension Response {
