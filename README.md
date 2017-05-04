@@ -1,7 +1,7 @@
-<p align="center">
+
 <img src="Images/header-image.png" width="250" />
 
-</p>
+# Sparrow
 
 Sparrow is a lightweight framework for building modern RESTful APIs.
 
