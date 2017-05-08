@@ -1,99 +1,69 @@
 import Venice
+import Foundation
 
-public enum StreamError: Error {
-    case closedStream
-    case timeout
+public protocol UnsafeRawBufferPointerRepresentable {
+    /// Access the buffer in the data.
+    ///
+    /// - warning: The buffer pointer argument should not be stored and used outside of the lifetime of the call to the closure.
+    func withUnsafeBytes<ResultType>(
+        _ body: (UnsafeRawBufferPointer) throws -> ResultType
+    ) rethrows -> ResultType
 }
 
-public protocol InputStream {
-    var closed: Bool { get }
-    func open(deadline: Deadline) throws
-    func close()
-
-    func read(into readBuffer: UnsafeMutableBufferPointer<Byte>, deadline: Deadline) throws -> UnsafeBufferPointer<Byte>
-    func read(upTo byteCount: Int, deadline: Deadline) throws -> [Byte]
-    func read(exactly byteCount: Int, deadline: Deadline) throws -> [Byte]
-}
-
-extension InputStream {
-    public func read(upTo byteCount: Int, deadline: Deadline) throws -> [Byte] {
-        guard byteCount > 0 else {
-            return []
-        }
-
-        var bytes = [Byte](repeating: 0, count: byteCount)
-
-        let bytesRead = try bytes.withUnsafeMutableBufferPointer {
-            try read(into: $0, deadline: deadline).count
-        }
-
-        return [Byte](bytes[0..<bytesRead])
-    }
-
-    public func read(exactly byteCount: Int, deadline: Deadline) throws -> [Byte] {
-        guard byteCount > 0 else {
-            return []
-        }
-
-        var bytes = [Byte](repeating: 0, count: byteCount)
-
-        try bytes.withUnsafeMutableBufferPointer { pointer in
-            var address = pointer.baseAddress!
-            var remaining = byteCount
+extension String : UnsafeRawBufferPointerRepresentable {
+    public func withUnsafeBytes<ResultType>(
+        _ body: (UnsafeRawBufferPointer) throws -> ResultType
+    ) rethrows -> ResultType {
+        return try withCString { unsafePointer in
+            let unsafeRawBufferPointer = UnsafeRawBufferPointer(
+                start: UnsafeRawPointer(unsafePointer),
+                count: utf8.count
+            )
             
-            while remaining > 0 {
-                let buffer = UnsafeMutableBufferPointer(start: address, count: remaining)
-                let chunk = try read(into: buffer, deadline: deadline)
-                
-                guard chunk.count > 0 else {
-                    throw StreamError.closedStream
-                }
-                
-                address = address.advanced(by: chunk.count)
-                remaining -= chunk.count
-            }
+            return try body(unsafeRawBufferPointer)
         }
-
-        return bytes
-    }
-
-    /// Drains the `Stream` and returns the contents in a `Buffer`. At the end of this operation the stream will be closed.
-    public func drain(deadline: Deadline) throws -> [Byte] {
-        var bytes: [Byte] = []
-
-        while !self.closed, let chunk = try? self.read(upTo: 2048, deadline: deadline), chunk.count > 0 {
-            bytes.append(contentsOf: chunk)
-        }
-
-        return bytes
     }
 }
 
-public protocol OutputStream {
-    var closed: Bool { get }
+extension Data : UnsafeRawBufferPointerRepresentable {
+    public func withUnsafeBytes<ResultType>(
+        _ body: (UnsafeRawBufferPointer) throws -> ResultType
+    ) rethrows -> ResultType {
+        return try withUnsafeBytes { (unsafePointer: UnsafePointer<UInt8>) in
+            let unsafeRawBufferPointer = UnsafeRawBufferPointer(
+                start: UnsafeRawPointer(unsafePointer),
+                count: count
+            )
+            
+            return try body(unsafeRawBufferPointer)
+        }
+    }
+}
+
+public protocol ReadableStream {
     func open(deadline: Deadline) throws
     func close()
 
-    func write(_ buffer: UnsafeBufferPointer<Byte>, deadline: Deadline) throws
-    func write(_ bytes: [Byte], deadline: Deadline) throws
-    func write(_ buffer: DataRepresentable, deadline: Deadline) throws
+    func read(
+        into buffer: UnsafeMutableRawBufferPointer,
+        deadline: Deadline
+    ) throws -> UnsafeRawBufferPointer
+}
+
+public protocol WritableStream {
+    func open(deadline: Deadline) throws
+    func close()
+
+    func write(_ buffer: UnsafeRawBufferPointer, deadline: Deadline) throws
     func flush(deadline: Deadline) throws
 }
 
-extension OutputStream {
-    public func write(_ bytes: [Byte], deadline: Deadline) throws {
-        guard !bytes.isEmpty else {
-            return
-        }
-
-        try bytes.withUnsafeBufferPointer {
+extension WritableStream {
+    public func write(_ buffer: UnsafeRawBufferPointerRepresentable, deadline: Deadline) throws {
+        try buffer.withUnsafeBytes {
             try write($0, deadline: deadline)
         }
     }
-
-    public func write(_ converting: DataRepresentable, deadline: Deadline) throws {
-        try write(converting.bytes, deadline: deadline)
-    }
 }
 
-public typealias Stream = InputStream & OutputStream
+public typealias DuplexStream = ReadableStream & WritableStream

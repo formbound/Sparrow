@@ -1,4 +1,3 @@
-import Router
 import Sparrow
 import HTTP
 import Core
@@ -36,7 +35,7 @@ struct RootRoute : Route {
     }
     
     func preprocess(request: Request) throws {
-        try authenticator.basicAuth(request) { username, password in
+        try authenticator.basic(request) { username, password in
             guard username == "username" && password == "password" else {
                 return .accessDenied
             }
@@ -59,6 +58,14 @@ struct RootRoute : Route {
 
 // MARK: Users Route
 
+struct UsersParameters : ParametersInitializable {
+    let userID: Int
+    
+    init(parameters: Parameters) throws {
+        userID = try parameters.get(UsersResource.idKey)
+    }
+}
+
 struct UsersResource : Resource {
     let app: App
     
@@ -74,14 +81,6 @@ struct UsersResource : Resource {
         user.add("photos", resource: UserPhotosResource(app: app))
     }
     
-    struct Parameters : ParameterMappable {
-        let userID: Int
-        
-        init(mapper: ParameterMapper) throws {
-            userID = try mapper.get(UsersResource.parameterKey)
-        }
-    }
-    
     func list(parameters: NoParameters) throws -> String {
         return "List all users"
     }
@@ -94,63 +93,63 @@ struct UsersResource : Resource {
         return "Remove all users"
     }
     
-    func show(parameters: Parameters) throws -> String {
+    func show(parameters: UsersParameters) throws -> String {
         return "Show user \(parameters.userID)"
     }
     
-    func insert(parameters: Parameters, content: NoContent) throws -> String {
+    func insert(parameters: UsersParameters, content: NoContent) throws -> String {
         return "Insert user \(parameters.userID)"
     }
     
-    func update(parameters: Parameters, content: NoContent) throws -> String {
+    func update(parameters: UsersParameters, content: NoContent) throws -> String {
         return "Update user \(parameters.userID)"
     }
     
-    func remove(parameters: Parameters) throws -> String {
+    func remove(parameters: UsersParameters) throws -> String {
         return "Remove user \(parameters.userID)"
     }
 }
 
 // MARK: User Photos Route
 
+struct UserPhotoParameters : ParametersInitializable {
+    let userID: Int
+    let photoID: Int
+    
+    init(parameters: Parameters) throws {
+        userID = try parameters.get(UsersResource.idKey)
+        photoID = try parameters.get(UserPhotosResource.idKey)
+    }
+}
+
 struct UserPhotosResource : Resource {
     let app: App
     
-    struct Parameters : ParameterMappable {
-        let userID: Int
-        let photoID: Int
-        
-        init(mapper: ParameterMapper) throws {
-            userID = try mapper.get(UsersResource.parameterKey)
-            photoID = try mapper.get(UserPhotosResource.parameterKey)
-        }
-    }
-    
-    func list(parameters: UsersResource.Parameters) throws -> String {
+    func list(parameters: UsersParameters) throws -> String {
         return "List all photos for user \(parameters.userID)"
     }
     
-    func create(parameters: UsersResource.Parameters, content: NoContent) throws -> String {
+    func create(parameters: UsersParameters, content: NoContent) throws -> String {
         return "Create photo for user \(parameters.userID)"
     }
     
-    func removeAll(parameters: UsersResource.Parameters) throws -> String {
+    func removeAll(parameters: UsersParameters) throws -> String {
         return "Remove all photos for user \(parameters.userID)"
     }
     
-    func show(parameters: Parameters) throws -> String {
+    func show(parameters: UserPhotoParameters) throws -> String {
         return "Show photo \(parameters.photoID) for user \(parameters.userID)"
     }
     
-    func insert(parameters: Parameters, content: NoContent) throws -> String {
+    func insert(parameters: UserPhotoParameters, content: NoContent) throws -> String {
         return "Insert photo \(parameters.photoID) for user \(parameters.userID)"
     }
     
-    func update(parameters: Parameters, content: NoContent) throws -> String {
+    func update(parameters: UserPhotoParameters, content: NoContent) throws -> String {
         return "Update photo \(parameters.photoID) for user \(parameters.userID)"
     }
     
-    func remove(parameters: Parameters) throws -> String {
+    func remove(parameters: UserPhotoParameters) throws -> String {
         return "Remove photo \(parameters.photoID) for user \(parameters.userID)"
     }
 }

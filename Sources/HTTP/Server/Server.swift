@@ -128,7 +128,7 @@ public struct Server {
     }
 
     @inline(__always)
-    private func process(_ stream: Stream, respond: @escaping Respond) throws {
+    private func process(_ stream: DuplexStream, respond: @escaping Respond) throws {
         let parser = RequestParser(stream: stream, bufferSize: bufferSize)
         let serializer = ResponseSerializer(stream: stream, bufferSize: bufferSize)
         

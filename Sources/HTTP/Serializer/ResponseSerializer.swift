@@ -6,12 +6,18 @@ public enum ResponseSerializerError : Error {
 }
 
 public final class ResponseSerializer {
-    private let stream: Stream
+    private let stream: WritableStream
     private let bufferSize: Int
+    private let buffer: UnsafeMutableRawBufferPointer
 
-    public init(stream: Stream, bufferSize: Int = 2048) {
+    public init(stream: WritableStream, bufferSize: Int) {
         self.stream = stream
         self.bufferSize = bufferSize
+        self.buffer = UnsafeMutableRawBufferPointer.allocate(count: bufferSize)
+    }
+    
+    deinit {
+        buffer.deallocate()
     }
 
     public func serialize(_ response: Response, timeout: TimeInterval) throws {
@@ -63,7 +69,7 @@ public final class ResponseSerializer {
         }
         
         let bodyStream = ResponseBodyStream(stream, mode: .contentLength(contentLength))
-        try response.body(bodyStream)
+        try write(to: bodyStream, body: response.body, deadline: deadline)
         try stream.flush(deadline: deadline)
         
         if bodyStream.bytesRemaining > 0 {
@@ -74,15 +80,33 @@ public final class ResponseSerializer {
     @inline(__always)
     private func writeChunkedBody(for response: Response, deadline: Deadline) throws {
         let bodyStream = ResponseBodyStream(stream, mode: .chunkedEncoding)
-        try response.body(bodyStream)
+        try write(to: bodyStream, body: response.body, deadline: deadline)
         try stream.write("0\r\n\r\n", deadline: deadline)
         try stream.flush(deadline: deadline)
     }
     
     @inline(__always)
     private func writeBody(for response: Response, deadline: Deadline) throws {
-        try response.body(stream)
+        try write(to: stream, body: response.body, deadline: deadline)
         try stream.flush(deadline: deadline)
         stream.close()
+    }
+    
+    @inline(__always)
+    private func write(to writableStream: WritableStream, body: Body, deadline: Deadline) throws {
+        switch body {
+        case let .readable(readableStream):
+            while true {
+                let readBuffer = try readableStream.read(into: buffer, deadline: deadline)
+                
+                guard !readBuffer.isEmpty else {
+                    break
+                }
+                
+                try writableStream.write(readBuffer, deadline: deadline)
+            }
+        case let .writable(write):
+            try write(writableStream)
+        }
     }
 }

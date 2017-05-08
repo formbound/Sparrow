@@ -1,23 +1,23 @@
 import Core
 import Venice
+import POSIX
 
 public enum ResponseBodyStreamError : Error {
     case writeExceedsContentLength
 }
 
-final class ResponseBodyStream : OutputStream {
+final class ResponseBodyStream : WritableStream {
     enum Mode {
         case contentLength(Int)
         case chunkedEncoding
     }
     
-    var closed = false
     var bytesRemaining = 0
     
-    private let stream: Stream
+    private let stream: WritableStream
     private let mode: Mode
 
-    init(_ stream: Stream, mode: Mode) {
+    init(_ stream: WritableStream, mode: Mode) {
         self.stream = stream
         self.mode = mode
         
@@ -26,21 +26,12 @@ final class ResponseBodyStream : OutputStream {
         }
     }
 
-    func open(deadline: Deadline) throws {
-        closed = false
-    }
+    func open(deadline: Deadline) throws {}
+    func close() {}
 
-    func close() {
-        closed = true
-    }
-
-    func write(_ buffer: UnsafeBufferPointer<Byte>, deadline: Deadline) throws {
+    func write(_ buffer: UnsafeRawBufferPointer, deadline: Deadline) throws {
         guard !buffer.isEmpty else {
             return
-        }
-
-        if closed {
-            throw StreamError.closedStream
         }
 
         switch mode {
@@ -52,8 +43,8 @@ final class ResponseBodyStream : OutputStream {
             try stream.write(buffer, deadline: deadline)
             bytesRemaining -= buffer.count
         case .chunkedEncoding:
-            try stream.write(String(buffer.count, radix: 16), deadline: deadline)
-            try stream.write("\r\n", deadline: deadline)
+            let chunkLength = String(buffer.count, radix: 16) + "\r\n"
+            try stream.write(chunkLength, deadline: deadline)
             try stream.write(buffer, deadline: deadline)
             try stream.write("\r\n", deadline: deadline)
         }

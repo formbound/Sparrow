@@ -1,57 +1,66 @@
 import Core
-import struct Foundation.URL
+import Foundation
 
 public final class Request : Message {
-    public let method: Method
-    public let url: URL
-    public let version: Version
-    public let headers: Headers
-    public let body: InputStream
+    public typealias UpgradeConnection = (Response, DuplexStream) throws -> Void
+    
+    public var method: Method
+    public var url: URL
+    public var version: Version
+    public var headers: Headers
+    public var body: Body
     
     public var content: Content?
     public var storage: Storage = [:]
-        
-    var pathComponents: ArraySlice<String>
     
-//    var parameterMapper: ParameterMapper
-//    var contentMapper = ContentMapper()
+    public var upgradeConnection: UpgradeConnection?
+    
+    lazy var parameters: Parameters = Parameters(url: self.url)
     
     public init(
         method: Method,
         url: URL,
-        version: Version = .oneDotOne,
         headers: Headers = [:],
-        body: InputStream = DataStream()
+        version: Version = .oneDotOne,
+        body: Body
     ) {
         self.method = method
         self.url = url
-        self.version = version
         self.headers = headers
+        self.version = version
         self.body = body
-        
-        self.pathComponents = url.pathComponents.dropFirst()
-//        self.parameterMapper = ParameterMapper(url: url)
     }
 }
 
 extension Request {
-    public convenience init?(
+    public convenience init(
         method: Method,
-        url: String,
-        version: Version = .oneDotOne,
-        headers: Headers = [:],
-        body: InputStream = DataStream()
+        url: URL,
+        headers: Headers = [:]
     ) {
-        guard let url = URL(string: url) else {
-            return nil
-        }
-        
         self.init(
             method: method,
             url: url,
-            version: version,
             headers: headers,
-            body: body
+            version: .oneDotOne,
+            body: .empty
+        )
+        
+        self.headers.contentLength = 0
+    }
+    
+    public convenience init(
+        method: Method,
+        url: URL,
+        headers: Headers = [:],
+        body stream: ReadableStream
+    ) {
+        self.init(
+            method: method,
+            url: url,
+            headers: headers,
+            version: .oneDotOne,
+            body: .readable(stream)
         )
     }
 }
@@ -115,13 +124,24 @@ extension Request : CustomStringConvertible {
     }
 }
 
-
-//extension Request {
-//    public func getParameters<P : ParameterMappable>() throws -> P {
-//        return try P(mapper: parameterMapper)
-//    }
-//    
-//    public func getContent<C : ContentMappable>() throws -> C {
-//        return try C(mapper: contentMapper)
-//    }
-//}
+extension Request {
+    public func getParameters<P : ParametersInitializable>() throws -> P {
+        if P.self is NoParameters.Type {
+            return NoParameters() as! P
+        }
+        
+        return try P(parameters: parameters)
+    }
+    
+    public func getContent<C : ContentInitializable>() throws -> C {
+        if C.self is NoContent.Type {
+            return NoContent() as! C
+        }
+        
+        guard let content = content else {
+            throw ContentError.cannotInitialize(type: C.self, from: .null)
+        }
+        
+        return try C(content: content)
+    }
+}

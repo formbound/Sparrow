@@ -6,92 +6,111 @@ public protocol ResponseRepresentable {
 }
 
 public final class Response : Message {
-    public typealias Body = (OutputStream) throws -> Void
+    public typealias UpgradeConnection = (Request, DuplexStream) throws -> Void
     
-    public var version: Version
     public var status: Status
     public var headers: Headers
-    public var cookieHeaders: Set<String>
+    public var version: Version
     public var body: Body
-    
-    public typealias UpgradeConnection = (Request, Stream) throws -> Void
-    public var upgradeConnection: UpgradeConnection?
     
     public var content: Content?
     public var storage: Storage = [:]
     
+    public var upgradeConnection: UpgradeConnection?
+    
+    public var cookieHeaders: Set<String> = []
+    
     public init(
-        version: Version = .oneDotOne,
-        status: Status = .ok,
-        headers: Headers = [:],
-        cookies: Set<AttributedCookie> = [],
-        body: @escaping Body
+        status: Status,
+        headers: Headers,
+        version: Version,
+        body: Body
     ) {
-        var cookieHeaders = Set<String>()
-
-        for cookie in cookies {
-            cookieHeaders.insert(cookie.description)
-        }
-        
-        self.version = version
         self.status = status
         self.headers = headers
-        self.cookieHeaders = cookieHeaders
+        self.version = version
         self.body = body
     }
 }
 
 extension Response {
     public convenience init(
-        version: Version = .oneDotOne,
-        status: Status = .ok,
-        headers: Headers = [:],
-        cookies: Set<AttributedCookie> = [],
-        content: Content? = nil
+        status: Status,
+        headers: Headers = [:]
     ) {
         self.init(
-            version: version,
             status: status,
             headers: headers,
-            cookies: cookies,
-            body: { _ in }
+            version: .oneDotOne,
+            body: .empty
         )
         
-        self.content = content
-        
-        if content == nil {
-            self.headers.contentLength = 0
-        }
+        self.headers.contentLength = 0
     }
-
+    
     public convenience init(
-        version: Version = .oneDotOne,
-        status: Status = .ok,
+        status: Status,
         headers: Headers = [:],
-        cookies: Set<AttributedCookie> = [],
-        content: ContentRepresentable
+        body stream: ReadableStream
     ) {
         self.init(
-            version: version,
             status: status,
             headers: headers,
-            cookies: cookies,
-            content: content.content as Content
+            version: .oneDotOne,
+            body: .readable(stream)
         )
+    }
+    
+    public convenience init(
+        status: Status,
+        headers: Headers = [:],
+        body write: @escaping Body.Write
+    ) {
+        self.init(
+            status: status,
+            headers: headers,
+            version: .oneDotOne,
+            body: .writable(write)
+        )
+    }
+    
+    public convenience init(
+        status: Status,
+        headers: Headers = [:],
+        content representable: ContentRepresentable
+    ) {
+        self.init(
+            status: status,
+            headers: headers
+        )
+        
+        self.content = representable.content
     }
 }
 
 extension Response {
     public var cookies: Set<AttributedCookie> {
-        var cookies = Set<AttributedCookie>()
+        get {
+            var cookies = Set<AttributedCookie>()
 
-        for header in cookieHeaders {
-            if let cookie = AttributedCookie(header) {
-                cookies.insert(cookie)
+            for header in cookieHeaders {
+                if let cookie = AttributedCookie(header) {
+                    cookies.insert(cookie)
+                }
             }
+            
+            return cookies
         }
         
-        return cookies
+        set(cookies) {
+            var cookieHeaders = Set<String>()
+            
+            for cookie in cookies {
+                cookieHeaders.insert(cookie.description)
+            }
+            
+            self.cookieHeaders = cookieHeaders
+        }
     }
 }
 

@@ -85,25 +85,25 @@ public final class RequestParser {
         }
     }
     
-    fileprivate let stream: Core.InputStream
+    fileprivate let stream: ReadableStream
     private let bufferSize: Int
-    private let buffer: UnsafeMutableBufferPointer<Byte>
+    private let buffer: UnsafeMutableRawBufferPointer
     
     public var parser: http_parser
     public var parserSettings: http_parser_settings
     
     private var state: State = .ready
     private var context = Context()
-    private var bytes: [Byte] = []
+    private var bytes: [UInt8] = []
     
     private var requests: [Request] = []
     
     private var body: (Request) throws -> Void = { _ in }
     
-    public init(stream: Core.InputStream, bufferSize: Int = 2048) {
+    public init(stream: ReadableStream, bufferSize: Int = 2048) {
         self.stream = stream
         self.bufferSize = bufferSize
-        self.buffer = UnsafeMutableBufferPointer<Byte>(capacity: bufferSize)
+        self.buffer = UnsafeMutableRawBufferPointer.allocate(count: bufferSize)
         
         var parser = http_parser()
         
@@ -128,29 +128,19 @@ public final class RequestParser {
     }
     
     deinit {
-        buffer.deallocate(capacity: bufferSize)
+        buffer.deallocate()
     }
     
     public func parse(timeout: Venice.TimeInterval, _ body: @escaping (Request) throws -> Void) throws {
         self.body = body
         
-        while !stream.closed {
+        while true {
             do {
                 try read(deadline: timeout.fromNow())
+            } catch VeniceError.timeout {
+                continue
             } catch SystemError.brokenPipe {
                 break
-            } catch StreamError.timeout {
-                if stream.closed {
-                    break
-                }
-                
-                continue
-            }  catch {
-                if stream.closed {
-                    break
-                }
-                
-                throw error
             }
         }
     }
@@ -169,7 +159,7 @@ public final class RequestParser {
         }
     }
     
-    private func parse(_ buffer: UnsafeBufferPointer<Byte>) throws -> [Request] {
+    private func parse(_ buffer: UnsafeRawBufferPointer) throws -> [Request] {
         let final = buffer.isEmpty
         let needsMessage: Bool
         
@@ -185,9 +175,12 @@ public final class RequestParser {
         if final {
             processedCount = http_parser_execute(&parser, &parserSettings, nil, 0)
         } else {
-            processedCount = buffer.baseAddress!.withMemoryRebound(to: Int8.self, capacity: buffer.count) {
-                return http_parser_execute(&self.parser, &self.parserSettings, $0, buffer.count)
-            }
+            processedCount = http_parser_execute(
+                &parser,
+                &parserSettings,
+                buffer.baseAddress?.assumingMemoryBound(to: Int8.self),
+                buffer.count
+            )
         }
         
         guard processedCount == buffer.count else {
@@ -268,9 +261,9 @@ public final class RequestParser {
                 let request = Request(
                     method: Method(code: http_method(rawValue: parser.method)),
                     url: context.url!,
-                    version: Version(major: Int(parser.http_major), minor: Int(parser.http_minor)),
                     headers: context.headers,
-                    body: bodyStream
+                    version: Version(major: Int(parser.http_major), minor: Int(parser.http_minor)),
+                    body: .readable(bodyStream)
                 )
                 
                 context.bodyStream = bodyStream
@@ -294,9 +287,10 @@ public final class RequestParser {
         
         switch state {
         case .body:
-            data.baseAddress!.withMemoryRebound(to: Byte.self, capacity: data.count) { address in
-                context.bodyStream!.bytes = UnsafeBufferPointer(start: address, count: data.count)
-            }
+            context.bodyStream!.bodyBuffer = UnsafeRawBufferPointer(
+                start: data.baseAddress,
+                count: data.count
+            )
         default:
             data.baseAddress!.withMemoryRebound(to: UInt8.self, capacity: data.count) { ptr in
                 for i in 0 ..< data.count {

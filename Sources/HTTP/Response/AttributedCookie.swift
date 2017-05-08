@@ -1,4 +1,5 @@
 import Core
+import Foundation
 
 public struct AttributedCookie {
     public enum Expiration {

@@ -1,5 +1,6 @@
 import HTTP
 import Sparrow
+import Foundation
 
 let server = Server()
 let contentNegotiator = ContentNegotiator()
@@ -10,23 +11,27 @@ let router = Router { root in
     }
     
     root.get { request in
-        return Response()
+        return Response(status: .ok)
     }
     
-    root.add("echo") { echo in
+    root.add(path: "echo") { echo in
         echo.post { request in
-            return Response(content: request.content)
+            return Response(
+                status: .ok,
+                headers: ["Transfer-Encoding": "chunked"],
+                content: request.content ?? .null
+            )
         }
     }
     
-    root.add("foo") { foo in
+    root.add(path: "foo") { foo in
         foo.get { request in
-            return Response()
+            return Response(status: .ok)
         }
         
-        foo.add("bar") { bar in
+        foo.add(path: "bar") { bar in
             bar.get { request in
-                return Response()
+                return Response(status: .ok, content: "yo")
             }
         }
     }

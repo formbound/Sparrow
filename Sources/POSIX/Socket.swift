@@ -115,8 +115,8 @@ public struct SendFlags: OptionSet {
     #endif
 }
 
-public func send(socket: FileDescriptor, bytes: UnsafeRawPointer, count: Int, flags: SendFlags = .none) throws -> Int {
-    let result = send(socket, bytes, count, flags.rawValue)
+public func send(socket: FileDescriptor, bytes: UnsafeRawBufferPointer, flags: SendFlags = .none) throws -> Int {
+    let result = send(socket, bytes.baseAddress, bytes.count, flags.rawValue)
 
     guard result != -1 else {
         throw SystemError.lastOperationError
@@ -140,7 +140,11 @@ public struct ReceiveFlags: OptionSet {
 #endif
 }
 
-public func receive(socket: FileDescriptor, buffer: UnsafeMutableBufferPointer<UInt8>, flags: ReceiveFlags = .none) throws -> Int {
+public func receive(
+    socket: FileDescriptor,
+    buffer: UnsafeMutableRawBufferPointer,
+    flags: ReceiveFlags = .none
+) throws -> Int {
     let result = recv(socket, buffer.baseAddress!, buffer.count, flags.rawValue)
 
     guard result != -1 else {

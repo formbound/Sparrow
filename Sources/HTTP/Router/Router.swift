@@ -35,53 +35,53 @@ public final class Router {
         body(self)
     }
     
-    public func add(_ pathComponent: String, body: (Router) -> Void) {
+    public func add(path: String, body: (Router) -> Void) {
         let route = Router()
         body(route)
-        return subrouters[pathComponent] = route
+        return subrouters[path] = route
     }
     
-    public func add(_ pathParameterKey: ParameterKey, body: (Router) -> Void) {
+    public func add(parameter: ParameterKey, body: (Router) -> Void) {
         let route = Router()
         body(route)
-        pathParameterSubrouter = (pathParameterKey.key, route)
+        pathParameterSubrouter = (parameter.key, route)
     }
     
-    public func preprocess(body: @escaping (Request) throws -> Void) {
+    public func preprocess(body: @escaping Preprocess) {
         preprocess = body
     }
     
-    public func respond(method: Method, body: @escaping (Request) throws -> Response) {
+    public func respond(method: Method, body: @escaping Respond) {
         responders[method] = body
     }
     
-    public func postprocess(body: @escaping (Response, Request) throws -> Void) {
+    public func postprocess(body: @escaping Postprocess) {
         postprocess = body
     }
     
-    public func recover(body: @escaping (Error) throws -> Response) {
+    public func recover(body: @escaping Recover) {
         recover = body
     }
 }
 
 extension Router {
-    public func get(body: @escaping (Request) throws -> Response) {
+    public func get(body: @escaping Respond) {
         respond(method: .get, body: body)
     }
     
-    public func post(body: @escaping (Request) throws -> Response) {
+    public func post(body: @escaping Respond) {
         respond(method: .post, body: body)
     }
     
-    public func put(body: @escaping (Request) throws -> Response) {
+    public func put(body: @escaping Respond) {
         respond(method: .put, body: body)
     }
     
-    public func patch(body: @escaping (Request) throws -> Response) {
+    public func patch(body: @escaping Respond) {
         respond(method: .patch, body: body)
     }
     
-    public func delete(body: @escaping (Request) throws -> Response) {
+    public func delete(body: @escaping Respond) {
         respond(method: .delete, body: body)
     }
 }
@@ -89,17 +89,18 @@ extension Router {
 extension Router {
     public func respond(to request: Request) -> Response {
         do {
-            return try getResponse(for: request)
+            var pathComponents = request.url.pathComponents.dropFirst()
+            return try respond(to: request, pathComponents: &pathComponents)
         } catch {
             return recover(from: error)
         }
     }
     
     @inline(__always)
-    private func getResponse(for request: Request) throws -> Response {
+    private func respond(to request: Request, pathComponents: inout ArraySlice<String>) throws -> Response {
         do {
             try preprocess(request)
-            let response = try process(request)
+            let response = try process(request, pathComponents: &pathComponents)
             try postprocess(response, request)
             return response
         } catch {
@@ -108,10 +109,10 @@ extension Router {
     }
     
     @inline(__always)
-    private func process(_ request: Request) throws -> Response {
-        if let pathComponent = request.pathComponents.popFirst() {
+    private func process(_ request: Request, pathComponents: inout ArraySlice<String>) throws -> Response {
+        if let pathComponent = pathComponents.popFirst() {
             let subrouter = try getSubrouter(for: pathComponent, request: request)
-            return try subrouter.getResponse(for: request)
+            return try subrouter.respond(to: request, pathComponents: &pathComponents)
         }
         
         if let respond = responders[request.method] {
@@ -126,7 +127,7 @@ extension Router {
         if let subrouter = subrouters[pathComponent] {
             return subrouter
         } else if let (pathParameterKey, subrouter) = pathParameterSubrouter {
-//            request.parameterMapper.set(pathComponent, for: pathParameterKey)
+            request.parameters.set(pathComponent, for: pathParameterKey)
             return subrouter
         }
         

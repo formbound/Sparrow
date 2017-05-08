@@ -38,14 +38,14 @@ public final class JSONSerializer : ContentSerializer {
         yajl_gen_free(handle)
     }
 
-    public func serialize(_ map: Content, bufferSize: Int = 4096, body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
+    public func serialize(_ map: Content, bufferSize: Int = 4096, body: (UnsafeRawBufferPointer) throws -> Void) throws {
         yajl_gen_reset(handle, nil)
         self.bufferSize = bufferSize
         try generate(map, body: body)
         try write(body: body)
     }
 
-    private func generate(_ value: Content, body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
+    private func generate(_ value: Content, body: (UnsafeRawBufferPointer) throws -> Void) throws {
         switch value {
         case .null:
             try generateNull()
@@ -68,7 +68,7 @@ public final class JSONSerializer : ContentSerializer {
         try write(highwater: bufferSize, body: body)
     }
 
-    private func generate(_ dictionary: [String: Content], body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
+    private func generate(_ dictionary: [String: Content], body: (UnsafeRawBufferPointer) throws -> Void) throws {
         var status = yajl_gen_status_ok
 
         status = yajl_gen_map_open(handle)
@@ -90,7 +90,7 @@ public final class JSONSerializer : ContentSerializer {
         try check(status: status)
     }
 
-    private func generate(_ array: [Content], body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
+    private func generate(_ array: [Content], body: (UnsafeRawBufferPointer) throws -> Void) throws {
         var status = yajl_gen_status_ok
 
         status = yajl_gen_array_open(handle)
@@ -163,7 +163,7 @@ public final class JSONSerializer : ContentSerializer {
         }
     }
 
-    private func write(highwater: Int = 0, body: (UnsafeBufferPointer<Byte>) throws -> Void) throws {
+    private func write(highwater: Int = 0, body: (UnsafeRawBufferPointer) throws -> Void) throws {
         var buffer: UnsafePointer<UInt8>? = nil
         var bufferLength: Int = 0
 
@@ -175,7 +175,7 @@ public final class JSONSerializer : ContentSerializer {
             return
         }
 
-        try body(UnsafeBufferPointer(start: buffer, count: bufferLength))
+        try body(UnsafeRawBufferPointer(start: buffer, count: bufferLength))
         yajl_gen_clear(handle)
     }
 }

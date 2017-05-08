@@ -69,7 +69,7 @@ public final class TCPHost : Host {
         try self.init(ip: ip, backlog: backlog, reusePort: reusePort)
     }
 
-    public func accept(deadline: Deadline) throws -> Stream {
+    public func accept(deadline: Deadline) throws -> DuplexStream {
         loop: while true {
             do {
                 // Try to get new connection (non-blocking).

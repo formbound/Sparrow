@@ -1,8 +1,10 @@
-enum MediaTypeError: Error {
+import Foundation
+
+enum MediaTypeError : Error {
     case malformedMediaTypeString
 }
 
-public struct MediaType: CustomStringConvertible {
+public struct MediaType : CustomStringConvertible {
     public let type: String
     public let subtype: String
     public let parameters: [String: String]
@@ -86,7 +88,7 @@ extension MediaType : Hashable {
     }
 }
 
-extension MediaType: Equatable {
+extension MediaType : Equatable {
     public static func == (lhs: MediaType, rhs: MediaType) -> Bool {
         return lhs.hashValue == rhs.hashValue
     }
@@ -264,7 +266,6 @@ let fileExtensionMediaTypeMapping: [String: String] = [
 	"pcf.Z": "application/x-font",
 	"woff": "application/x-font-woff",
 	"mm": "application/x-freemind",
-	//	"spl": "application/x-futuresplash",
 	"gan": "application/x-ganttproject",
 	"gnumeric": "application/x-gnumeric",
 	"sgf": "application/x-go-sgf",
@@ -399,13 +400,11 @@ let fileExtensionMediaTypeMapping: [String: String] = [
 	"aiff": "audio/x-aiff",
 	"aifc": "audio/x-aiff",
 	"gsm": "audio/x-gsm",
-	//	"m3u": "audio/x-mpegurl",
 	"wma": "audio/x-ms-wma",
 	"wax": "audio/x-ms-wax",
 	"ra": "audio/x-pn-realaudio",
 	"rm": "audio/x-pn-realaudio",
 	"ram": "audio/x-pn-realaudio",
-	//	"ra": "audio/x-realaudio",
 	"pls": "audio/x-scpls",
 	"sd2": "audio/x-sd2",
 	"wav": "audio/x-wav",
@@ -458,7 +457,6 @@ let fileExtensionMediaTypeMapping: [String: String] = [
 	"rd": "chemical/x-mdl-rdfile",
 	"rxn": "chemical/x-mdl-rxnfile",
 	"sd": "chemical/x-mdl-sdfile",
-	//	"sdf": "chemical/x-mdl-sdfile",
 	"tgf": "chemical/x-mdl-tgf",
 	"mcif": "chemical/x-mmcif",
 	"mol2": "chemical/x-mol2",
@@ -475,9 +473,7 @@ let fileExtensionMediaTypeMapping: [String: String] = [
 	"ent": "chemical/x-ncbi-asn1-ascii",
 	"val": "chemical/x-ncbi-asn1-binary",
 	"aso": "chemical/x-ncbi-asn1-binary",
-	//	"asn": "chemical/x-ncbi-asn1-spec",
 	"pdb": "chemical/x-pdb",
-	//	"ent": "chemical/x-pdb",
 	"ros": "chemical/x-rosdal",
 	"sw": "chemical/x-swissprot",
 	"vms": "chemical/x-vamas-iso14976",
@@ -510,7 +506,6 @@ let fileExtensionMediaTypeMapping: [String: String] = [
 	"cdr": "image/x-coreldraw",
 	"pat": "image/x-coreldrawpattern",
 	"cdt": "image/x-coreldrawtemplate",
-	//	"cpt": "image/x-corelphotopaint",
 	"erf": "image/x-epson-erf",
 	"art": "image/x-jg",
 	"jng": "image/x-jng",
@@ -575,7 +570,6 @@ let fileExtensionMediaTypeMapping: [String: String] = [
 	"cc": "text/x-c++src",
 	"h": "text/x-chdr",
 	"htc": "text/x-component",
-	//	"csh": "text/x-csh",
 	"c": "text/x-csrc",
 	"d": "text/x-dsrc",
 	"diff": "text/x-diff",
@@ -594,8 +588,6 @@ let fileExtensionMediaTypeMapping: [String: String] = [
 	"scala": "text/x-scala",
 	"etx": "text/x-setext",
 	"sfv": "text/x-sfv",
-	//	"sh": "text/x-sh",
-	//	"tcl": "text/x-tcl",
 	"tk": "text/x-tcl",
 	"tex": "text/x-tex",
 	"ltx": "text/x-tex",
@@ -637,13 +629,12 @@ let fileExtensionMediaTypeMapping: [String: String] = [
 	"ice": "x-conference/x-cooltalk",
 	"sisx": "x-epoc/x-sisx-app",
 	"vrm": "x-world/x-vrml",
-	//	"vrml": "x-world/x-vrml",
-	//	"wrl": "x-world/x-vrml",
 ]
 
 public func mediaType(forFileExtension fileExtension: String) -> MediaType? {
 	guard let mediaType = fileExtensionMediaTypeMapping[fileExtension] else {
 		return nil
 	}
+    
 	return try? MediaType(string: mediaType)
 }

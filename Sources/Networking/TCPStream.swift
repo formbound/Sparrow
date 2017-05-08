@@ -2,22 +2,19 @@ import Core
 import Venice
 import POSIX
 
-public final class TCPStream : Stream {
+public final class TCPStream : DuplexStream {
     private var socket: FileDescriptor?
 
     public private(set) var ip: IP
-    public private(set) var closed: Bool
 
     internal init(socket: FileDescriptor, ip: IP) {
         self.ip = ip
         self.socket = socket
-        self.closed = false
     }
 
     public init(host: String, port: Int, deadline: Deadline) throws {
         self.ip = try IP(address: host, port: port, deadline: deadline)
         self.socket = nil
-        self.closed = true
     }
     
     deinit {
@@ -49,25 +46,22 @@ public final class TCPStream : Stream {
         }
 
         self.socket = socket
-        self.closed = false
     }
 
-    public func write(_ bytes: UnsafeBufferPointer<UInt8>, deadline: Deadline) throws {
+    public func write(_ bytes: UnsafeRawBufferPointer, deadline: Deadline) throws {
         guard !bytes.isEmpty else {
             return
         }
 
         let socket = try getSocket()
-        try ensureStillOpen()
 
         loop: while true {
-            var remaining: UnsafeBufferPointer<UInt8> = bytes
+            var remaining: UnsafeRawBufferPointer = bytes
             
             do {
                 let bytesWritten = try POSIX.send(
                     socket: socket,
-                    bytes: remaining.baseAddress!,
-                    count: remaining.count,
+                    bytes: remaining,
                     flags: .noSignal
                 )
                 
@@ -79,25 +73,20 @@ public final class TCPStream : Stream {
                     .advanced(by: bytesWritten)
                     .distance(to: remaining.endIndex)
                 
-                remaining = UnsafeBufferPointer<UInt8>(
+                remaining = UnsafeRawBufferPointer(
                     start: remaining.baseAddress!.advanced(by: bytesWritten),
                     count: remainingCount
                 )
                 
                 continue loop
             } catch {
-                print(".")
                 switch error {
                 case SystemError.resourceTemporarilyUnavailable, SystemError.operationWouldBlock:
-                    do {
-                        try poll(socket, event: .write, deadline: deadline)
-                        continue loop
-                    } catch VeniceError.timeout {
-                        throw StreamError.timeout
-                    }
+                    try poll(socket, event: .write, deadline: deadline)
+                    continue loop
                 case SystemError.connectionResetByPeer, SystemError.brokenPipe:
                     close()
-                    throw StreamError.closedStream
+                    throw error
                 default:
                     throw error
                 }
@@ -105,31 +94,30 @@ public final class TCPStream : Stream {
         }
     }
 
-    public func read(into readBuffer: UnsafeMutableBufferPointer<Byte>, deadline: Deadline) throws -> UnsafeBufferPointer<Byte> {
-        guard !readBuffer.isEmpty else {
-            return UnsafeBufferPointer()
+    public func read(
+        into buffer: UnsafeMutableRawBufferPointer,
+        deadline: Deadline
+    ) throws -> UnsafeRawBufferPointer {
+        guard !buffer.isEmpty, let baseAddress = buffer.baseAddress else {
+            return UnsafeRawBufferPointer(start: nil, count: 0)
         }
 
         let socket = try getSocket()
-        try ensureStillOpen()
 
         loop: while true {
             do {
-
-                let bytesRead = try POSIX.receive(socket: socket, buffer: readBuffer as UnsafeMutableBufferPointer<UInt8>)
+                let bytesRead = try POSIX.receive(socket: socket, buffer: buffer)
+                
                 guard bytesRead != 0 else {
                     close()
-                    throw StreamError.closedStream
+                    throw SystemError.connectionResetByPeer
                 }
-                return UnsafeBufferPointer(start: readBuffer.baseAddress!, count: bytesRead)
+                
+                return UnsafeRawBufferPointer(start: baseAddress, count: bytesRead)
             } catch {
                 switch error {
                 case SystemError.resourceTemporarilyUnavailable, SystemError.operationWouldBlock:
-                    do {
-                        try poll(socket, event: .read, deadline: deadline)
-                    } catch VeniceError.timeout {
-                        throw StreamError.timeout
-                    }
+                    try poll(socket, event: .read, deadline: deadline)
                     continue loop
                 default:
                     throw error
@@ -140,17 +128,15 @@ public final class TCPStream : Stream {
 
     public func flush(deadline: Deadline) throws {
         try getSocket()
-        try ensureStillOpen()
     }
 
     public func close() {
-        guard !closed, let socket = try? getSocket() else {
+        guard let socket = try? getSocket() else {
             return
         }
 
         try? Networking.close(socket: socket)
         self.socket = nil
-        self.closed = true
     }
 
     @discardableResult
@@ -160,11 +146,5 @@ public final class TCPStream : Stream {
         }
         
         return socket
-    }
-
-    private func ensureStillOpen() throws {
-        if closed {
-            throw StreamError.closedStream
-        }
     }
 }

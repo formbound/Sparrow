@@ -1,5 +1,5 @@
 public protocol Route {
-    static var parameterKey: ParameterKey { get }
+    static var key: ParameterKey { get }
     
     func configure(router: Router)
     
@@ -17,7 +17,7 @@ public protocol Route {
 }
 
 public extension Route {
-    static var parameterKey: ParameterKey {
+    static var key: ParameterKey {
         return ParameterKey(String(describing: Self.self))
     }
     
@@ -72,11 +72,11 @@ public extension Router {
         route.build(router: self)
     }
     
-    func add<R : Route>(_ pathComponent: String, route: R) {
-        add(pathComponent, body: route.build(router:))
+    func add<R : Route>(path: String, route: R) {
+        add(path: path, body: route.build(router:))
     }
     
-    func add<R : Route>(_ pathParameterKey: ParameterKey, route: R) {
-        add(pathParameterKey, body: route.build(router:))
+    func add<R : Route>(parameter: ParameterKey, route: R) {
+        add(parameter: parameter, body: route.build(router:))
     }
 }

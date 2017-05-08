@@ -7,44 +7,41 @@
 import Core
 import Venice
 
-public final class RequestBodyStream : InputStream {
+public final class RequestBodyStream : ReadableStream {
     var complete = false
-    var bytes = UnsafeBufferPointer<Byte>()
+    var bodyBuffer = UnsafeRawBufferPointer(start: nil, count: 0)
     
-    public private(set) var closed = false
     private let parser: RequestParser
     
     public init(parser: RequestParser) {
         self.parser = parser
     }
     
-    public func open(deadline: Deadline) throws {
-        closed = false
-    }
+    public func open(deadline: Deadline) throws {}
+    public func close() {}
     
-    public func close() {
-        closed = true
-    }
-    
-    public func read(into readBuffer: UnsafeMutableBufferPointer<Byte>, deadline: Deadline) throws -> UnsafeBufferPointer<Byte> {
-        guard !closed, let readPointer = readBuffer.baseAddress else {
-            return UnsafeBufferPointer()
+    public func read(
+        into buffer: UnsafeMutableRawBufferPointer,
+        deadline: Deadline
+    ) throws -> UnsafeRawBufferPointer {
+        guard let baseAddress = buffer.baseAddress else {
+            return UnsafeRawBufferPointer(start: nil, count: 0)
         }
         
-        if bytes.isEmpty && !complete {
+        if bodyBuffer.isEmpty && !complete {
             try parser.read(deadline: deadline)
-        } else if bytes.isEmpty && complete {
+        } else if bodyBuffer.isEmpty && complete {
             close()
         }
         
-        let bytesRead = min(bytes.count, readBuffer.count)
-        memcpy(readPointer, bytes.baseAddress, bytesRead)
+        let bytesRead = min(bodyBuffer.count, buffer.count)
+        memcpy(baseAddress, bodyBuffer.baseAddress, bytesRead)
         
-        bytes = UnsafeBufferPointer(
-            start: bytes.baseAddress?.advanced(by: bytesRead),
-            count: bytes.count - bytesRead
+        bodyBuffer = UnsafeRawBufferPointer(
+            start: bodyBuffer.baseAddress?.advanced(by: bytesRead),
+            count: bodyBuffer.count - bytesRead
         )
         
-        return UnsafeBufferPointer(start: readPointer, count: bytesRead)
+        return UnsafeRawBufferPointer(start: baseAddress, count: bytesRead)
     }
 }

@@ -1,27 +1,11 @@
 import Core
+import struct Foundation.Data
 
 public enum ContentError : Error {
-    case illegalNonDictionary(key: String)
-    case notFound(keypath: String)
-    case illegalType(keyPath: String)
-    case failedContentInitialization(Content)
-    
-    
-    case contentNotFound
-    case invalidContent
-}
-
-extension ContentError : ResponseRepresentable {
-    public var response: Response {
-        switch self {
-        case .contentNotFound:
-            return Response(status: .internalServerError)
-        case .invalidContent:
-            return Response(status: .badRequest)
-        default:
-            fatalError() // TODO: Implement
-        }
-    }
+    case cannotInitialize(type: ContentInitializable.Type, from: Content)
+    case cannotGet(type: Any.Type, from: Content)
+    case outOfBounds(index: Int, count: Int)
+    case valueNotFound(key: String)
 }
 
 public protocol ContentInitializable {
@@ -34,7 +18,7 @@ public protocol ContentRepresentable : ResponseRepresentable {
 
 extension ContentRepresentable {
     public var response: Response {
-        return Response(content: content)
+        return Response(status: .ok, content: content)
     }
 }
 
@@ -47,7 +31,7 @@ extension Int : ContentConvertible {
 
     public init(content: Content) throws {
         guard case .int(let value) = content else {
-            throw ContentError.failedContentInitialization(content)
+            throw ContentError.cannotInitialize(type: type(of: self), from: content)
         }
 
         self = value
@@ -61,7 +45,7 @@ extension Bool : ContentConvertible {
 
     public init(content: Content) throws {
         guard case .bool(let value) = content else {
-            throw ContentError.failedContentInitialization(content)
+            throw ContentError.cannotInitialize(type: type(of: self), from: content)
         }
 
         self = value
@@ -75,21 +59,7 @@ extension String : ContentConvertible {
 
     public init(content: Content) throws {
         guard case .string(let value) = content else {
-            throw ContentError.failedContentInitialization(content)
-        }
-
-        self = value
-    }
-}
-
-extension Float : ContentConvertible {
-    public var content: Content {
-        return .float(self)
-    }
-
-    public init(content: Content) throws {
-        guard case .float(let value) = content else {
-            throw ContentError.failedContentInitialization(content)
+            throw ContentError.cannotInitialize(type: type(of: self), from: content)
         }
 
         self = value
@@ -103,370 +73,183 @@ extension Double : ContentConvertible {
 
     public init(content: Content) throws {
         guard case .double(let value) = content else {
-            throw ContentError.failedContentInitialization(content)
+            throw ContentError.cannotInitialize(type: type(of: self), from: content)
         }
 
         self = value
     }
 }
 
-public indirect enum Content {
-    public struct KeyPath : RawRepresentable {
-        public var rawValue: [String]
-
-        public init(rawValue: [String]) {
-            self.rawValue = rawValue
-        }
-
-        public init(path: String) {
-            self.rawValue = path.components(separatedBy: ".")
-        }
+extension Content : ContentConvertible {
+    public var content: Content {
+        return self
     }
 
-    case int(Int)
+    public init(content: Content) throws {
+        self = content
+    }
+}
+
+public struct NoContent {}
+
+extension NoContent : ContentConvertible {
+    public init(content: Content) throws {}
+    
+    public var content: Content {
+        return .array([])
+    }
+}
+
+extension NoContent : ResponseRepresentable {
+    public var response: Response {
+        return Response(status: .noContent)
+    }
+}
+
+public enum Content {
     case null
     case bool(Bool)
-    case string(String)
     case double(Double)
-    case float(Float)
+    case int(Int)
+    case string(String)
+    case data(Data)
     case array([Content])
     case dictionary([String: Content])
-    case binary([Byte])
+}
 
-    internal init(_ represented: ContentRepresentable) {
-        self = represented.content
+extension Content {
+    public init<T: ContentRepresentable>(_ value: T?) {
+        self = value?.content ?? .null
     }
-
-    public init() {
-        self.init(dictionary: [:])
-    }
-
-    public init(dictionary: [String: ContentRepresentable?] = [:]) {
-
-        var result: [String: Content] = [:]
-
-        for(key, value) in dictionary {
-            result[key] = value?.content ?? .null
+    
+    public init<T: ContentRepresentable>(_ values: [T]?) {
+        if let values = values {
+            self = .array(values.map({$0.content}))
+        } else {
+            self = .null
         }
-
-        self = .dictionary(result)
     }
+    
+    public init<T: ContentRepresentable>(_ values: [T?]?) {
+        if let values = values {
+            self = .array(values.map({$0?.content ?? .null}))
+        } else {
+            self = .null
+        }
+    }
+    
+    public init<T: ContentRepresentable>(_ values: [String: T]?) {
+        if let values = values {
+            var dictionary: [String: Content] = [:]
+            
+            for (key, value) in values.map({($0.key, $0.value.content)}) {
+                dictionary[key] = value
+            }
+            
+            self = .dictionary(dictionary)
+        } else {
+            self = .null
+        }
+    }
+    
+    public init<T: ContentRepresentable>(_ values: [String: T?]?) {
+        if let values = values {
+            var dictionary: [String: Content] = [:]
+            
+            for (key, value) in values.map({($0.key, $0.value?.content ?? .null)}) {
+                dictionary[key] = value
+            }
+            
+            self = .dictionary(dictionary)
+        } else {
+            self = .null
+        }
+    }
+}
 
-    public init<T: ContentRepresentable>(array: [T]) {
-        self = .array(array.map { $0.content })
+public enum IndexPathComponentValue {
+    case index(Int)
+    case key(String)
+}
+
+/// Can be represented as `IndexPathValue`.
+public protocol IndexPathComponent {
+    var indexPathComponent: IndexPathComponentValue { get }
+}
+
+extension Int : IndexPathComponent {
+    public var indexPathComponent: IndexPathComponentValue {
+        return .index(self)
+    }
+}
+
+extension String : IndexPathComponent {
+    public var indexPathComponent: IndexPathComponentValue {
+        return .key(self)
     }
 }
 
 extension Content {
-    public var isEmpty: Bool {
-        switch self {
-        case .array(let content):
-            return content.isEmpty
-        case .dictionary(let dict):
-            return dict.isEmpty
-        default:
-            return false
-        }
-    }
-}
-
-// MARK: Get values
-
-public extension Content {
-    internal func value(forKeyPath keyPath: KeyPath) -> Content? {
-
-        var keyPath = keyPath
-
-        guard !keyPath.isEmpty else {
-            return nil
-        }
-
-        guard case .dictionary(let dictionary) = self else {
-            return nil
-        }
-
-        guard let value = dictionary[keyPath.removeFirst()] else {
-            return nil
-        }
-
-        guard !keyPath.isEmpty else {
-            return value
-        }
-
-        return value.value(forKeyPath: keyPath)
-    }
-
-    public func value(forKeyPath path: String) -> Content? {
-        return value(forKeyPath: KeyPath(path: path))
-    }
-}
-
-// MARK: Set values
-
-public extension Content {
-
-    public mutating func set(value: Content?, forKey key: String) throws {
-        guard case .dictionary(var dict) = self else {
-            throw ContentError.illegalNonDictionary(key: key)
-        }
-
-        dict[key] = value
-        self = .dictionary(dict)
-    }
-
-    public mutating func set(value: ContentRepresentable?, forKey key: String) throws {
-        try set(value: value?.content ?? .null, forKey: key)
-    }
-
-    public mutating func set(value dictionary: [String: ContentRepresentable?], forKey key: String) throws {
-
-        var result: [String: Content] = [:]
-
-        for(key, value) in dictionary {
-            result[key] = value?.content ?? .null
-        }
-
-        try set(value: .dictionary(result), forKey: key)
-    }
-
-    public mutating func set(value array: [ContentRepresentable?], forKey key: String) throws {
-        try set(value: .array(array.map { $0?.content ?? .null }), forKey: key)
-    }
-}
-
-// MARK: Typed accessors, optionals allowed
-
-public extension Content {
-
-    public func value<T: ContentInitializable>(forKeyPath path: String) throws -> T? {
-        guard let content = value(forKeyPath: KeyPath(path: path)) else {
-            return nil
-        }
-
-        if case .null = content {
-            return nil
-        }
-
+    public func get<T : ContentInitializable>(_ indexPath: IndexPathComponent...) throws -> T {
+        let content = try get(indexPath)
         return try T(content: content)
     }
-
-    public func value(forKeyPath path: String) -> [Byte]? {
-        guard let content = value(forKeyPath: KeyPath(path: path)) else {
-            return nil
-        }
-
-        guard case .binary(let value) = content else {
-            return nil
-        }
-
-        return value
+    
+    public func get(_ indexPath: IndexPathComponent...) throws -> Content {
+        return try get(indexPath)
     }
-}
-
-// MARK: - Typed accessors, throwing
-
-public extension Content {
-    public func value<T: ContentInitializable>(forKeyPath path: String) throws -> T {
-        guard let value: T = try value(forKeyPath: path) else {
-            throw ContentError.notFound(keypath: path)
-        }
-
-        return value
-    }
-
-    public func value(forKeyPath path: String) throws -> [Byte] {
-        guard let value: [Byte] = value(forKeyPath: path) else {
-            throw ContentError.notFound(keypath: path)
-        }
-
-        return value
-    }
-}
-
-// MARK: Typed collection accessors, optionals allowed
-
-public extension Content {
-
-    public func value(forKeyPath path: String) -> [Content]? {
-        guard let content = value(forKeyPath: KeyPath(path: path)) else {
-            return nil
-        }
-
-        guard case .array(let array) = content else {
-            return nil
-        }
-
-        return array
-    }
-
-    public func value(forKeyPath path: String) -> [String: Content]? {
-        guard let content = value(forKeyPath: KeyPath(path: path)) else {
-            return nil
-        }
-
-        guard case .dictionary(let dictionary) = content else {
-            return nil
-        }
-
-        return dictionary
-    }
-}
-
-// MARK: Typed collection accessors, throwing
-
-public extension Content {
-    public func value(forKeyPath path: String) throws -> [Content] {
-        guard let value: [Content] = value(forKeyPath: path) else {
-            throw ContentError.notFound(keypath: path)
-        }
-
-        return value
-    }
-
-    public func value(forKeyPath path: String) throws -> [String: Content] {
-        guard let value: [String: Content] = value(forKeyPath: path) else {
-            throw ContentError.notFound(keypath: path)
-        }
-
-        return value
-    }
-}
-
-// MARK: Uniformly collection accessors, throwing
-
-public extension Content {
-    public func value<T: ContentInitializable>(forKeyPath path: String) throws -> [T] {
-        let values: [Content] = try value(forKeyPath: path)
-
-        return try values.map { content in
-            return try T(content: content)
-        }
-    }
-
-    public func value(forKeyPath path: String) throws -> [[Byte]] {
-        let values: [Content] = try value(forKeyPath: path)
-
-        return try values.map { content in
-            guard case .binary(let value) = content else {
-                throw ContentError.illegalType(keyPath: path)
+    
+    private func get(_ indexPath: [IndexPathComponent]) throws -> Content {
+        var value: Content = self
+        
+        for element in indexPath {
+            switch element.indexPathComponent {
+            case let .index(index):
+                let array: [Content] = try get()
+                
+                if array.indices.contains(index) {
+                    value = array[index]
+                } else {
+                    throw ContentError.outOfBounds(index: index, count: array.count)
+                }
+                
+            case let .key(key):
+                let dictionary: [String: Content] = try get()
+                
+                if let newValue = dictionary[key] {
+                    value = newValue
+                } else {
+                    throw ContentError.valueNotFound(key: key)
+                }
             }
-
-            return value
         }
+        
+        return value
     }
-}
-
-extension Content.KeyPath : MutableCollection, RangeReplaceableCollection {
-
-    public mutating func replaceSubrange<C>(_ subrange: Range<Int>, with newElements: C) where C : Collection, C.Iterator.Element == String {
-        rawValue.replaceSubrange(subrange, with: newElements)
-    }
-
-    public init() {
-        self.init(rawValue: [])
-    }
-
-    public subscript(position: Int) -> String {
-        get {
-            return rawValue[position]
-        }
-        set {
-            rawValue[position] = newValue
-        }
-    }
-
-    public func index(after i: Int) -> Int {
-        return i + 1
-    }
-
-    public var startIndex: Int {
-        return 0
-    }
-
-    public var endIndex: Int {
-        return rawValue.count
-    }
-
-}
-
-extension ContentError : CustomDebugStringConvertible {
-    public var debugDescription: String {
-        switch self {
-        case .illegalNonDictionary(let key):
-            return "Setting values for key(\"\(key)\"), illegal on non-dictionary content"
-        case .notFound(let keypath):
-            return "Keypath \"\(keypath)\" found"
-
-        case .illegalType(let keypath):
-            return "Type of one or more values found at \"\(keypath)\" does not correspond to the inferred type"
-        case .failedContentInitialization(let content):
-            return "Failed to initialize value with content:\n\(content)"
-        default:
-            fatalError() // TODO: Implement
-        }
-    }
-}
-
-extension Content : ContentRepresentable {
-    public var content: Content {
-        return self
-    }
-}
-
-extension Content : ExpressibleByNilLiteral {
-    public init(nilLiteral: ()) {
-        self = .null
-    }
-}
-
-extension Content : CustomStringConvertible {
-    public var description: String {
-        let result: String
-
-        switch self {
-        case .int(let int):
-            result = String(int)
-
-        case .string(let string):
-            result = "\"\(string)\""
-
-        case .double(let double):
-            result = String(double)
-
-        case .float(let float):
-            result = String(float)
-
-        case .binary(let bytes):
-            result = "Binary, \(bytes.count) bytes"
-
-        case .array(let content):
-            let descriptions = content.map { content in
-                content.description
-            }.joined(separator: ", ")
-
-            return "[\(descriptions)]"
-
-        case .dictionary(let dict):
-
-            var components: [String] = []
-
-            for (key, value) in dict {
-
-                components.append(
-                    "\(key): \(value.description)"
-                )
+    
+    private func get<T>(_ indexPath: IndexPathComponent...) throws -> T {
+        if indexPath.isEmpty {
+            switch self {
+            case let .bool(value as T):
+                return value
+            case let .int(value as T):
+                return value
+            case let .double(value as T):
+                return value
+            case let .string(value as T):
+                return value
+            case let .data(value as T):
+                return value
+            case let .array(value as T):
+                return value
+            case let .dictionary(value as T):
+                return value
+            default:
+                throw ContentError.cannotGet(type: T.self, from: self)
             }
-
-            result = "{ \(components.joined(separator: ", ")) }"
-
-        case .bool(let bool):
-            return bool ? "true" : "false"
-
-        case .null:
-            return "<null>"
         }
-
-        return result
+        
+        return try get(indexPath).get()
     }
 }
 
@@ -478,10 +261,143 @@ public func == (lhs: Content, rhs: Content) -> Bool {
     case let (.int(l), .int(r)) where l == r: return true
     case let (.bool(l), .bool(r)) where l == r: return true
     case let (.string(l), .string(r)) where l == r: return true
-    case let (.binary(l), .binary(r)) where l == r: return true
+    case let (.data(l), .data(r)) where l == r: return true
     case let (.double(l), .double(r)) where l == r: return true
     case let (.array(l), .array(r)) where l == r: return true
     case let (.dictionary(l), .dictionary(r)) where l == r: return true
     default: return false
+    }
+}
+
+extension Content : ExpressibleByNilLiteral {
+    public init(nilLiteral value: Void) {
+        self = .null
+    }
+}
+
+extension Content : ExpressibleByBooleanLiteral {
+    public init(booleanLiteral value: BooleanLiteralType) {
+        self = .bool(value)
+    }
+}
+
+extension Content : ExpressibleByIntegerLiteral {
+    public init(integerLiteral value: IntegerLiteralType) {
+        self = .int(value)
+    }
+}
+
+extension Content : ExpressibleByFloatLiteral {
+    public init(floatLiteral value: FloatLiteralType) {
+        self = .double(value)
+    }
+}
+
+extension Content : ExpressibleByStringLiteral {
+    public init(unicodeScalarLiteral value: String) {
+        self = .string(value)
+    }
+    
+    public init(extendedGraphemeClusterLiteral value: String) {
+        self = .string(value)
+    }
+    
+    public init(stringLiteral value: StringLiteralType) {
+        self = .string(value)
+    }
+}
+
+extension Content : ExpressibleByArrayLiteral {
+    public init(arrayLiteral elements: Content...) {
+        self = .array(elements)
+    }
+}
+
+extension Content : ExpressibleByDictionaryLiteral {
+    public init(dictionaryLiteral elements: (String, Content)...) {
+        var dictionary = [String: Content](minimumCapacity: elements.count)
+        
+        for (key, value) in elements {
+            dictionary[key] = value
+        }
+        
+        self = .dictionary(dictionary)
+    }
+}
+
+extension Content : CustomStringConvertible {
+    public var description: String {
+        let escapeMapping: [UnicodeScalar: String.UnicodeScalarView] = [
+            "\r": "\\r".unicodeScalars,
+            "\n": "\\n".unicodeScalars,
+            "\t": "\\t".unicodeScalars,
+            "\\": "\\\\".unicodeScalars,
+            "\"": "\\\"".unicodeScalars,
+            
+            "\u{2028}": "\\u2028".unicodeScalars,
+            "\u{2029}": "\\u2029".unicodeScalars,
+        ]
+        
+        func escape(_ source: String) -> String {
+            var string: String.UnicodeScalarView = "\"".unicodeScalars
+            
+            for scalar in source.unicodeScalars {
+                if let escaped = escapeMapping[scalar] {
+                    string.append(contentsOf: escaped)
+                } else {
+                    string.append(scalar)
+                }
+            }
+            
+            string.append("\"")
+            
+            return String(string)
+        }
+        
+        func serialize(content: Content) -> String {
+            switch content {
+            case .null: return "null"
+            case .bool(let bool): return String(bool)
+            case .double(let number): return String(number)
+            case .int(let number): return String(number)
+            case .string(let string): return escape(string)
+            case .data(let data): return "b64:" + data.base64EncodedString()
+            case .array(let array): return serialize(array: array)
+            case .dictionary(let dictionary): return serialize(dictionary: dictionary)
+            }
+        }
+        
+        func serialize(array: [Content]) -> String {
+            var string = "["
+            
+            for index in 0 ..< array.count {
+                string += serialize(content: array[index])
+                
+                if index != array.count - 1 {
+                    string += ","
+                }
+            }
+            
+            return string + "]"
+        }
+        
+        func serialize(dictionary: [String: Content]) -> String {
+            var string = "{"
+            var index = 0
+            
+            for (key, value) in dictionary.sorted(by: {$0.0 < $1.0}) {
+                string += escape(key) + ":" + serialize(content: value)
+                
+                if index != dictionary.count - 1 {
+                    string += ","
+                }
+                
+                index += 1
+            }
+            
+            return string + "}"
+        }
+        
+        return serialize(content: self)
     }
 }

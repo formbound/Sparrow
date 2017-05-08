@@ -1,6 +1,36 @@
-import Foundation
+import struct Foundation.UUID
+import struct Foundation.URL
+import struct Foundation.URLComponents
 
-// MARK: ParameterKey
+public enum ParameterError : Error {
+    case parameterNotFound(parameterKey: ParameterKey)
+    case cannotExpress(type: ExpressibleByParameterString.Type, from: String)
+}
+
+extension ParameterError : ResponseRepresentable {
+    public var response: Response {
+        switch self {
+        case .parameterNotFound:
+            return Response(status: .internalServerError)
+        case .cannotExpress:
+            // For example user tried to use string for int path parameters
+            return Response(status: .badRequest)
+        }
+    }
+}
+
+public enum ParametersError : Error {
+    case cannotInitialize(type: ParametersInitializable.Type, from: Parameters)
+}
+
+extension ParametersError : ResponseRepresentable {
+    public var response: Response {
+        switch self {
+        case .cannotInitialize:
+            return Response(status: .internalServerError)
+        }
+    }
+}
 
 public struct ParameterKey {
     let key: String
@@ -24,65 +54,57 @@ extension ParameterKey : ExpressibleByStringLiteral {
     }
 }
 
-// MARK: ParameterInitializable
-
-public protocol ParameterInitializable {
+public protocol ExpressibleByParameterString {
     init(parameter: String) throws
 }
 
-// MARK: Parameters
-
-public struct NoParameters : ParameterMappable {
-    public init(mapper: ParameterMapper) throws {}
-}
-
-extension String : ParameterInitializable {
+extension String : ExpressibleByParameterString {
     public init(parameter: String) throws {
         self = parameter
     }
 }
 
-extension Int : ParameterInitializable {
+extension Int : ExpressibleByParameterString {
     public init(parameter: String) throws {
         guard let int = Int(parameter) else {
-            throw ParameterError.invalidParameter(parameter: parameter, type: type(of: self))
+            throw ParameterError.cannotExpress(type: type(of: self), from: parameter)
         }
         
         self.init(int)
     }
 }
 
-extension UUID : ParameterInitializable {
+extension UUID : ExpressibleByParameterString {
     public init(parameter: String) throws {
         guard let uuid = UUID(uuidString: parameter) else {
-            throw ParameterError.invalidParameter(parameter: parameter, type: type(of: self))
+            throw ParameterError.cannotExpress(type: type(of: self), from: parameter)
         }
         
         self.init(uuid: uuid.uuid)
     }
 }
 
-extension Double : ParameterInitializable {
+extension Double : ExpressibleByParameterString {
     public init(parameter: String) throws {
         guard let double = Double(parameter) else {
-            throw ParameterError.invalidParameter(parameter: parameter, type: type(of: self))
+            throw ParameterError.cannotExpress(type: type(of: self), from: parameter)
         }
         
         self.init(double)
     }
 }
 
-extension Float : ParameterInitializable {
+extension Float : ExpressibleByParameterString {
     public init(parameter: String) throws {
         guard let float = Float(parameter) else {
-            throw ParameterError.invalidParameter(parameter: parameter, type: type(of: self))
+            throw ParameterError.cannotExpress(type: type(of: self), from: parameter)
         }
         
         self.init(float)
     }
 }
 
-extension Bool : ParameterInitializable {
+extension Bool : ExpressibleByParameterString {
     public init(parameter: String) throws {
         switch parameter.lowercased() {
         case "true", "1", "t":
@@ -90,7 +112,60 @@ extension Bool : ParameterInitializable {
         case "false", "0", "f":
             self = false
         default:
-            throw ParameterError.invalidParameter(parameter: parameter, type: type(of: self))
+            throw ParameterError.cannotExpress(type: type(of: self), from: parameter)
         }
     }
 }
+
+public protocol ParametersInitializable {
+    init(parameters: Parameters) throws
+}
+
+public struct NoParameters {}
+
+extension NoParameters : ParametersInitializable {
+    public init(parameters: Parameters) throws {}
+}
+
+public final class Parameters {
+    var parameters: [String: String]
+    
+    init(parameters: [String: String] = [:]) {
+        self.parameters = parameters
+    }
+    
+    func set(_ parameter: String, for parameterKey: String) {
+        parameters[parameterKey] = parameter
+    }
+    
+    public func get<P : ExpressibleByParameterString>(_ parameterKey: ParameterKey) throws -> P {
+        guard let parameter = parameters[parameterKey.key] else {
+            throw ParameterError.parameterNotFound(parameterKey: parameterKey)
+        }
+        
+        return try P(parameter: parameter)
+    }
+}
+
+extension Parameters {
+    convenience init(url: URL) {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            self.init()
+            return
+        }
+        
+        guard let queryItems = components.queryItems else {
+            self.init()
+            return
+        }
+        
+        var parameters: [String: String] = [:]
+        
+        for queryItem in queryItems {
+            parameters[queryItem.name] = queryItem.value ?? ""
+        }
+        
+        self.init(parameters: parameters)
+    }
+}
+

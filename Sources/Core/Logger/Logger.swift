@@ -63,7 +63,7 @@ public struct Logger {
         self.name = name
     }
     
-    public func log(level: Level, item: Any?, error: Error?, locationInfo: LocationInfo) {
+    public func log(level: Level, item: Any?, error: Error? = nil, locationInfo: LocationInfo) {
         let event = Event(
             locationInfo: locationInfo,
             timestamp: timestamp,

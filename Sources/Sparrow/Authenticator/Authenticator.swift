@@ -4,7 +4,7 @@ import HTTP
 public enum AuthenticationResult {
     case accessDenied
     case authenticated
-    case payload(key: String, value: Any)
+    case authenticatedWith(key: String, value: Any)
 }
 
 public enum AuthenticationError : Error {
@@ -29,7 +29,7 @@ public struct Authenticator {
     
     public init() {}
 
-    public func basicAuth(_ request: Request, realm: String? = nil, authenticate: AuthenticateBasicAuth) throws {
+    public func basic(_ request: Request, realm: String? = nil, authenticate: AuthenticateBasicAuth) throws {
         let accessDenied = AuthenticationError.accessDenied(realm: realm)
         
         guard let authorization = request.authorization else {
@@ -63,7 +63,7 @@ public struct Authenticator {
             throw accessDenied
         case .authenticated:
             return
-        case .payload(let key, let value):
+        case let .authenticatedWith(key, value):
             request.storage[key] = value
         }
     }

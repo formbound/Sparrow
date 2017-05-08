@@ -30,16 +30,10 @@ public struct JSONMapParserError : Error, CustomStringConvertible {
 }
 
 public final class JSONParser : ContentParser {
-    public static func parse(_ bytes: UnsafeBufferPointer<Byte>, options: JSONMapParserOptions = []) throws -> Content {
+    public static func parse(_ bytes: UnsafeRawBufferPointer, options: JSONMapParserOptions = []) throws -> Content {
         let parser = JSONParser(options: options)
         try parser.parse(bytes)
         return try parser.finish()
-    }
-    
-    public static func parse(_ bytes: [Byte], options: JSONMapParserOptions = []) throws -> Content {
-        return try bytes.withUnsafeBufferPointer {
-            try self.parse($0, options: options)
-        }
     }
     
     public let options: JSONMapParserOptions
@@ -80,7 +74,7 @@ public final class JSONParser : ContentParser {
     }
     
     @discardableResult
-    public func parse(_ bytes: UnsafeBufferPointer<Byte>) throws -> Content? {
+    public func parse(_ bytes: UnsafeRawBufferPointer) throws -> Content? {
         let final = bytes.isEmpty
         
         guard result == nil else {
@@ -91,17 +85,29 @@ public final class JSONParser : ContentParser {
         }
         
         let status: yajl_status
+        
         if !final {
-            status = yajl_parse(handle, bytes.baseAddress!, bytes.count)
+            status = yajl_parse(
+                handle,
+                bytes.baseAddress?.assumingMemoryBound(to: UInt8.self),
+                bytes.count
+            )
         } else {
             status = yajl_complete_parse(handle)
         }
         
         guard status == yajl_status_ok else {
-            let reasonBytes = yajl_get_error(handle, 1, bytes.baseAddress!, bytes.count)
+            let reasonBytes = yajl_get_error(
+                handle,
+                1,
+                bytes.baseAddress?.assumingMemoryBound(to: UInt8.self),
+                bytes.count
+            )
+            
             defer {
                 yajl_free_error(handle, reasonBytes)
             }
+            
             let reason = String(cString: reasonBytes!)
             throw JSONMapParserError(reason: reason)
         }
@@ -123,10 +129,12 @@ public final class JSONParser : ContentParser {
     }
     
     public func finish() throws -> Content {
-        let bytes: [Byte] = []
-        guard let result = try bytes.withUnsafeBufferPointer({ try self.parse($0) }) else {
+        let empty = UnsafeRawBufferPointer(start: nil, count: 0)
+        
+        guard let result = try self.parse(empty) else {
             throw JSONMapParserError(reason: "Unexpected end of bytes.")
         }
+        
         return result
     }
     
@@ -305,7 +313,7 @@ fileprivate func yajl_double(_ ptr: UnsafeMutableRawPointer?, value: Double) -> 
     return ctx.appendDouble(value)
 }
 
-fileprivate func yajl_string(_ ptr: UnsafeMutableRawPointer?, buffer: UnsafePointer<Byte>?, bufferLength: Int) -> Int32 {
+fileprivate func yajl_string(_ ptr: UnsafeMutableRawPointer?, buffer: UnsafePointer<UInt8>?, bufferLength: Int) -> Int32 {
     let ctx = Unmanaged<JSONParser>.fromOpaque(ptr!).takeUnretainedValue()
     
     let str: String
@@ -332,7 +340,7 @@ fileprivate func yajl_start_map(_ ptr: UnsafeMutableRawPointer?) -> Int32 {
     return ctx.startMap()
 }
 
-fileprivate func yajl_map_key(_ ptr: UnsafeMutableRawPointer?, buffer: UnsafePointer<Byte>?, bufferLength: Int) -> Int32 {
+fileprivate func yajl_map_key(_ ptr: UnsafeMutableRawPointer?, buffer: UnsafePointer<UInt8>?, bufferLength: Int) -> Int32 {
     let ctx = Unmanaged<JSONParser>.fromOpaque(ptr!).takeUnretainedValue()
     
     let str: String

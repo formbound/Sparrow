@@ -1,6 +1,5 @@
 import XCTest
 import HTTP
-import Router
 @testable import Sparrow
 
 public class SparrowTests : XCTestCase {
@@ -22,23 +21,23 @@ public class SparrowTests : XCTestCase {
             }
             
             root.get { request in
-                return Response()
+                return Response(status: .ok)
             }
             
             root.add("echo") { echo in
                 echo.post { request in
-                    return Response(content: request.content)
+                    return Response(status: .ok, content: request.content ?? .null)
                 }
             }
             
             root.add("foo") { foo in
                 foo.get { request in
-                    return Response()
+                    return Response(status: .ok)
                 }
                 
                 foo.add("bar") { bar in
                     bar.get { request in
-                        return Response()
+                        return Response(status: .ok)
                     }
                 }
             }

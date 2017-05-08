@@ -1,3 +1,5 @@
+import Foundation
+
 public struct Cookie {
     public var name: String
     public var value: String

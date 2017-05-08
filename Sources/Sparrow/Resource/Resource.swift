@@ -2,19 +2,19 @@ import HTTP
 import Core
 
 public protocol Resource {
-    static var parameterKey: ParameterKey { get }
+    static var idKey: ParameterKey { get }
     
-    associatedtype ListParameters : ParameterMappable = NoParameters
-    associatedtype CreateParameters : ParameterMappable = NoParameters
-    associatedtype RemoveAllParameters : ParameterMappable = NoParameters
-    associatedtype ShowParameters : ParameterMappable = NoParameters
-    associatedtype InsertParameters : ParameterMappable = NoParameters
-    associatedtype UpdateParameters : ParameterMappable = NoParameters
-    associatedtype RemoveParameters : ParameterMappable = NoParameters
+    associatedtype ListParameters : ParametersInitializable = NoParameters
+    associatedtype CreateParameters : ParametersInitializable = NoParameters
+    associatedtype RemoveAllParameters : ParametersInitializable = NoParameters
+    associatedtype ShowParameters : ParametersInitializable = NoParameters
+    associatedtype InsertParameters : ParametersInitializable = NoParameters
+    associatedtype UpdateParameters : ParametersInitializable = NoParameters
+    associatedtype RemoveParameters : ParametersInitializable = NoParameters
     
-    associatedtype CreateInput : ContentMappable = NoContent
-    associatedtype InsertInput : ContentMappable = NoContent
-    associatedtype UpdateInput : ContentMappable = NoContent
+    associatedtype CreateInput : ContentInitializable = NoContent
+    associatedtype InsertInput : ContentInitializable = NoContent
+    associatedtype UpdateInput : ContentInitializable = NoContent
     
     associatedtype ListOutput : ResponseRepresentable = NoContent
     associatedtype CreateOutput : ResponseRepresentable = NoContent
@@ -43,7 +43,7 @@ public protocol Resource {
 }
 
 public extension Resource {
-    static var parameterKey: ParameterKey {
+    static var idKey: ParameterKey {
         return ParameterKey(String(describing: type(of: self)))
     }
     
@@ -96,72 +96,72 @@ private func response(from output: ResponseRepresentable, status: Status = .ok) 
 
 public extension Resource {
     fileprivate func build(router collectionRouter: Router) {
-//        collectionRouter.add(Self.parameterKey) { itemRouter in
-//            configure(collectionRouter: collectionRouter, itemRouter: itemRouter)
-//            itemRouter.get(body: show(request:))
-//            itemRouter.put(body: insert(request:))
-//            itemRouter.patch(body: update(request:))
-//            itemRouter.delete(body: remove(request:))
-//        }
-//        
-//        collectionRouter.preprocess(body: preprocess(request:))
-//        
-//        collectionRouter.get(body: list(request:))
-//        collectionRouter.post(body: create(request:))
-//        collectionRouter.delete(body: removeAll(request:))
-//        
-//        collectionRouter.postprocess(body: postprocess(response:for:))
-//        collectionRouter.recover(body: recover(error:))
+        collectionRouter.add(parameter: Self.idKey) { itemRouter in
+            configure(collectionRouter: collectionRouter, itemRouter: itemRouter)
+            itemRouter.get(body: show(request:))
+            itemRouter.put(body: insert(request:))
+            itemRouter.patch(body: update(request:))
+            itemRouter.delete(body: remove(request:))
+        }
+        
+        collectionRouter.preprocess(body: preprocess(request:))
+        
+        collectionRouter.get(body: list(request:))
+        collectionRouter.post(body: create(request:))
+        collectionRouter.delete(body: removeAll(request:))
+        
+        collectionRouter.postprocess(body: postprocess(response:for:))
+        collectionRouter.recover(body: recover(error:))
     }
     
-//    private func list(request: Request) throws -> Response {
-//        let parameters = try request.getParameters() as ListParameters
-//        let output = try self.list(parameters: parameters)
-//        return response(from: output)
-//    }
-//    
-//    private func create(request: Request) throws -> Response {
-//        let parameters = try request.getParameters() as CreateParameters
-//        let input = try request.getContent() as CreateInput
-//        let output = try self.create(parameters: parameters, content: input)
-//        return response(from: output, status: .created)
-//    }
-//    
-//    private func removeAll(request: Request) throws -> Response {
-//        let parameters = try request.getParameters() as RemoveAllParameters
-//        let output = try self.removeAll(parameters: parameters)
-//        return response(from: output)
-//    }
-//    
-//    private func show(request: Request) throws -> Response {
-//        let parameters = try request.getParameters() as ShowParameters
-//        let output = try show(parameters: parameters)
-//        return response(from: output)
-//    }
-//    
-//    private func insert(request: Request) throws -> Response {
-//        let parameters = try request.getParameters() as InsertParameters
-//        let input = try request.getContent() as InsertInput
-//        let output = try insert(parameters: parameters, content: input)
-//        return response(from: output)
-//    }
-//    
-//    private func update(request: Request) throws -> Response {
-//        let parameters = try request.getParameters() as UpdateParameters
-//        let input = try request.getContent() as UpdateInput
-//        let output = try self.update(parameters: parameters, content: input)
-//        return response(from: output)
-//    }
-//    
-//    private func remove(request: Request) throws -> Response {
-//        let parameters = try request.getParameters() as RemoveParameters
-//        let output = try self.remove(parameters: parameters)
-//        return response(from: output)
-//    }
+    private func list(request: Request) throws -> Response {
+        let parameters = try request.getParameters() as ListParameters
+        let output = try self.list(parameters: parameters)
+        return response(from: output)
+    }
+    
+    private func create(request: Request) throws -> Response {
+        let parameters = try request.getParameters() as CreateParameters
+        let input = try request.getContent() as CreateInput
+        let output = try self.create(parameters: parameters, content: input)
+        return response(from: output, status: .created)
+    }
+    
+    private func removeAll(request: Request) throws -> Response {
+        let parameters = try request.getParameters() as RemoveAllParameters
+        let output = try self.removeAll(parameters: parameters)
+        return response(from: output)
+    }
+    
+    private func show(request: Request) throws -> Response {
+        let parameters = try request.getParameters() as ShowParameters
+        let output = try show(parameters: parameters)
+        return response(from: output)
+    }
+    
+    private func insert(request: Request) throws -> Response {
+        let parameters = try request.getParameters() as InsertParameters
+        let input = try request.getContent() as InsertInput
+        let output = try insert(parameters: parameters, content: input)
+        return response(from: output)
+    }
+    
+    private func update(request: Request) throws -> Response {
+        let parameters = try request.getParameters() as UpdateParameters
+        let input = try request.getContent() as UpdateInput
+        let output = try self.update(parameters: parameters, content: input)
+        return response(from: output)
+    }
+    
+    private func remove(request: Request) throws -> Response {
+        let parameters = try request.getParameters() as RemoveParameters
+        let output = try self.remove(parameters: parameters)
+        return response(from: output)
+    }
 }
 
 public extension Router {
-    func add<R : Resource>(_ pathComponent: String, resource: R) {
-        add(pathComponent, body: resource.build(router:))
+    func add<R : Resource>(path: String, resource: R) {
+        add(path: path, body: resource.build(router:))
     }
 }

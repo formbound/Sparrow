@@ -16,10 +16,12 @@ public struct MessageLogger {
             item:
                 "\n" + request.description +
                 "\n" + response.description,
-            file: file,
-            function: function,
-            line: line,
-            column: column
+            locationInfo: Logger.LocationInfo(
+                file: file,
+                line: line,
+                column: column,
+                function: function
+            )
         )
     }
 }
