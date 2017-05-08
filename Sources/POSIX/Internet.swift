@@ -4,7 +4,11 @@
     import Darwin.C
 #endif
 
-private func withUnsafeMutablePointer<S, T, Result>(to source: inout S, rebindingMemoryTo target: T.Type, _ body: (UnsafeMutablePointer<T>) throws -> Result) rethrows -> Result {
+private func withUnsafeMutablePointer<S, T, Result>(
+    to source: inout S,
+    rebindingMemoryTo target: T.Type,
+    _ body: (UnsafeMutablePointer<T>
+) throws -> Result) rethrows -> Result {
     return try withUnsafeMutablePointer(to: &source) { pointer in
         try pointer.withMemoryRebound(to: T.self, capacity: MemoryLayout<T>.size) { reboundPointer in
             return try body(reboundPointer)
@@ -36,10 +40,76 @@ public enum AddressFamily: RawRepresentable {
 }
 
 public struct Address {
-    let data: (Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8, Int8)
+    let data: (
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8,
+        Int8
+    )
 
     public init() {
-        self.data = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        self.data = (
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        )
     }
 
     public init(family: AddressFamily, port: Int) {
@@ -102,37 +172,49 @@ public struct Address {
         }
     }
 
-    public static func fromAddressPointer(body: (UnsafeMutablePointer<sockaddr>) throws -> Void) rethrows -> Address {
+    public static func fromAddressPointer(
+        body: (UnsafeMutablePointer<sockaddr>) throws -> Void
+    ) rethrows -> Address {
         var address = Address()
         try address.withAddressPointer(body: body)
         return address
     }
 
-    public static func fromIPv4Pointer(body: (UnsafeMutablePointer<sockaddr_in>) throws -> Void) rethrows -> Address {
+    public static func fromIPv4Pointer(
+        body: (UnsafeMutablePointer<sockaddr_in>) throws -> Void
+    ) rethrows -> Address {
         var address = Address()
         try address.withIPv4Pointer(body: body)
         return address
     }
 
-    public static func fromIPv6Pointer(body: (UnsafeMutablePointer<sockaddr_in6>) throws -> Void) rethrows -> Address {
+    public static func fromIPv6Pointer(
+        body: (UnsafeMutablePointer<sockaddr_in6>) throws -> Void
+    ) rethrows -> Address {
         var address = Address()
         try address.withIPv6Pointer(body: body)
         return address
     }
 
-    public mutating func withAddressPointer<Result>(body: (UnsafeMutablePointer<sockaddr>) throws -> Result) rethrows -> Result {
+    public mutating func withAddressPointer<Result>(
+        body: (UnsafeMutablePointer<sockaddr>) throws -> Result
+    ) rethrows -> Result {
         return try withUnsafeMutablePointer(to: &self, rebindingMemoryTo: sockaddr.self) {
             try body($0)
         }
     }
 
-    fileprivate mutating func withIPv4Pointer<Result>(body: (UnsafeMutablePointer<sockaddr_in>) throws -> Result) rethrows -> Result {
+    fileprivate mutating func withIPv4Pointer<Result>(
+        body: (UnsafeMutablePointer<sockaddr_in>
+    ) throws -> Result) rethrows -> Result {
         return try withUnsafeMutablePointer(to: &self, rebindingMemoryTo: sockaddr_in.self) {
             try body($0)
         }
     }
 
-    fileprivate mutating func withIPv6Pointer<Result>(body: (UnsafeMutablePointer<sockaddr_in6>) throws -> Result) rethrows -> Result {
+    fileprivate mutating func withIPv6Pointer<Result>(
+        body: (UnsafeMutablePointer<sockaddr_in6>) throws -> Result
+    ) rethrows -> Result {
         return try withUnsafeMutablePointer(to: &self, rebindingMemoryTo: sockaddr_in6.self) {
             try body($0)
         }

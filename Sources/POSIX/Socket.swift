@@ -44,7 +44,11 @@
     }
 #endif
 
-public func socket(family: AddressFamily, type: SocketType, `protocol`: Int32) throws -> FileDescriptor {
+public func socket(
+    family: AddressFamily,
+    type: SocketType,
+    `protocol`: Int32
+) throws -> FileDescriptor {
     let fileDescriptor = socket(family.rawValue, Int32(type.rawValue), `protocol`)
     switch fileDescriptor {
     case -1: throw SystemError.lastOperationError
@@ -115,7 +119,11 @@ public struct SendFlags: OptionSet {
     #endif
 }
 
-public func send(socket: FileDescriptor, bytes: UnsafeRawBufferPointer, flags: SendFlags = .none) throws -> Int {
+public func send(
+    socket: FileDescriptor,
+    bytes: UnsafeRawBufferPointer,
+    flags: SendFlags = .none
+) throws -> Int {
     let result = send(socket, bytes.baseAddress, bytes.count, flags.rawValue)
 
     guard result != -1 else {
@@ -182,7 +190,14 @@ public func checkError(socket: FileDescriptor) throws {
 
 public func setReusePort(socket: FileDescriptor) throws {
     var option: Int32 = 1
-    let result = setsockopt(socket, SOL_SOCKET, SO_REUSEPORT, &option, socklen_t(MemoryLayout<Int32>.size))
+    
+    let result = setsockopt(
+        socket,
+        SOL_SOCKET,
+        SO_REUSEPORT,
+        &option,
+        socklen_t(MemoryLayout<Int32>.size)
+    )
 
     if result != 0 {
         throw SystemError.lastOperationError
@@ -191,7 +206,14 @@ public func setReusePort(socket: FileDescriptor) throws {
 
 public func setReuseAddress(socket: FileDescriptor) throws {
     var option: Int32 = 1
-    let result = setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, &option, socklen_t(MemoryLayout<Int32>.size))
+    
+    let result = setsockopt(
+        socket,
+        SOL_SOCKET,
+        SO_REUSEADDR,
+        &option,
+        socklen_t(MemoryLayout<Int32>.size)
+    )
 
     if result != 0 {
         throw SystemError.lastOperationError
@@ -201,7 +223,14 @@ public func setReuseAddress(socket: FileDescriptor) throws {
 #if os(macOS)
     public func setNoSignalOnBrokenPipe(socket: FileDescriptor) throws {
         var option: Int32 = 1
-        let result = setsockopt(socket, SOL_SOCKET, SO_NOSIGPIPE, &option, socklen_t(MemoryLayout<Int32>.size))
+        
+        let result = setsockopt(
+            socket,
+            SOL_SOCKET,
+            SO_NOSIGPIPE,
+            &option,
+            socklen_t(MemoryLayout<Int32>.size)
+        )
 
         if result != 0 {
             throw SystemError.lastOperationError
