@@ -30,8 +30,8 @@ struct RootRoute : Route {
     }
     
     func configure(router root: Router) {
-        root.add("users", resource: UsersResource(app: app))
-        root.add("profile", route: ProfileRoute(app: app))
+        root.add(path: "users", resource: UsersResource(app: app))
+        root.add(path: "profile", route: ProfileRoute(app: app))
     }
     
     func preprocess(request: Request) throws {
@@ -70,42 +70,42 @@ struct UsersResource : Resource {
     let app: App
     
     func configure(collectionRouter users: Router, itemRouter user: Router) {
-        users.add("active") { active in
-            active.add("today") { today in
+        users.add(path: "active") { active in
+            active.add(path: "today") { today in
                 today.get { request in
                     return Response(status: .ok, content: "All users active today")
                 }
             }
         }
         
-        user.add("photos", resource: UserPhotosResource(app: app))
+        user.add(path: "photos", resource: UserPhotosResource(app: app))
     }
     
-    func list(parameters: NoParameters) throws -> String {
+    func list(request: Request, parameters: NoParameters) throws -> Content {
         return "List all users"
     }
     
-    func create(parameters: NoParameters, content: NoContent) throws -> String {
+    func create(request: Request, parameters: NoParameters, content: NoContent) throws -> Content {
         return "Create user"
     }
     
-    func removeAll(parameters: NoParameters) throws -> String {
+    func removeAll(request: Request, parameters: NoParameters) throws -> Content {
         return "Remove all users"
     }
     
-    func show(parameters: UsersParameters) throws -> String {
+    func show(request: Request, parameters: UsersParameters) throws -> Content {
         return "Show user \(parameters.userID)"
     }
     
-    func insert(parameters: UsersParameters, content: NoContent) throws -> String {
+    func insert(request: Request, parameters: UsersParameters, content: NoContent) throws -> Content {
         return "Insert user \(parameters.userID)"
     }
     
-    func update(parameters: UsersParameters, content: NoContent) throws -> String {
+    func update(request: Request, parameters: UsersParameters, content: NoContent) throws -> Content {
         return "Update user \(parameters.userID)"
     }
     
-    func remove(parameters: UsersParameters) throws -> String {
+    func remove(request: Request, parameters: UsersParameters) throws -> Content {
         return "Remove user \(parameters.userID)"
     }
 }
@@ -125,31 +125,31 @@ struct UserPhotoParameters : ParametersInitializable {
 struct UserPhotosResource : Resource {
     let app: App
     
-    func list(parameters: UsersParameters) throws -> String {
+    func list(request: Request, parameters: UsersParameters) throws -> Content {
         return "List all photos for user \(parameters.userID)"
     }
     
-    func create(parameters: UsersParameters, content: NoContent) throws -> String {
+    func create(request: Request, parameters: UsersParameters, content: NoContent) throws -> Content {
         return "Create photo for user \(parameters.userID)"
     }
     
-    func removeAll(parameters: UsersParameters) throws -> String {
+    func removeAll(request: Request, parameters: UsersParameters) throws -> Content {
         return "Remove all photos for user \(parameters.userID)"
     }
     
-    func show(parameters: UserPhotoParameters) throws -> String {
+    func show(request: Request, parameters: UserPhotoParameters) throws -> Content {
         return "Show photo \(parameters.photoID) for user \(parameters.userID)"
     }
     
-    func insert(parameters: UserPhotoParameters, content: NoContent) throws -> String {
+    func insert(request: Request, parameters: UserPhotoParameters, content: NoContent) throws -> Content {
         return "Insert photo \(parameters.photoID) for user \(parameters.userID)"
     }
     
-    func update(parameters: UserPhotoParameters, content: NoContent) throws -> String {
+    func update(request: Request, parameters: UserPhotoParameters, content: NoContent) throws -> Content {
         return "Update photo \(parameters.photoID) for user \(parameters.userID)"
     }
     
-    func remove(parameters: UserPhotoParameters) throws -> String {
+    func remove(request: Request, parameters: UserPhotoParameters) throws -> Content {
         return "Remove photo \(parameters.photoID) for user \(parameters.userID)"
     }
 }
@@ -194,9 +194,9 @@ class RouterTests : XCTestCase {
     func testIndex() throws {
         let request = Request(
             method: .get,
-            url: "/",
+            url: URL(string: "/")!,
             headers: headers
-        )!
+        )
         
         let response = router.respond(to: request)
         
@@ -207,9 +207,9 @@ class RouterTests : XCTestCase {
     func testShowUserPhoto() throws {
         let request = Request(
             method: .get,
-            url: "/users/23/photos/14",
+            url: URL(string: "/users/23/photos/14")!,
             headers: headers
-        )!
+        )
         
         let response = router.respond(to: request)
         
@@ -220,9 +220,9 @@ class RouterTests : XCTestCase {
     func testListUsers() throws {
         let request = Request(
             method: .get,
-            url: "/users",
+            url: URL(string: "/users")!,
             headers: headers
-        )!
+        )
         
         let response = router.respond(to: request)
         
@@ -233,9 +233,9 @@ class RouterTests : XCTestCase {
     func testCreateUser() throws {
         let request = Request(
             method: .post,
-            url: "/users",
+            url: URL(string: "/users")!,
             headers: headers
-        )!
+        )
         
         let response = router.respond(to: request)
         response.assert(status: .created)
@@ -245,9 +245,9 @@ class RouterTests : XCTestCase {
     func testShowUser() throws {
         let request = Request(
             method: .get,
-            url: "/users/23",
+            url: URL(string: "/users/23")!,
             headers: headers
-        )!
+        )
         
         let response = router.respond(to: request)
         
@@ -258,9 +258,9 @@ class RouterTests : XCTestCase {
     func testListUserPhotos() throws {
         let request = Request(
             method: .get,
-            url: "/users/23/photos",
+            url: URL(string: "/users/23/photos")!,
             headers: headers
-        )!
+        )
         
         let response = router.respond(to: request)
         
@@ -271,9 +271,9 @@ class RouterTests : XCTestCase {
     func testShowProfile() throws {
         let request = Request(
             method: .get,
-            url: "/profile",
+            url: URL(string: "/profile")!,
             headers: headers
-        )!
+        )
         
         let response = router.respond(to: request)
         
@@ -284,9 +284,9 @@ class RouterTests : XCTestCase {
     func testNotFound() throws {
         let request = Request(
             method: .get,
-            url: "/profile/not/found",
+            url: URL(string: "/profile/not/found")!,
             headers: headers
-        )!
+        )
         
         let response = router.respond(to: request)
         
@@ -296,9 +296,9 @@ class RouterTests : XCTestCase {
     func testInvalidParameter() throws {
         let request = Request(
             method: .get,
-            url: "/users/invalid-path-parameter",
+            url: URL(string: "/users/invalid-path-parameter")!,
             headers: headers
-        )!
+        )
         
         let response = router.respond(to: request)
         
@@ -308,9 +308,9 @@ class RouterTests : XCTestCase {
     func testMethodNotAllowed() throws {
         let request = Request(
             method: .put,
-            url: "/users",
+            url: URL(string: "/users")!,
             headers: headers
-        )!
+        )
         
         let response = router.respond(to: request)
         
@@ -320,8 +320,8 @@ class RouterTests : XCTestCase {
     func testAccessDenied() throws {
         let request = Request(
             method: .get,
-            url: "/access-denied"
-        )!
+            url: URL(string: "/access-denied")!
+        )
         
         let response = router.respond(to: request)
         
@@ -331,9 +331,9 @@ class RouterTests : XCTestCase {
     func testPerformance() throws {
         let request = Request(
             method: .get,
-            url: "/users/active/today",
+            url: URL(string: "/users/active/today")!,
             headers: headers
-        )!
+        )
         
         measure {
             _ = self.router.respond(to: request)
@@ -343,9 +343,9 @@ class RouterTests : XCTestCase {
     func testPerformanceWithPathParameter() {
         let request = Request(
             method: .get,
-            url: "/users/23/photos",
+            url: URL(string: "/users/23/photos")!,
             headers: headers
-        )!
+        )
         
         measure {
             _ = self.router.respond(to: request)

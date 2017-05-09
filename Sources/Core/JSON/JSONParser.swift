@@ -5,8 +5,6 @@
 #endif
 
 import CYAJL
-import Core
-import HTTP
 
 public struct JSONMapParserOptions : OptionSet {
     public let rawValue: Int
@@ -42,11 +40,11 @@ public final class JSONParser : ContentParser {
     fileprivate var stack: [JSONMapParserState] = []
     
     fileprivate let bufferCapacity = 8*1024
-    fileprivate let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: 8*1024)
+    fileprivate let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: 8 * 1024)
     
     fileprivate var result: Content? = nil
     
-    fileprivate var handle: yajl_handle!
+    fileprivate var handle: yajl_handle?
     
     public convenience init() {
         self.init(options: [])
@@ -57,9 +55,11 @@ public final class JSONParser : ContentParser {
         self.state.dictionaryKey = "root"
         self.stack.reserveCapacity(12)
         
-        handle = yajl_alloc(&yajl_handle_callbacks,
-                            nil,
-                            Unmanaged.passUnretained(self).toOpaque())
+        handle = yajl_alloc(
+            &yajl_handle_callbacks,
+            nil,
+            Unmanaged.passUnretained(self).toOpaque()
+        )
         
         yajl_config_set(handle, yajl_allow_comments, options.contains(.allowComments) ? 1 : 0)
         yajl_config_set(handle, yajl_dont_validate_strings, options.contains(.dontValidateStrings) ? 1 : 0)
@@ -68,6 +68,7 @@ public final class JSONParser : ContentParser {
         yajl_config_set(handle, yajl_allow_partial_values, options.contains(.allowPartialValues) ? 1 : 0)
         
     }
+    
     deinit {
         yajl_free(handle)
         buffer.deallocate(capacity: bufferCapacity)
@@ -81,6 +82,7 @@ public final class JSONParser : ContentParser {
             guard final else {
                 throw JSONMapParserError(reason: "Unexpected bytes. Parser already completed.")
             }
+            
             return result
         }
         
@@ -108,7 +110,11 @@ public final class JSONParser : ContentParser {
                 yajl_free_error(handle, reasonBytes)
             }
             
-            let reason = String(cString: reasonBytes!)
+            guard let cString = reasonBytes else {
+                throw JSONMapParserError(reason: "Unkown reason.")
+            }
+            
+            let reason = String(cString: cString)
             throw JSONMapParserError(reason: reason)
         }
         
@@ -173,6 +179,7 @@ public final class JSONParser : ContentParser {
         if stack.count == 0 {
             return 0
         }
+        
         var previousState = stack.removeLast()
         let result: Int32 = previousState.append(state.content)
         state = previousState
@@ -189,12 +196,12 @@ public final class JSONParser : ContentParser {
         if stack.count == 0 {
             return 0
         }
+        
         var previousState = stack.removeLast()
         let result: Int32 = previousState.append(state.content)
         state = previousState
         return result
     }
-    
 }
 
 fileprivate struct JSONMapParserState {
@@ -230,6 +237,7 @@ fileprivate struct JSONMapParserState {
         } else {
             array.append(.bool(value))
         }
+        
         return 1
     }
     
@@ -239,6 +247,7 @@ fileprivate struct JSONMapParserState {
         } else {
             array.append(.int(Int(value)))
         }
+        
         return 1
     }
     
@@ -248,6 +257,7 @@ fileprivate struct JSONMapParserState {
         } else {
             array.append(.double(value))
         }
+        
         return 1
     }
     
@@ -257,6 +267,7 @@ fileprivate struct JSONMapParserState {
         } else {
             array.append(.string(value))
         }
+        
         return 1
     }
     
@@ -266,6 +277,7 @@ fileprivate struct JSONMapParserState {
         } else {
             array.append(.null)
         }
+        
         return 1
     }
     
@@ -275,6 +287,7 @@ fileprivate struct JSONMapParserState {
         } else {
             array.append(value)
         }
+        
         return 1
     }
 }
@@ -293,86 +306,102 @@ fileprivate var yajl_handle_callbacks = yajl_callbacks(
     yajl_end_array: yajl_end_array
 )
 
-fileprivate func yajl_null(_ ptr: UnsafeMutableRawPointer?) -> Int32 {
-    let ctx = Unmanaged<JSONParser>.fromOpaque(ptr!).takeUnretainedValue()
-    return ctx.appendNull()
+fileprivate func yajl_null(_ pointer: UnsafeMutableRawPointer?) -> Int32 {
+    let parser = Unmanaged<JSONParser>.fromOpaque(pointer!).takeUnretainedValue()
+    return parser.appendNull()
 }
 
-fileprivate func yajl_boolean(_ ptr: UnsafeMutableRawPointer?, value: Int32) -> Int32 {
-    let ctx = Unmanaged<JSONParser>.fromOpaque(ptr!).takeUnretainedValue()
-    return ctx.appendBoolean(value != 0)
+fileprivate func yajl_boolean(_ pointer: UnsafeMutableRawPointer?, value: Int32) -> Int32 {
+    let parser = Unmanaged<JSONParser>.fromOpaque(pointer!).takeUnretainedValue()
+    return parser.appendBoolean(value != 0)
 }
 
-fileprivate func yajl_integer(_ ptr: UnsafeMutableRawPointer?, value: Int64) -> Int32 {
-    let ctx = Unmanaged<JSONParser>.fromOpaque(ptr!).takeUnretainedValue()
-    return ctx.appendInteger(value)
+fileprivate func yajl_integer(_ pointer: UnsafeMutableRawPointer?, value: Int64) -> Int32 {
+    let parser = Unmanaged<JSONParser>.fromOpaque(pointer!).takeUnretainedValue()
+    return parser.appendInteger(value)
 }
 
-fileprivate func yajl_double(_ ptr: UnsafeMutableRawPointer?, value: Double) -> Int32 {
-    let ctx = Unmanaged<JSONParser>.fromOpaque(ptr!).takeUnretainedValue()
-    return ctx.appendDouble(value)
+fileprivate func yajl_double(_ pointer: UnsafeMutableRawPointer?, value: Double) -> Int32 {
+    let parser = Unmanaged<JSONParser>.fromOpaque(pointer!).takeUnretainedValue()
+    return parser.appendDouble(value)
 }
 
-fileprivate func yajl_string(_ ptr: UnsafeMutableRawPointer?, buffer: UnsafePointer<UInt8>?, bufferLength: Int) -> Int32 {
-    let ctx = Unmanaged<JSONParser>.fromOpaque(ptr!).takeUnretainedValue()
+fileprivate func yajl_string(
+    _ pointer: UnsafeMutableRawPointer?,
+    buffer: UnsafePointer<UInt8>?,
+    bufferLength: Int
+) -> Int32 {
+    guard let buffer = buffer else {
+        return 0
+    }
     
-    let str: String
+    let parser = Unmanaged<JSONParser>.fromOpaque(pointer!).takeUnretainedValue()
+    let string: String
+    
     if bufferLength > 0 {
-        if bufferLength < ctx.bufferCapacity {
-            memcpy(UnsafeMutableRawPointer(ctx.buffer), UnsafeRawPointer(buffer!), bufferLength)
-            ctx.buffer[bufferLength] = 0
-            str = String(cString: UnsafePointer(ctx.buffer))
+        if bufferLength < parser.bufferCapacity {
+            memcpy(UnsafeMutableRawPointer(parser.buffer), UnsafeRawPointer(buffer), bufferLength)
+            parser.buffer[bufferLength] = 0
+            string = String(cString: UnsafePointer(parser.buffer))
         } else {
             var buffer = UnsafeMutablePointer<CChar>.allocate(capacity: bufferLength + 1)
             defer { buffer.deallocate(capacity: bufferLength + 1) }
             buffer[bufferLength] = 0
-            str = String(cString: UnsafePointer(buffer))
+            string = String(cString: UnsafePointer(buffer))
         }
     } else {
-        str = ""
+        string = ""
     }
     
-    return ctx.appendString(str)
+    return parser.appendString(string)
 }
 
-fileprivate func yajl_start_map(_ ptr: UnsafeMutableRawPointer?) -> Int32 {
-    let ctx = Unmanaged<JSONParser>.fromOpaque(ptr!).takeUnretainedValue()
-    return ctx.startMap()
+fileprivate func yajl_start_map(_ pointer: UnsafeMutableRawPointer?) -> Int32 {
+    let parser = Unmanaged<JSONParser>.fromOpaque(pointer!).takeUnretainedValue()
+    return parser.startMap()
 }
 
-fileprivate func yajl_map_key(_ ptr: UnsafeMutableRawPointer?, buffer: UnsafePointer<UInt8>?, bufferLength: Int) -> Int32 {
-    let ctx = Unmanaged<JSONParser>.fromOpaque(ptr!).takeUnretainedValue()
+fileprivate func yajl_map_key(
+    _ pointer: UnsafeMutableRawPointer?,
+    buffer: UnsafePointer<UInt8>?,
+    bufferLength: Int
+) -> Int32 {
+    guard let buffer = buffer else {
+        return 0
+    }
     
-    let str: String
+    let parser = Unmanaged<JSONParser>.fromOpaque(pointer!).takeUnretainedValue()
+    let string: String
+    
     if bufferLength > 0 {
-        if bufferLength < ctx.bufferCapacity {
-            memcpy(UnsafeMutableRawPointer(ctx.buffer), UnsafeRawPointer(buffer!), bufferLength)
-            ctx.buffer[bufferLength] = 0
-            str = String(cString: UnsafePointer(ctx.buffer))
+        if bufferLength < parser.bufferCapacity {
+            memcpy(UnsafeMutableRawPointer(parser.buffer), UnsafeRawPointer(buffer), bufferLength)
+            parser.buffer[bufferLength] = 0
+            string = String(cString: UnsafePointer(parser.buffer))
         } else {
             var buffer = UnsafeMutablePointer<CChar>.allocate(capacity: bufferLength + 1)
             defer { buffer.deallocate(capacity: bufferLength + 1) }
             buffer[bufferLength] = 0
-            str = String(cString: UnsafePointer(buffer))
+            string = String(cString: UnsafePointer(buffer))
         }
     } else {
-        str = ""
+        string = ""
     }
     
-    return ctx.mapKey(str)
+    return parser.mapKey(string)
 }
 
-fileprivate func yajl_end_map(_ ptr: UnsafeMutableRawPointer?) -> Int32 {
-    let ctx = Unmanaged<JSONParser>.fromOpaque(ptr!).takeUnretainedValue()
-    return ctx.endMap()
+fileprivate func yajl_end_map(_ pointer: UnsafeMutableRawPointer?) -> Int32 {
+    let parser = Unmanaged<JSONParser>.fromOpaque(pointer!).takeUnretainedValue()
+    return parser.endMap()
 }
 
-fileprivate func yajl_start_array(_ ptr: UnsafeMutableRawPointer?) -> Int32 {
-    let ctx = Unmanaged<JSONParser>.fromOpaque(ptr!).takeUnretainedValue()
-    return ctx.startArray()
+fileprivate func yajl_start_array(_ pointer: UnsafeMutableRawPointer?) -> Int32 {
+    let parser = Unmanaged<JSONParser>.fromOpaque(pointer!).takeUnretainedValue()
+    return parser.startArray()
 }
 
-fileprivate func yajl_end_array(_ ptr: UnsafeMutableRawPointer?) -> Int32 {
-    let ctx = Unmanaged<JSONParser>.fromOpaque(ptr!).takeUnretainedValue()
-    return ctx.endArray()
+fileprivate func yajl_end_array(_ pointer: UnsafeMutableRawPointer?) -> Int32 {
+    let parser = Unmanaged<JSONParser>.fromOpaque(pointer!).takeUnretainedValue()
+    return parser.endArray()
 }

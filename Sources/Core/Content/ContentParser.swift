@@ -1,5 +1,4 @@
 import Venice
-import Core
 
 public enum ContentParserError : Error {
     case invalidInput

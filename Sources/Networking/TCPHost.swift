@@ -8,9 +8,6 @@ public enum TCPError : Error {
     case failedToBindSocket
     case failedToListen
     case failedToGetSocketAddress
-    case acceptTimedOut
-    case connectTimedOut
-    case writeTimedOut
     case invalidFileDescriptor
 }
 
@@ -72,7 +69,6 @@ public final class TCPHost : Host {
     public func accept(deadline: Deadline) throws -> DuplexStream {
         loop: while true {
             do {
-                // Try to get new connection (non-blocking).
                 let (acceptSocket, address) = try POSIX.accept(socket: socket)
                 try tune(socket: acceptSocket)
                 let ip = IP(address: address)
@@ -80,13 +76,8 @@ public final class TCPHost : Host {
             } catch {
                 switch error {
                 case SystemError.resourceTemporarilyUnavailable, SystemError.operationWouldBlock:
-                    do {
-                        // Wait till new connection is available.
-                        try poll(socket, event: .read, deadline: deadline)
-                        continue loop
-                    } catch VeniceError.timeout {
-                        throw TCPError.acceptTimedOut
-                    }
+                    try poll(socket, event: .read, deadline: deadline)
+                    continue loop
                 default:
                     throw error
                 }

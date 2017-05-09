@@ -6,8 +6,6 @@
 
 import CYAJL
 import Venice
-import Core
-import HTTP
 
 public struct JSONSerializerError : Error, CustomStringConvertible {
     let reason: String
@@ -18,12 +16,11 @@ public struct JSONSerializerError : Error, CustomStringConvertible {
 }
 
 public final class JSONSerializer : ContentSerializer {
-
     private var ordering: Bool
     private var buffer: String = ""
     private var bufferSize: Int = 0
 
-    private var handle: yajl_gen!
+    private var handle: yajl_gen?
 
     public convenience init() {
         self.init(ordering: false)
@@ -68,16 +65,19 @@ public final class JSONSerializer : ContentSerializer {
         try write(highwater: bufferSize, body: body)
     }
 
-    private func generate(_ dictionary: [String: Content], body: (UnsafeRawBufferPointer) throws -> Void) throws {
+    private func generate(
+        _ dictionary: [String: Content],
+        body: (UnsafeRawBufferPointer
+    ) throws -> Void) throws {
         var status = yajl_gen_status_ok
 
         status = yajl_gen_map_open(handle)
         try check(status: status)
 
         if ordering {
-            for key in dictionary.keys.sorted() {
+            for (key, value) in dictionary.sorted(by: { $0.0 < $1.0 }) {
                 try generate(key)
-                try generate(dictionary[key]!, body: body)
+                try generate(value, body: body)
             }
         } else {
             for (key, value) in dictionary {

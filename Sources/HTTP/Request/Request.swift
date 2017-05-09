@@ -126,16 +126,16 @@ extension Request : CustomStringConvertible {
 
 extension Request {
     public func getParameters<P : ParametersInitializable>() throws -> P {
-        if P.self is NoParameters.Type {
-            return NoParameters() as! P
+        if let noParams = NoParameters() as? P {
+            return noParams
         }
         
         return try P(parameters: parameters)
     }
     
     public func getContent<C : ContentInitializable>() throws -> C {
-        if C.self is NoContent.Type {
-            return NoContent() as! C
+        if let noContent = NoContent() as? C {
+            return noContent
         }
         
         guard let content = content else {

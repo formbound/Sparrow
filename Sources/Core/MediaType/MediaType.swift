@@ -28,7 +28,10 @@ public struct MediaType : CustomStringConvertible {
     public init(string: String) throws {
         let mediaTypeTokens = string.components(separatedBy: ";")
 
-        let mediaType = mediaTypeTokens.first!
+        guard let mediaType = mediaTypeTokens.first else {
+            throw MediaTypeError.malformedMediaTypeString
+        }
+        
         var parameters: [String: String] = [:]
 
         if mediaTypeTokens.count == 2 {

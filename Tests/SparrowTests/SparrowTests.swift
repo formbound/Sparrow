@@ -4,19 +4,10 @@ import HTTP
 
 public class SparrowTests : XCTestCase {
     func testEchoServer() throws {
-//        let authenticator = Authenticator()
         let contentNegotiator = ContentNegotiator()
         
         let router = Router { root in
             root.preprocess { request in
-//                try authenticator.basicAuth(request, realm: "yo") { username, password in
-//                    guard username == "username" && password == "password" else {
-//                        return .accessDenied
-//                    }
-//                    
-//                    return .authenticated
-//                }
-                
                 try contentNegotiator.parse(request, deadline: 1.minute.fromNow())
             }
             
@@ -24,18 +15,18 @@ public class SparrowTests : XCTestCase {
                 return Response(status: .ok)
             }
             
-            root.add("echo") { echo in
+            root.add(path: "echo") { echo in
                 echo.post { request in
                     return Response(status: .ok, content: request.content ?? .null)
                 }
             }
             
-            root.add("foo") { foo in
+            root.add(path: "foo") { foo in
                 foo.get { request in
                     return Response(status: .ok)
                 }
                 
-                foo.add("bar") { bar in
+                foo.add(path: "bar") { bar in
                     bar.get { request in
                         return Response(status: .ok)
                     }
@@ -48,6 +39,6 @@ public class SparrowTests : XCTestCase {
         }
 
         let server = Server()
-        try server.start(respond: router.respond)
+//        try server.start(respond: router.respond)
     }
 }

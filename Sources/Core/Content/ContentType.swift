@@ -1,5 +1,3 @@
-import Core
-
 public struct ContentType {
     public let mediaType: MediaType
     public let parser: ContentParser.Type

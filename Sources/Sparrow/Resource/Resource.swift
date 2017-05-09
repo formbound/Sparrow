@@ -28,14 +28,14 @@ public protocol Resource {
     
     func preprocess(request: Request) throws
     
-    func list(parameters: ListParameters) throws -> ListOutput
-    func create(parameters: CreateParameters, content: CreateInput) throws -> CreateOutput
-    func removeAll(parameters: RemoveAllParameters) throws -> RemoveAllOutput
+    func list(request: Request, parameters: ListParameters) throws -> ListOutput
+    func create(request: Request, parameters: CreateParameters, content: CreateInput) throws -> CreateOutput
+    func removeAll(request: Request, parameters: RemoveAllParameters) throws -> RemoveAllOutput
     
-    func show(parameters: ShowParameters) throws -> ShowOutput
-    func insert(parameters: InsertParameters, content: InsertInput) throws -> InsertOutput
-    func update(parameters: UpdateParameters, content: UpdateInput) throws -> UpdateOutput
-    func remove(parameters: RemoveParameters) throws -> RemoveOutput
+    func show(request: Request, parameters: ShowParameters) throws -> ShowOutput
+    func insert(request: Request, parameters: InsertParameters, content: InsertInput) throws -> InsertOutput
+    func update(request: Request, parameters: UpdateParameters, content: UpdateInput) throws -> UpdateOutput
+    func remove(request: Request, parameters: RemoveParameters) throws -> RemoveOutput
     
     func postprocess(response: Response, for request: Request) throws
     
@@ -51,31 +51,31 @@ public extension Resource {
     
     func preprocess(request: Request) throws {}
     
-    func list(parameters: ListParameters) throws -> ListOutput {
+    func list(request: Request, parameters: ListParameters) throws -> ListOutput {
         throw RouterError.methodNotAllowed
     }
     
-    func create(parameters: CreateParameters, content: CreateInput) throws -> CreateOutput {
+    func create(request: Request, parameters: CreateParameters, content: CreateInput) throws -> CreateOutput {
         throw RouterError.methodNotAllowed
     }
     
-    func removeAll(parameters: RemoveAllParameters) throws -> RemoveAllOutput {
+    func removeAll(request: Request, parameters: RemoveAllParameters) throws -> RemoveAllOutput {
         throw RouterError.methodNotAllowed
     }
     
-    func show(parameters: ShowParameters) throws -> ShowOutput {
+    func show(request: Request, parameters: ShowParameters) throws -> ShowOutput {
         throw RouterError.methodNotAllowed
     }
     
-    func insert(parameters: InsertParameters, content: InsertInput) throws -> InsertOutput {
+    func insert(request: Request, parameters: InsertParameters, content: InsertInput) throws -> InsertOutput {
         throw RouterError.methodNotAllowed
     }
     
-    func update(parameters: UpdateParameters, content: UpdateInput) throws -> UpdateOutput {
+    func update(request: Request, parameters: UpdateParameters, content: UpdateInput) throws -> UpdateOutput {
         throw RouterError.methodNotAllowed
     }
     
-    func remove(parameters: RemoveParameters) throws -> RemoveOutput {
+    func remove(request: Request, parameters: RemoveParameters) throws -> RemoveOutput {
         throw RouterError.methodNotAllowed
     }
     
@@ -116,46 +116,46 @@ public extension Resource {
     
     private func list(request: Request) throws -> Response {
         let parameters = try request.getParameters() as ListParameters
-        let output = try self.list(parameters: parameters)
+        let output = try self.list(request: request, parameters: parameters)
         return response(from: output)
     }
     
     private func create(request: Request) throws -> Response {
         let parameters = try request.getParameters() as CreateParameters
         let input = try request.getContent() as CreateInput
-        let output = try self.create(parameters: parameters, content: input)
+        let output = try self.create(request: request, parameters: parameters, content: input)
         return response(from: output, status: .created)
     }
     
     private func removeAll(request: Request) throws -> Response {
         let parameters = try request.getParameters() as RemoveAllParameters
-        let output = try self.removeAll(parameters: parameters)
+        let output = try self.removeAll(request: request, parameters: parameters)
         return response(from: output)
     }
     
     private func show(request: Request) throws -> Response {
         let parameters = try request.getParameters() as ShowParameters
-        let output = try show(parameters: parameters)
+        let output = try show(request: request, parameters: parameters)
         return response(from: output)
     }
     
     private func insert(request: Request) throws -> Response {
         let parameters = try request.getParameters() as InsertParameters
         let input = try request.getContent() as InsertInput
-        let output = try insert(parameters: parameters, content: input)
+        let output = try insert(request: request, parameters: parameters, content: input)
         return response(from: output)
     }
     
     private func update(request: Request) throws -> Response {
         let parameters = try request.getParameters() as UpdateParameters
         let input = try request.getContent() as UpdateInput
-        let output = try self.update(parameters: parameters, content: input)
+        let output = try self.update(request: request, parameters: parameters, content: input)
         return response(from: output)
     }
     
     private func remove(request: Request) throws -> Response {
         let parameters = try request.getParameters() as RemoveParameters
-        let output = try self.remove(parameters: parameters)
+        let output = try self.remove(request: request, parameters: parameters)
         return response(from: output)
     }
 }

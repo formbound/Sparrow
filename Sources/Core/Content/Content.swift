@@ -1,5 +1,4 @@
-import Core
-import struct Foundation.Data
+import Foundation
 
 public enum ContentError : Error {
     case cannotInitialize(type: ContentInitializable.Type, from: Content)
@@ -12,14 +11,8 @@ public protocol ContentInitializable {
     init(content: Content) throws
 }
 
-public protocol ContentRepresentable : ResponseRepresentable {
+public protocol ContentRepresentable {
     var content: Content { get }
-}
-
-extension ContentRepresentable {
-    public var response: Response {
-        return Response(status: .ok, content: content)
-    }
 }
 
 public protocol ContentConvertible : ContentInitializable, ContentRepresentable {}
@@ -90,19 +83,15 @@ extension Content : ContentConvertible {
     }
 }
 
-public struct NoContent {}
+public struct NoContent {
+    public init() {}
+}
 
 extension NoContent : ContentConvertible {
     public init(content: Content) throws {}
     
     public var content: Content {
         return .array([])
-    }
-}
-
-extension NoContent : ResponseRepresentable {
-    public var response: Response {
-        return Response(status: .noContent)
     }
 }
 
@@ -304,6 +293,23 @@ extension Content : ExpressibleByStringLiteral {
     
     public init(stringLiteral value: StringLiteralType) {
         self = .string(value)
+    }
+}
+
+extension Content : ExpressibleByStringInterpolation {
+    public init<T>(stringInterpolationSegment segment: T) {
+        self = .string(String(describing: segment))
+    }
+    
+    public init(stringInterpolation segments: Content...) {
+        var string = ""
+        
+        for segment in segments {
+            let segmentString: String = (try? segment.get()) ?? ""
+            string.append(segmentString)
+        }
+        
+        self = .string(string)
     }
 }
 

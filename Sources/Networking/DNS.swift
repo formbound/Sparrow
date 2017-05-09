@@ -3,27 +3,23 @@ import POSIX
 import Venice
 
 public enum DNSError: Error {
-    case timeout
     case unableToResolveAddress
-    case unableToGetConfiguration
-    case unableToGetHosts
-    case unableToGetHints
 }
 
 private enum DNS {
-    fileprivate static var configuration: UnsafeMutablePointer<dns_resolv_conf> = {
+    fileprivate static var configuration: UnsafeMutablePointer<dns_resolv_conf>? = {
         var result: Int32 = 0
-        return dns_resconf_local(&result)!
+        return dns_resconf_local(&result)
     }()
 
-    fileprivate static var hosts: OpaquePointer = {
+    fileprivate static var hosts: OpaquePointer? = {
         var result: Int32 = 0
-        return dns_hosts_local(&result)!
+        return dns_hosts_local(&result)
     }()
 
-    fileprivate static var hints: OpaquePointer = {
+    fileprivate static var hints: OpaquePointer? = {
         var result: Int32 = 0
-        return dns_hints_local(configuration, &result)!
+        return dns_hints_local(configuration, &result)
     }()
 
     fileprivate static var options = dns_options()
@@ -37,7 +33,11 @@ extension Address {
         let resolver = dns_res_open(DNS.configuration, DNS.hosts, DNS.hints, nil, &options, &result)
         var addressHints = addrinfo()
         addressHints.ai_family = PF_UNSPEC
-        let addressInfo = dns_ai_open(address, String(port), DNS_T_A, &addressHints, resolver, &result)!
+        
+        guard let addressInfo = dns_ai_open(address, String(port), DNS_T_A, &addressHints, resolver, &result) else {
+            throw DNSError.unableToResolveAddress
+        }
+        
         defer { dns_ai_close(addressInfo) }
         dns_res_close(resolver)
 
@@ -53,18 +53,16 @@ extension Address {
             switch result {
             case EAGAIN, EWOULDBLOCK:
                 let fd = dns_ai_pollfd(addressInfo)
-                do {
-                    try poll(fd, event: .read, deadline: deadline)
-                    /* There's no guarantee that the file descriptor will be reused
-                     in next iteration. We have to clean the fdwait cache here
-                     to be on the safe side. */
-                    clean(fd)
-                    continue loop
-                } catch VeniceError.timeout {
-                    throw DNSError.timeout
-                }
+                try poll(fd, event: .read, deadline: deadline)
+                /* There's no guarantee that the file descriptor will be reused
+                 in next iteration. We have to clean the fdwait cache here
+                 to be on the safe side. */
+                clean(fd)
+                continue loop
             case 0:
-                let ip = ip!
+                guard let ip = ip else {
+                    throw DNSError.unableToResolveAddress
+                }
 
                 if ipv4 == nil, ip.pointee.ai_family == AF_INET {
                     ipv4 = ip

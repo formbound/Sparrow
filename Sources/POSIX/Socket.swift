@@ -121,12 +121,18 @@ public struct SendFlags: OptionSet {
 
 public func send(
     socket: FileDescriptor,
-    bytes: UnsafeRawBufferPointer,
+    buffer: UnsafeRawBufferPointer,
     flags: SendFlags = .none
 ) throws -> Int {
-    let result = send(socket, bytes.baseAddress, bytes.count, flags.rawValue)
+    let result = send(socket, buffer.baseAddress, buffer.count, flags.rawValue)
 
     guard result != -1 else {
+        /* Operating systems are inconsistent w.r.t. returning EPIPE and
+         ECONNRESET. Let's paper over it like this. */
+        if errno == EPIPE {
+            errno = ECONNRESET
+        }
+        
         throw SystemError.lastOperationError
     }
 
@@ -153,7 +159,7 @@ public func receive(
     buffer: UnsafeMutableRawBufferPointer,
     flags: ReceiveFlags = .none
 ) throws -> Int {
-    let result = recv(socket, buffer.baseAddress!, buffer.count, flags.rawValue)
+    let result = recv(socket, buffer.baseAddress, buffer.count, flags.rawValue)
 
     guard result != -1 else {
         throw SystemError.lastOperationError

@@ -75,7 +75,9 @@ public final class RequestParser {
         var currentHeaderField: HeaderField?
         
         func addValueForCurrentHeaderField(_ value: String) {
-            let key = currentHeaderField!
+            guard let key = currentHeaderField else {
+                return
+            }
             
             if let existing = headers[key] {
                 headers[key] = existing + ", " + value
@@ -140,6 +142,10 @@ public final class RequestParser {
             } catch VeniceError.timeout {
                 continue
             } catch SystemError.brokenPipe {
+                break
+            } catch SystemError.connectionResetByPeer {
+                break
+            } catch SystemError.socketIsNotConnected {
                 break
             }
         }
@@ -233,24 +239,28 @@ public final class RequestParser {
             case .url:
                 bytes.append(0)
                 
-                let string = bytes.withUnsafeBufferPointer { (ptr: UnsafeBufferPointer<UInt8>) -> String in
-                    return String(cString: ptr.baseAddress!)
+                let string = bytes.withUnsafeBufferPointer { (pointer: UnsafeBufferPointer<UInt8>) -> String in
+                    return String(cString: pointer.baseAddress!)
                 }
                 
-                context.url = URL(string: string)!
+                guard let url = URL(string: string) else {
+                    return 1
+                }
+                
+                context.url = url
             case .headerField:
                 bytes.append(0)
                 
-                let string = bytes.withUnsafeBufferPointer { (ptr: UnsafeBufferPointer<UInt8>) -> String in
-                    return String(cString: ptr.baseAddress!)
+                let string = bytes.withUnsafeBufferPointer { (pointer: UnsafeBufferPointer<UInt8>) -> String in
+                    return String(cString: pointer.baseAddress!)
                 }
                 
                 context.currentHeaderField = HeaderField(string)
             case .headerValue:
                 bytes.append(0)
                 
-                let string = bytes.withUnsafeBufferPointer { (ptr: UnsafeBufferPointer<UInt8>) -> String in
-                    return String(cString: ptr.baseAddress!)
+                let string = bytes.withUnsafeBufferPointer { (pointer: UnsafeBufferPointer<UInt8>) -> String in
+                    return String(cString: pointer.baseAddress!)
                 }
                 
                 context.addValueForCurrentHeaderField(string)
@@ -258,9 +268,13 @@ public final class RequestParser {
                 context.currentHeaderField = nil
                 let bodyStream = RequestBodyStream(parser: self)
                 
+                guard let url = context.url else {
+                    return 1
+                }
+                
                 let request = Request(
                     method: Method(code: http_method(rawValue: parser.method)),
-                    url: context.url!,
+                    url: url,
                     headers: context.headers,
                     version: Version(major: Int(parser.http_major), minor: Int(parser.http_minor)),
                     body: .readable(bodyStream)
@@ -276,7 +290,7 @@ public final class RequestParser {
             state = newState
             
             if state == .messageComplete {
-                context.bodyStream!.complete = true
+                context.bodyStream?.complete = true
                 context = Context()
             }
         }
@@ -287,12 +301,12 @@ public final class RequestParser {
         
         switch state {
         case .body:
-            context.bodyStream!.bodyBuffer = UnsafeRawBufferPointer(
+            context.bodyStream?.bodyBuffer = UnsafeRawBufferPointer(
                 start: data.baseAddress,
                 count: data.count
             )
         default:
-            data.baseAddress!.withMemoryRebound(to: UInt8.self, capacity: data.count) { ptr in
+            data.baseAddress?.withMemoryRebound(to: UInt8.self, capacity: data.count) { ptr in
                 for i in 0 ..< data.count {
                     bytes.append(ptr[i])
                 }
@@ -303,37 +317,53 @@ public final class RequestParser {
     }
 }
 
-private func http_parser_on_message_begin(ctx: UnsafeMutablePointer<http_parser>?) -> Int32 {
-    let ref = Unmanaged<RequestParser>.fromOpaque(ctx!.pointee.data).takeUnretainedValue()
-    return ref.processOnMessageBegin()
+private func http_parser_on_message_begin(pointer: UnsafeMutablePointer<http_parser>?) -> Int32 {
+    let parser = Unmanaged<RequestParser>.fromOpaque(pointer!.pointee.data).takeUnretainedValue()
+    return parser.processOnMessageBegin()
 }
 
-private func http_parser_on_url(ctx: UnsafeMutablePointer<http_parser>?, data: UnsafePointer<Int8>?, length: Int) -> Int32 {
-    let ref = Unmanaged<RequestParser>.fromOpaque(ctx!.pointee.data).takeUnretainedValue()
-    return ref.processOnURL(data: data!, length: length)
+private func http_parser_on_url(
+    pointer: UnsafeMutablePointer<http_parser>?,
+    data: UnsafePointer<Int8>?,
+    length: Int
+) -> Int32 {
+    let parser = Unmanaged<RequestParser>.fromOpaque(pointer!.pointee.data).takeUnretainedValue()
+    return parser.processOnURL(data: data!, length: length)
 }
 
-private func http_parser_on_header_field(ctx: UnsafeMutablePointer<http_parser>?, data: UnsafePointer<Int8>?, length: Int) -> Int32 {
-    let ref = Unmanaged<RequestParser>.fromOpaque(ctx!.pointee.data).takeUnretainedValue()
-    return ref.processOnHeaderField(data: data!, length: length)
+private func http_parser_on_header_field(
+    pointer: UnsafeMutablePointer<http_parser>?,
+    data: UnsafePointer<Int8>?,
+    length: Int
+) -> Int32 {
+    let parser = Unmanaged<RequestParser>.fromOpaque(pointer!.pointee.data).takeUnretainedValue()
+    return parser.processOnHeaderField(data: data!, length: length)
 }
 
-private func http_parser_on_header_value(ctx: UnsafeMutablePointer<http_parser>?, data: UnsafePointer<Int8>?, length: Int) -> Int32 {
-    let ref = Unmanaged<RequestParser>.fromOpaque(ctx!.pointee.data).takeUnretainedValue()
-    return ref.processOnHeaderValue(data: data!, length: length)
+private func http_parser_on_header_value(
+    pointer: UnsafeMutablePointer<http_parser>?,
+    data: UnsafePointer<Int8>?,
+    length: Int
+) -> Int32 {
+    let parser = Unmanaged<RequestParser>.fromOpaque(pointer!.pointee.data).takeUnretainedValue()
+    return parser.processOnHeaderValue(data: data!, length: length)
 }
 
-private func http_parser_on_headers_complete(ctx: UnsafeMutablePointer<http_parser>?) -> Int32 {
-    let ref = Unmanaged<RequestParser>.fromOpaque(ctx!.pointee.data).takeUnretainedValue()
-    return ref.processOnHeadersComplete()
+private func http_parser_on_headers_complete(pointer: UnsafeMutablePointer<http_parser>?) -> Int32 {
+    let parser = Unmanaged<RequestParser>.fromOpaque(pointer!.pointee.data).takeUnretainedValue()
+    return parser.processOnHeadersComplete()
 }
 
-private func http_parser_on_body(ctx: UnsafeMutablePointer<http_parser>?, data: UnsafePointer<Int8>?, length: Int) -> Int32 {
-    let ref = Unmanaged<RequestParser>.fromOpaque(ctx!.pointee.data).takeUnretainedValue()
-    return ref.processOnBody(data: data!, length: length)
+private func http_parser_on_body(
+    pointer: UnsafeMutablePointer<http_parser>?,
+    data: UnsafePointer<Int8>?,
+    length: Int
+) -> Int32 {
+    let parser = Unmanaged<RequestParser>.fromOpaque(pointer!.pointee.data).takeUnretainedValue()
+    return parser.processOnBody(data: data!, length: length)
 }
 
-private func http_parser_on_message_complete(ctx: UnsafeMutablePointer<http_parser>?) -> Int32 {
-    let ref = Unmanaged<RequestParser>.fromOpaque(ctx!.pointee.data).takeUnretainedValue()
-    return ref.processOnMessageComplete()
+private func http_parser_on_message_complete(pointer: UnsafeMutablePointer<http_parser>?) -> Int32 {
+    let parser = Unmanaged<RequestParser>.fromOpaque(pointer!.pointee.data).takeUnretainedValue()
+    return parser.processOnMessageComplete()
 }

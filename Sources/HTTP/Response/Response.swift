@@ -5,6 +5,39 @@ public protocol ResponseRepresentable {
     var response: Response { get }
 }
 
+extension Content : ResponseRepresentable {
+    public var response: Response {
+        return Response(status: .ok, content: self)
+    }
+}
+
+extension NoContent : ResponseRepresentable {
+    public var response: Response {
+        return Response(status: .noContent)
+    }
+}
+
+extension ParameterError : ResponseRepresentable {
+    public var response: Response {
+        switch self {
+        case .parameterNotFound:
+            return Response(status: .internalServerError)
+        case .cannotExpress:
+            // For example user tried to use string for int path parameters
+            return Response(status: .badRequest)
+        }
+    }
+}
+
+extension ParametersError : ResponseRepresentable {
+    public var response: Response {
+        switch self {
+        case .cannotInitialize:
+            return Response(status: .internalServerError)
+        }
+    }
+}
+
 public final class Response : Message {
     public typealias UpgradeConnection = (Request, DuplexStream) throws -> Void
     

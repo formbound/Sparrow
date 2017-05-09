@@ -227,14 +227,22 @@ extension Address : CustomStringConvertible {
         if family == .ipv4 {
             return address.withIPv4Pointer {
                 var bytes = [Int8](repeating: 0, count: Int(INET_ADDRSTRLEN))
-                let cString = inet_ntop(family.rawValue, &$0.pointee.sin_addr, &bytes, socklen_t(INET_ADDRSTRLEN))
-                return String(cString: cString!)
+                
+                guard let cString = inet_ntop(family.rawValue, &$0.pointee.sin_addr, &bytes, socklen_t(INET_ADDRSTRLEN)) else {
+                    return "Unable tp get ip description."
+                }
+                
+                return String(cString: cString)
             }
         } else {
             return address.withIPv6Pointer {
                 var bytes = [Int8](repeating: 0, count: Int(INET6_ADDRSTRLEN))
-                let cString = inet_ntop(family.rawValue, &$0.pointee.sin6_addr, &bytes, socklen_t(INET6_ADDRSTRLEN))
-                return String(cString: cString!)
+                
+                guard let cString = inet_ntop(family.rawValue, &$0.pointee.sin6_addr, &bytes, socklen_t(INET6_ADDRSTRLEN)) else {
+                    return "Unable tp get ip description."
+                }
+                
+                return String(cString: cString)
             }
         }
     }
@@ -270,7 +278,7 @@ extension Address : CustomStringConvertible {
     }
 #endif
 
-fileprivate func inet_pton(_ addressFamily: AddressFamily, _ source: String, _ destination: UnsafeMutableRawPointer!) throws {
+fileprivate func inet_pton(_ addressFamily: AddressFamily, _ source: String, _ destination: UnsafeMutableRawPointer?) throws {
     let result = source.withCString({ inet_pton(addressFamily.rawValue, $0, destination) })
 
     switch result {

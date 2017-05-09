@@ -7,33 +7,12 @@ public enum ParameterError : Error {
     case cannotExpress(type: ExpressibleByParameterString.Type, from: String)
 }
 
-extension ParameterError : ResponseRepresentable {
-    public var response: Response {
-        switch self {
-        case .parameterNotFound:
-            return Response(status: .internalServerError)
-        case .cannotExpress:
-            // For example user tried to use string for int path parameters
-            return Response(status: .badRequest)
-        }
-    }
-}
-
 public enum ParametersError : Error {
     case cannotInitialize(type: ParametersInitializable.Type, from: Parameters)
 }
 
-extension ParametersError : ResponseRepresentable {
-    public var response: Response {
-        switch self {
-        case .cannotInitialize:
-            return Response(status: .internalServerError)
-        }
-    }
-}
-
 public struct ParameterKey {
-    let key: String
+    public let key: String
     
     public init(_ key: String) {
         self.key = key
@@ -121,7 +100,9 @@ public protocol ParametersInitializable {
     init(parameters: Parameters) throws
 }
 
-public struct NoParameters {}
+public struct NoParameters {
+    public init() {}
+}
 
 extension NoParameters : ParametersInitializable {
     public init(parameters: Parameters) throws {}
@@ -134,7 +115,7 @@ public final class Parameters {
         self.parameters = parameters
     }
     
-    func set(_ parameter: String, for parameterKey: String) {
+    public func set(_ parameter: String, for parameterKey: String) {
         parameters[parameterKey] = parameter
     }
     
@@ -148,7 +129,7 @@ public final class Parameters {
 }
 
 extension Parameters {
-    convenience init(url: URL) {
+    public convenience init(url: URL) {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             self.init()
             return

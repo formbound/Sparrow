@@ -1,11 +1,27 @@
+#if os(Linux)
+    import Glibc
+#else
+    import Darwin.C
+#endif
+
 import Core
 import Venice
 import POSIX
 
 public final class TCPStream : DuplexStream {
+    /* The buffer size is based on typical Ethernet MTU (1500 bytes). Making it
+     smaller would yield small suboptimal packets. Making it higher would bring
+     no substantial benefit. The value is made smaller to account for IPv4/IPv6
+     and TCP headers. Few more bytes are subtracted to account for any possible
+     IP or TCP options */
+    private let bufferSize = 1500 - 68
+    private lazy var writeBuffer: UnsafeMutableRawBufferPointer = UnsafeMutableRawBufferPointer
+        .allocate(count: self.bufferSize)
+    private var writeBufferedCount = 0
+    
     private var socket: FileDescriptor?
-
     public private(set) var ip: IP
+    
 
     internal init(socket: FileDescriptor, ip: IP) {
         self.ip = ip
@@ -18,6 +34,7 @@ public final class TCPStream : DuplexStream {
     }
     
     deinit {
+        writeBuffer.deallocate()
         close()
     }
 
@@ -35,63 +52,17 @@ public final class TCPStream : DuplexStream {
         } catch SystemError.operationNowInProgress {
             do {
                 try poll(socket, event: .write, deadline: deadline)
+                try POSIX.checkError(socket: socket)
             } catch VeniceError.timeout {
                 try Networking.close(socket: socket)
-                throw TCPError.connectTimedOut
+                throw VeniceError.timeout
             }
-            try POSIX.checkError(socket: socket)
         } catch {
             try Networking.close(socket: socket)
             throw TCPError.failedToConnectSocket
         }
 
         self.socket = socket
-    }
-
-    public func write(_ bytes: UnsafeRawBufferPointer, deadline: Deadline) throws {
-        guard !bytes.isEmpty else {
-            return
-        }
-
-        let socket = try getSocket()
-
-        loop: while true {
-            var remaining: UnsafeRawBufferPointer = bytes
-            
-            do {
-                let bytesWritten = try POSIX.send(
-                    socket: socket,
-                    bytes: remaining,
-                    flags: .noSignal
-                )
-                
-                guard bytesWritten < remaining.count else {
-                    return
-                }
-        
-                let remainingCount = remaining.startIndex
-                    .advanced(by: bytesWritten)
-                    .distance(to: remaining.endIndex)
-                
-                remaining = UnsafeRawBufferPointer(
-                    start: remaining.baseAddress!.advanced(by: bytesWritten),
-                    count: remainingCount
-                )
-                
-                continue loop
-            } catch {
-                switch error {
-                case SystemError.resourceTemporarilyUnavailable, SystemError.operationWouldBlock:
-                    try poll(socket, event: .write, deadline: deadline)
-                    continue loop
-                case SystemError.connectionResetByPeer, SystemError.brokenPipe:
-                    close()
-                    throw error
-                default:
-                    throw error
-                }
-            }
-        }
     }
 
     public func read(
@@ -125,9 +96,82 @@ public final class TCPStream : DuplexStream {
             }
         }
     }
+    
+    public func write(_ buffer: UnsafeRawBufferPointer, deadline: Deadline) throws {
+        guard !buffer.isEmpty else {
+            return
+        }
+        
+        let socket = try getSocket()
+        
+        /* If it fits into the write buffer, copy it there and be done. */
+        if writeBufferedCount + buffer.count <= writeBuffer.count {
+            memcpy(
+                writeBuffer.baseAddress?.advanced(by: writeBufferedCount),
+                buffer.baseAddress,
+                buffer.count
+            )
+            
+            writeBufferedCount += buffer.count
+            return
+        }
+        
+        /* If it doesn't fit, flush the write buffer first. */
+        try flush(deadline: deadline)
+        
+        /* Try to fit it into the buffer once again. */
+        if writeBufferedCount + buffer.count <= writeBuffer.count {
+            memcpy(
+                writeBuffer.baseAddress?.advanced(by: writeBufferedCount),
+                buffer.baseAddress,
+                buffer.count
+            )
+            
+            writeBufferedCount += buffer.count
+            return
+        }
+        
+        /* The data chunk to send is longer than the output buffer.
+         Let's do the sending in-place. */
+        var buffer = buffer
+        try write(buffer: &buffer, socket: socket, deadline: deadline)
+    }
 
     public func flush(deadline: Deadline) throws {
-        try getSocket()
+        let socket = try getSocket()
+        
+        guard writeBufferedCount > 0 else {
+            return
+        }
+        
+        var buffer = UnsafeRawBufferPointer(writeBuffer.prefix(writeBufferedCount))
+        try write(buffer: &buffer, socket: socket, deadline: deadline)
+        writeBufferedCount = 0
+    }
+    
+    private func write(buffer: inout UnsafeRawBufferPointer, socket: FileDescriptor, deadline: Deadline) throws {
+        loop: while !buffer.isEmpty {
+            do {
+                let bytesWritten = try POSIX.send(
+                    socket: socket,
+                    buffer: buffer,
+                    flags: .noSignal
+                )
+                
+                buffer = buffer.suffix(from: bytesWritten)
+            } catch {
+                switch error {
+                case SystemError.resourceTemporarilyUnavailable, SystemError.operationWouldBlock:
+                    try poll(socket, event: .write, deadline: deadline)
+                    continue loop
+                case SystemError.connectionResetByPeer, SystemError.brokenPipe:
+                    close()
+                    throw error
+                default:
+                    throw error
+                }
+            }
+        }
     }
 
     public func close() {
@@ -135,11 +179,11 @@ public final class TCPStream : DuplexStream {
             return
         }
 
+        clean(socket)
         try? Networking.close(socket: socket)
         self.socket = nil
     }
 
-    @discardableResult
     private func getSocket() throws -> FileDescriptor {
         guard let socket = self.socket else {
             throw SystemError.socketIsNotConnected
