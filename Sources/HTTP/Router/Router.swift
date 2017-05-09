@@ -89,20 +89,47 @@ extension Router {
 }
 
 extension Router {
+    private struct Path {
+        private var path: String.CharacterView
+        
+        fileprivate init(_ path: String) {
+            self.path = path.characters.dropFirst()
+        }
+        
+        fileprivate mutating func popPathComponent() -> String? {
+            if path.isEmpty {
+                return nil
+            }
+            
+            var pathComponent = String.CharacterView()
+            
+            while let character = path.popFirst() {
+                guard character != "/" else {
+                    break
+                }
+                
+                pathComponent.append(character)
+            }
+            
+            return String(pathComponent)
+        }
+    }
+    
     public func respond(to request: Request) -> Response {
         do {
-            var pathComponents = request.url.pathComponents.dropFirst()
-            return try respond(to: request, pathComponents: &pathComponents)
+            let urlPath = request.url.path
+            var path = Path(urlPath)
+            return try respond(to: request, path: &path)
         } catch {
             return recover(from: error)
         }
     }
     
     @inline(__always)
-    private func respond(to request: Request, pathComponents: inout ArraySlice<String>) throws -> Response {
+    private func respond(to request: Request, path: inout Path) throws -> Response {
         do {
             try preprocess(request)
-            let response = try process(request, pathComponents: &pathComponents)
+            let response = try process(request, path: &path)
             try postprocess(response, request)
             return response
         } catch {
@@ -111,10 +138,10 @@ extension Router {
     }
     
     @inline(__always)
-    private func process(_ request: Request, pathComponents: inout ArraySlice<String>) throws -> Response {
-        if let pathComponent = pathComponents.popFirst() {
+    private func process(_ request: Request, path: inout Path) throws -> Response {
+        if let pathComponent = path.popPathComponent() {
             let subrouter = try getSubrouter(for: pathComponent, request: request)
-            return try subrouter.respond(to: request, pathComponents: &pathComponents)
+            return try subrouter.respond(to: request, path: &path)
         }
         
         if let respond = responders[request.method] {

@@ -5,7 +5,7 @@ public final class Request : Message {
     public typealias UpgradeConnection = (Response, DuplexStream) throws -> Void
     
     public var method: Method
-    public var url: URL
+    public var url: URLComponents
     public var version: Version
     public var headers: Headers
     public var body: Body
@@ -19,7 +19,7 @@ public final class Request : Message {
     
     public init(
         method: Method,
-        url: URL,
+        url: URLComponents,
         headers: Headers = [:],
         version: Version = .oneDotOne,
         body: Body
@@ -35,7 +35,7 @@ public final class Request : Message {
 extension Request {
     public convenience init(
         method: Method,
-        url: URL,
+        url: URLComponents,
         headers: Headers = [:]
     ) {
         self.init(
@@ -51,7 +51,7 @@ extension Request {
     
     public convenience init(
         method: Method,
-        url: URL,
+        url: URLComponents,
         headers: Headers = [:],
         body stream: ReadableStream
     ) {
@@ -116,7 +116,7 @@ extension Request {
 
 extension Request : CustomStringConvertible {
     public var requestLineDescription: String {
-        return method.description + " " + url.absoluteString + " HTTP/" + version.description + "\n"
+        return method.description + " " + url.description + " HTTP/" + version.description + "\n"
     }
     
     public var description: String {

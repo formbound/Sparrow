@@ -129,13 +129,8 @@ public final class Parameters {
 }
 
 extension Parameters {
-    public convenience init(url: URL) {
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            self.init()
-            return
-        }
-        
-        guard let queryItems = components.queryItems else {
+    public convenience init(url: URLComponents) {
+        guard let queryItems = url.queryItems else {
             self.init()
             return
         }
