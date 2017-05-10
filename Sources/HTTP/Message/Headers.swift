@@ -4,22 +4,50 @@ import Foundation
 public struct HeaderField {
     public let string: String
     
-    fileprivate var lowercased: String {
-        return string.lowercased()
-    }
-    
     public init(_ string: String) {
         self.string = string
     }
 }
 
+extension UTF8.CodeUnit {
+    fileprivate func lowercased() -> UTF8.CodeUnit {
+        let isUppercase = self >= 65 && self <= 90
+        
+        if isUppercase {
+            return self + 32
+        }
+        
+        return self
+    }
+}
+
+extension String {
+    fileprivate func caseInsensitiveCompare(_ other: String) -> Bool {
+        if self.utf8.count != other.utf8.count {
+            return false
+        }
+        
+        for (lhs, rhs) in zip(self.utf8, other.utf8) {
+            if lhs.lowercased() != rhs.lowercased() {
+                return false
+            }
+        }
+        
+        return true
+    }
+}
+
 extension HeaderField : Hashable {
     public var hashValue: Int {
-        return lowercased.hashValue
+        return string.hashValue
     }
     
     public static func == (lhs: HeaderField, rhs: HeaderField) -> Bool {
-        return lhs.hashValue == rhs.hashValue
+        if lhs.string == rhs.string {
+            return true
+        }
+        
+        return lhs.string.caseInsensitiveCompare(rhs.string)
     }
 }
 
@@ -119,64 +147,4 @@ extension Headers : Equatable {}
 
 public func == (lhs: Headers, rhs: Headers) -> Bool {
     return lhs.headers == rhs.headers
-}
-
-extension Headers {
-    public var contentType: MediaType? {
-        get {
-            return self["Content-Type"].flatMap({try? MediaType(string: $0)})
-        }
-        
-        set(contentType) {
-            self["Content-Type"] = contentType?.description
-        }
-    }
-    
-    public var contentLength: Int? {
-        get {
-            return self["Content-Length"].flatMap({Int($0)})
-        }
-        
-        set(contentLength) {
-            self["Content-Length"] = contentLength?.description
-        }
-    }
-    
-    public var transferEncoding: String? {
-        get {
-            return headers["Transfer-Encoding"]
-        }
-        
-        set(transferEncoding) {
-            headers["Transfer-Encoding"] = transferEncoding
-        }
-    }
-    
-    public var accept: [MediaType] {
-        get {
-            var acceptedMediaTypes: [MediaType] = []
-            
-            if let acceptString = self["Accept"] {
-                let acceptedTypesString = acceptString.components(separatedBy: ",")
-                
-                for acceptedTypeString in acceptedTypesString {
-                    let acceptedTypeTokens = acceptedTypeString.components(separatedBy: ";")
-                    
-                    if acceptedTypeTokens.count >= 1 {
-                        let mediaTypeString = acceptedTypeTokens[0].trimmingCharacters(in: .whitespacesAndNewlines)
-                        
-                        if let acceptedMediaType = try? MediaType(string: mediaTypeString) {
-                            acceptedMediaTypes.append(acceptedMediaType)
-                        }
-                    }
-                }
-            }
-            
-            return acceptedMediaTypes
-        }
-        
-        set(accept) {
-            self["Accept"] = accept.map({$0.type + "/" + $0.subtype}).joined(separator: ", ")
-        }
-    }
 }

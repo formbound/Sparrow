@@ -118,7 +118,7 @@ extension Router {
     public func respond(to request: Request) -> Response {
         do {
             let urlPath = request.url.path
-            var path = Path(urlPath)
+            var path = Path(urlPath ?? "")
             return try respond(to: request, path: &path)
         } catch {
             return recover(from: error)

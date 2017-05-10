@@ -2,25 +2,43 @@ import Core
 
 public typealias Storage = [String: Any]
 
-public protocol Message {
-    var version: Version { get }
-    var headers: Headers { get }
-    var storage: Storage { get }
+public protocol Message : class {
+    var version: Version { get set }
+    var headers: Headers { get set }
+    var storage: Storage { get set }
 }
 
 extension Message {
     public var contentType: MediaType? {
-        return headers["Content-Type"].flatMap({try? MediaType(string: $0)})
+        get {
+            return headers["Content-Type"].flatMap({try? MediaType(string: $0)})
+        }
+        
+        set(contentType) {
+            headers["Content-Type"] = contentType?.description
+        }
     }
-
+    
     public var contentLength: Int? {
-        return headers["Content-Length"].flatMap({Int($0)})
+        get {
+            return headers["Content-Length"].flatMap({Int($0)})
+        }
+        
+        set(contentLength) {
+            headers["Content-Length"] = contentLength?.description
+        }
     }
-
+    
     public var transferEncoding: String? {
-        return headers["Transfer-Encoding"]
+        get {
+            return headers["Transfer-Encoding"]
+        }
+        
+        set(transferEncoding) {
+            headers["Transfer-Encoding"] = transferEncoding
+        }
     }
-
+    
     public var isChunkEncoded: Bool {
         return transferEncoding == "chunked"
     }

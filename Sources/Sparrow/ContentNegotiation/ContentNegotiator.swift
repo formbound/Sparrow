@@ -36,7 +36,7 @@ public struct ContentNegotiator {
             return
         }
         
-        guard let contentType = request.headers.contentType else {
+        guard let contentType = request.contentType else {
             return
         }
         
@@ -88,10 +88,10 @@ public struct ContentNegotiator {
         
         let mediaTypes: [MediaType]
         
-        if let contentType = response.headers.contentType {
+        if let contentType = response.contentType {
             mediaTypes = [contentType]
         } else {
-            mediaTypes = request.headers.accept.isEmpty ? self.mediaTypes : request.headers.accept
+            mediaTypes = request.accept.isEmpty ? self.mediaTypes : request.accept
         }
         
         let (mediaType, write) = try serializeToStream(
@@ -100,9 +100,9 @@ public struct ContentNegotiator {
             mediaTypes: mediaTypes
         )
         
-        response.headers.contentType = mediaType
-        response.headers.contentLength = nil
-        response.headers.transferEncoding = "chunked"
+        response.contentType = mediaType
+        response.contentLength = nil
+        response.transferEncoding = "chunked"
         response.body = .writable(write)
     }
     

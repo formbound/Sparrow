@@ -25,9 +25,9 @@ public final class ResponseSerializer {
         
         try writeHeaders(for: response, deadline: deadline)
         
-        if let contentLength = response.headers["Content-Length"].flatMap({ Int($0) }) {
+        if let contentLength = response.contentLength {
             try writeBody(for: response, contentLength: contentLength, deadline: deadline)
-        } else if response.headers["Transfer-Encoding"] == "chunked" {
+        } else if response.isChunkEncoded {
             try writeChunkedBody(for: response, deadline: deadline)
         } else {
             try writeBody(for: response, deadline: deadline)
@@ -39,9 +39,7 @@ public final class ResponseSerializer {
         var header = response.version.description
         
         header += " "
-        header += response.status.statusCode.description
-        header += " "
-        header += response.status.reasonPhrase
+        header += response.status.description
         header += "\r\n"
         
         for (name, value) in response.headers.headers {

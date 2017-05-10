@@ -67,7 +67,7 @@ public final class RequestParser {
     }
     
     fileprivate class Context {
-        var url: URLComponents?
+        var url: URI?
         var headers: Headers = [:]
         
         weak var bodyStream: RequestBodyStream?
@@ -209,13 +209,9 @@ public final class RequestParser {
             case .ready, .messageBegin, .body, .messageComplete:
                 break
             case .url:
-                bytes.append(0)
-                
-                let string = bytes.withUnsafeBufferPointer { (pointer: UnsafeBufferPointer<UInt8>) -> String in
-                    return String(cString: pointer.baseAddress!)
-                }
-                
-                guard let url = URLComponents(string: string) else {
+                guard let url = bytes.withUnsafeBytes({ buffer in
+                    return URI(buffer: buffer, isConnect: parser.method == HTTP_CONNECT.rawValue)
+                }) else {
                     return 1
                 }
                 

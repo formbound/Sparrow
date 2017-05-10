@@ -5,7 +5,7 @@ public final class Request : Message {
     public typealias UpgradeConnection = (Response, DuplexStream) throws -> Void
     
     public var method: Method
-    public var url: URLComponents
+    public var url: URI
     public var version: Version
     public var headers: Headers
     public var body: Body
@@ -19,7 +19,7 @@ public final class Request : Message {
     
     public init(
         method: Method,
-        url: URLComponents,
+        url: URI,
         headers: Headers = [:],
         version: Version = .oneDotOne,
         body: Body
@@ -32,10 +32,32 @@ public final class Request : Message {
     }
 }
 
+extension Parameters {
+    public convenience init(url: URI) {
+        guard let query = url.query else {
+            self.init()
+            return
+        }
+
+        var parameters: [String: String] = [:]
+        let components = query.components(separatedBy: "&")
+        
+        for component in components {
+            let pair = component.components(separatedBy: "=")
+            
+            if pair.count == 2 {
+                parameters[pair[0]] = pair[1]
+            }
+        }
+
+        self.init(parameters: parameters)
+    }
+}
+
 extension Request {
     public convenience init(
         method: Method,
-        url: URLComponents,
+        url: URI,
         headers: Headers = [:]
     ) {
         self.init(
@@ -46,12 +68,12 @@ extension Request {
             body: .empty
         )
         
-        self.headers.contentLength = 0
+        contentLength = 0
     }
     
     public convenience init(
         method: Method,
-        url: URLComponents,
+        url: URI,
         headers: Headers = [:],
         body stream: ReadableStream
     ) {
@@ -78,6 +100,7 @@ extension Request {
                     
                     if acceptedTypeTokens.count >= 1 {
                         let mediaTypeString = acceptedTypeTokens[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                        
                         if let acceptedMediaType = try? MediaType(string: mediaTypeString) {
                             acceptedMediaTypes.append(acceptedMediaType)
                         }
@@ -86,6 +109,10 @@ extension Request {
             }
             
             return acceptedMediaTypes
+        }
+        
+        set(accept) {
+            headers["Accept"] = accept.map({$0.type + "/" + $0.subtype}).joined(separator: ", ")
         }
     }
     
@@ -116,7 +143,7 @@ extension Request {
 
 extension Request : CustomStringConvertible {
     public var requestLineDescription: String {
-        return method.description + " " + url.description + " HTTP/" + version.description + "\n"
+        return method.description + " " + url.description + " " + version.description + "\n"
     }
     
     public var description: String {

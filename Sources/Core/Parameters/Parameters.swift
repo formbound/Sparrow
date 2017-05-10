@@ -111,7 +111,7 @@ extension NoParameters : ParametersInitializable {
 public final class Parameters {
     var parameters: [String: String]
     
-    init(parameters: [String: String] = [:]) {
+    public init(parameters: [String: String] = [:]) {
         self.parameters = parameters
     }
     
@@ -127,21 +127,3 @@ public final class Parameters {
         return try P(parameter: parameter)
     }
 }
-
-extension Parameters {
-    public convenience init(url: URLComponents) {
-        guard let queryItems = url.queryItems else {
-            self.init()
-            return
-        }
-        
-        var parameters: [String: String] = [:]
-        
-        for queryItem in queryItems {
-            parameters[queryItem.name] = queryItem.value ?? ""
-        }
-        
-        self.init(parameters: parameters)
-    }
-}
-

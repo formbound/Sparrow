@@ -141,18 +141,9 @@ public struct Server {
                 stream.close()
             }
             
-            if !self.isKeepAlive(request) {
+            if !request.isKeepAlive {
                 stream.close()
             }
         }
-    }
-    
-    @inline(__always)
-    private func isKeepAlive(_ request: Request) -> Bool {
-        if request.version.minor == 0 {
-            return request.headers["Connection"]?.lowercased() == "keep-alive"
-        }
-        
-        return request.headers["Connection"]?.lowercased() != "close"
     }
 }

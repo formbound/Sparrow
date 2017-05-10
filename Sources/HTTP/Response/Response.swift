@@ -78,7 +78,7 @@ extension Response {
             body: .empty
         )
         
-        self.headers.contentLength = 0
+        contentLength = 0
     }
     
     public convenience init(
