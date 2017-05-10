@@ -184,7 +184,20 @@ let logger = Logger()
 let root = RootRoute(app: app, logger: logger)
 
 import XCTest
-import Crest
+
+extension Response {
+    public func assert(content otherContent: ContentRepresentable) {
+        guard let content = content else {
+            return XCTFail("Body is not content")
+        }
+        
+        XCTAssertEqual(content, otherContent.content)
+    }
+    
+    public func assert(status: Status) {
+        XCTAssertEqual(self.status, status)
+    }
+}
 
 class RouterTests : XCTestCase {
     let router = Router(route: root)
@@ -194,7 +207,7 @@ class RouterTests : XCTestCase {
     func testIndex() throws {
         let request = Request(
             method: .get,
-            url: URL(string: "/")!,
+            url: URI(path: "/"),
             headers: headers
         )
         
@@ -207,7 +220,7 @@ class RouterTests : XCTestCase {
     func testShowUserPhoto() throws {
         let request = Request(
             method: .get,
-            url: URL(string: "/users/23/photos/14")!,
+            url: URI(path: "/users/23/photos/14"),
             headers: headers
         )
         
@@ -220,7 +233,7 @@ class RouterTests : XCTestCase {
     func testListUsers() throws {
         let request = Request(
             method: .get,
-            url: URL(string: "/users")!,
+            url: URI(path: "/users"),
             headers: headers
         )
         
@@ -233,7 +246,7 @@ class RouterTests : XCTestCase {
     func testCreateUser() throws {
         let request = Request(
             method: .post,
-            url: URL(string: "/users")!,
+            url: URI(path: "/users"),
             headers: headers
         )
         
@@ -245,7 +258,7 @@ class RouterTests : XCTestCase {
     func testShowUser() throws {
         let request = Request(
             method: .get,
-            url: URL(string: "/users/23")!,
+            url: URI(path: "/users/23"),
             headers: headers
         )
         
@@ -258,7 +271,7 @@ class RouterTests : XCTestCase {
     func testListUserPhotos() throws {
         let request = Request(
             method: .get,
-            url: URL(string: "/users/23/photos")!,
+            url: URI(path: "/users/23/photos"),
             headers: headers
         )
         
@@ -271,7 +284,7 @@ class RouterTests : XCTestCase {
     func testShowProfile() throws {
         let request = Request(
             method: .get,
-            url: URL(string: "/profile")!,
+            url: URI(path: "/profile"),
             headers: headers
         )
         
@@ -284,7 +297,7 @@ class RouterTests : XCTestCase {
     func testNotFound() throws {
         let request = Request(
             method: .get,
-            url: URL(string: "/profile/not/found")!,
+            url: URI(path: "/profile/not/found"),
             headers: headers
         )
         
@@ -296,7 +309,7 @@ class RouterTests : XCTestCase {
     func testInvalidParameter() throws {
         let request = Request(
             method: .get,
-            url: URL(string: "/users/invalid-path-parameter")!,
+            url: URI(path: "/users/invalid-path-parameter"),
             headers: headers
         )
         
@@ -308,7 +321,7 @@ class RouterTests : XCTestCase {
     func testMethodNotAllowed() throws {
         let request = Request(
             method: .put,
-            url: URL(string: "/users")!,
+            url: URI(path: "/users"),
             headers: headers
         )
         
@@ -320,7 +333,7 @@ class RouterTests : XCTestCase {
     func testAccessDenied() throws {
         let request = Request(
             method: .get,
-            url: URL(string: "/access-denied")!
+            url: URI(path: "/access-denied")
         )
         
         let response = router.respond(to: request)
@@ -331,7 +344,7 @@ class RouterTests : XCTestCase {
     func testPerformance() throws {
         let request = Request(
             method: .get,
-            url: URL(string: "/users/active/today")!,
+            url: URI(path: "/users/active/today"),
             headers: headers
         )
         
@@ -343,7 +356,7 @@ class RouterTests : XCTestCase {
     func testPerformanceWithPathParameter() {
         let request = Request(
             method: .get,
-            url: URL(string: "/users/23/photos")!,
+            url: URI(path: "/users/23/photos"),
             headers: headers
         )
         
