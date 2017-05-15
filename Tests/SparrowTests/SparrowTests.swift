@@ -42,3 +42,12 @@ public class SparrowTests : XCTestCase {
 //        try server.start()
     }
 }
+
+
+extension SparrowTests {
+    public static var allTests: [(String, (SparrowTests) -> () throws -> Void)] {
+        return [
+            ("testEchoServer", testEchoServer)
+        ]
+    }
+}

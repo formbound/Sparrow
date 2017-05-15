@@ -2,15 +2,12 @@
 
 import XCTest
 
-@testable import IPTests
-@testable import TCPTests
-@testable import OpenSSLTests
-@testable import POSIXTests
+@testable import RouterTests
+@testable import SparrowTests
 
 XCTMain([
-    testCase(IPTests.allTests),
-    testCase(TCPTests.allTests),
-    testCase(POSIXTests.allTests),
+    testCase(RouterTests.allTests),
+    testCase(SparrowTests.allTests)
 ])
 
 #endif

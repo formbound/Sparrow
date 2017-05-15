@@ -365,3 +365,23 @@ class RouterTests : XCTestCase {
         }
     }
 }
+
+extension RouterTests {
+    public static var allTests: [(String, (RouterTests) -> () throws -> Void)] {
+        return [
+            ("testPerformanceWithPathParameter", testPerformanceWithPathParameter),
+            ("testPerformance", testPerformance),
+            ("testAccessDenied", testAccessDenied),
+            ("testMethodNotAllowed", testMethodNotAllowed),
+            ("testInvalidParameter", testInvalidParameter),
+            ("testNotFound", testNotFound),
+            ("testShowProfile", testShowProfile),
+            ("testListUserPhotos", testListUserPhotos),
+            ("testShowUser", testShowUser),
+            ("testCreateUser", testCreateUser),
+            ("testListUsers", testListUsers),
+            ("testShowUserPhoto", testShowUserPhoto),
+            ("testIndex", testIndex)
+        ]
+    }
+}
