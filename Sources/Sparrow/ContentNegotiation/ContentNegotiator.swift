@@ -22,16 +22,20 @@ public struct ContentNegotiator {
     public let contentTypes: [ContentType]
     private let mediaTypes: [MediaType]
     
-    public init() {
+    internal init() {
         self.init(contentTypes: .json)
     }
-    
-    public init(contentTypes: ContentType...) {
+
+    public init(contentTypes: [ContentType]) {
         self.contentTypes = contentTypes
         self.mediaTypes = contentTypes.map({$0.mediaType})
     }
+
+    public init(contentTypes: ContentType...) {
+        self.init(contentTypes: contentTypes)
+    }
     
-    public func parse(_ request: Request, deadline: Deadline) throws {
+    internal func parse(_ request: Request, deadline: Deadline) throws {
         guard request.content == nil else {
             return
         }
@@ -81,7 +85,7 @@ public struct ContentNegotiator {
         return first
     }
     
-    public func serialize(_ response: Response, for request: Request, deadline: Deadline) throws {
+    internal func serialize(_ response: Response, for request: Request, deadline: Deadline) throws {
         guard let content = response.content else {
             return
         }

@@ -1,4 +1,5 @@
 import HTTP
+import Venice
 
 public final class Router {
     public typealias Preprocess = (Request) throws -> Void
@@ -13,22 +14,29 @@ public final class Router {
     fileprivate var responders: [Method: Respond] = [:]
     fileprivate var postprocess: Postprocess = { _ in }
     fileprivate var recover: Recover = { error in throw error }
+
+    public let contentNegotiator: ContentNegotiator
+
+    public let timeout: Duration
     
-    init() {}
+    init(contentNegotiator: ContentNegotiator, timeout: Duration) {
+        self.contentNegotiator = contentNegotiator
+        self.timeout = timeout
+    }
     
-    public convenience init(_ body: (Router) -> Void) {
-        self.init()
+    public convenience init(contentNegotiator: ContentNegotiator = .init(), timeout: Duration = 10.seconds, body: (Router) -> Void) {
+        self.init(contentNegotiator: contentNegotiator, timeout: timeout)
         body(self)
     }
     
     public func add(path: String, body: (Router) -> Void) {
-        let route = Router()
+        let route = Router(contentNegotiator: contentNegotiator, timeout: timeout)
         body(route)
         return subrouters[path] = route
     }
     
     public func add(parameter: String, body: (Router) -> Void) {
-        let route = Router()
+        let route = Router(contentNegotiator: contentNegotiator, timeout: timeout)
         body(route)
         pathParameterSubrouter = (parameter, route)
     }
@@ -114,6 +122,9 @@ extension Router {
             try preprocess(request)
             let response = try process(request, path: &path)
             try postprocess(response, request)
+
+            try contentNegotiator.serialize(response, for: request, deadline: timeout.fromNow())
+
             return response
         } catch {
             return try recover(error)
@@ -128,9 +139,14 @@ extension Router {
         }
         
         if let respond = responders[request.method] {
+
+            if let contentLength = request.contentLength, contentLength > 0 {
+                try contentNegotiator.parse(request, deadline: timeout.fromNow())
+            }
+
             return try respond(request)
         }
-        
+
         throw RouterError.methodNotAllowed
     }
     

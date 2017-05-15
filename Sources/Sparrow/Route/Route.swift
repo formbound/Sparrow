@@ -1,5 +1,6 @@
 import Core
 import HTTP
+import Venice
 
 public protocol Route {
     static var key: String { get }
@@ -70,8 +71,8 @@ extension Route {
 }
 
 public extension Router {
-    convenience init(route: Route) {
-        self.init()
+    convenience init(route: Route, contentNegotiator: ContentNegotiator = .init(), timeout: Duration = 10.seconds) {
+        self.init(contentNegotiator: contentNegotiator, timeout: timeout)
         route.build(router: self)
     }
     

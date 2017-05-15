@@ -42,8 +42,6 @@ struct RootRoute : Route {
             
             return .authenticated
         }
-        
-        try contentNegotiator.parse(request, deadline: 1.minute.fromNow())
     }
     
     func get(request: Request) throws -> Response {
@@ -51,7 +49,6 @@ struct RootRoute : Route {
     }
     
     func postprocess(response: Response, for request: Request) throws {
-        try contentNegotiator.serialize(response, for: request, deadline: 1.minute.fromNow())
         messageLogger.log(response, for: request)
     }
 }
