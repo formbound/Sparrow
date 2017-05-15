@@ -1,8 +1,12 @@
 import HTTP
 import Core
 
+public struct NoParameters : ParametersInitializable {
+    public init(parameters: URI.Parameters) throws {}
+}
+
 public protocol Resource {
-    static var idKey: ParameterKey { get }
+    static var idKey: String { get }
     
     associatedtype ListParameters : ParametersInitializable = NoParameters
     associatedtype CreateParameters : ParametersInitializable = NoParameters
@@ -43,8 +47,8 @@ public protocol Resource {
 }
 
 public extension Resource {
-    static var idKey: ParameterKey {
-        return ParameterKey(String(describing: type(of: self)))
+    static var idKey: String {
+        return String(describing: type(of: self))
     }
     
     func configure(collectionRouter: Router, itemRouter: Router) {}
@@ -86,9 +90,9 @@ public extension Resource {
     }
 }
 
-private func response(from output: ResponseRepresentable, status: Status = .ok) -> Response {
+private func response(from output: ResponseRepresentable, status: Status = .ok) throws -> Response {
     if let output = output as? ContentRepresentable {
-        return Response(status: status, content: output.content)
+        return try Response(status: status, content: output)
     }
     
     return output.response
@@ -117,46 +121,46 @@ public extension Resource {
     private func list(request: Request) throws -> Response {
         let parameters = try request.getParameters() as ListParameters
         let output = try self.list(request: request, parameters: parameters)
-        return response(from: output)
+        return try response(from: output)
     }
     
     private func create(request: Request) throws -> Response {
         let parameters = try request.getParameters() as CreateParameters
         let input = try request.getContent() as CreateInput
         let output = try self.create(request: request, parameters: parameters, content: input)
-        return response(from: output, status: .created)
+        return try response(from: output, status: .created)
     }
     
     private func removeAll(request: Request) throws -> Response {
         let parameters = try request.getParameters() as RemoveAllParameters
         let output = try self.removeAll(request: request, parameters: parameters)
-        return response(from: output)
+        return try response(from: output)
     }
     
     private func show(request: Request) throws -> Response {
         let parameters = try request.getParameters() as ShowParameters
         let output = try show(request: request, parameters: parameters)
-        return response(from: output)
+        return try response(from: output)
     }
     
     private func insert(request: Request) throws -> Response {
         let parameters = try request.getParameters() as InsertParameters
         let input = try request.getContent() as InsertInput
         let output = try insert(request: request, parameters: parameters, content: input)
-        return response(from: output)
+        return try response(from: output)
     }
     
     private func update(request: Request) throws -> Response {
         let parameters = try request.getParameters() as UpdateParameters
         let input = try request.getContent() as UpdateInput
         let output = try self.update(request: request, parameters: parameters, content: input)
-        return response(from: output)
+        return try response(from: output)
     }
     
     private func remove(request: Request) throws -> Response {
         let parameters = try request.getParameters() as RemoveParameters
         let output = try self.remove(request: request, parameters: parameters)
-        return response(from: output)
+        return try response(from: output)
     }
 }
 

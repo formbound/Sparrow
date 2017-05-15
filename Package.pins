@@ -2,22 +2,16 @@
   "autoPin": true,
   "pins": [
     {
-      "package": "CLibdill",
-      "reason": null,
-      "repositoryURL": "https://github.com/Zewo/CLibdill.git",
-      "version": "1.0.2"
-    },
-    {
-      "package": "Powerline",
-      "reason": null,
-      "repositoryURL": "https://github.com/formbound/Powerline.git",
-      "version": "0.1.0"
-    },
-    {
       "package": "Venice",
       "reason": null,
-      "repositoryURL": "https://github.com/formbound/Venice.git",
-      "version": "0.2.0"
+      "repositoryURL": "https://github.com/Zewo/Venice.git",
+      "version": "0.17.1"
+    },
+    {
+      "package": "Zewo",
+      "reason": null,
+      "repositoryURL": "https://github.com/Zewo/Zewo.git",
+      "version": "0.8.2"
     }
   ],
   "version": 1

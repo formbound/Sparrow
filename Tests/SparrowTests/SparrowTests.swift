@@ -38,7 +38,7 @@ public class SparrowTests : XCTestCase {
             }
         }
 
-        let server = Server()
-//        try server.start(respond: router.respond)
+        let server = Server(router: router)
+//        try server.start()
     }
 }
