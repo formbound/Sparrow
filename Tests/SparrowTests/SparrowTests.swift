@@ -29,21 +29,12 @@ public class SparrowTests : XCTestCase {
                         return Response(status: .ok)
                     }
                 }
+            }
 
-                foo.add(parameter: "ok", body: { router in
-                    router.get { request in
-                        return try Response(status: .ok, content: "Yeah!")
-                    }
-                })
-            }
-            
-            root.postprocess { response, request in
-                print("OK")
-            }
         }
 
         let server = Server(router: router)
-        try server.start()
+//        try server.start()
     }
 }
 
