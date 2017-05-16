@@ -7,25 +7,6 @@
 
 Sparrow is a lightweight framework for building modern RESTful APIs.
 
-### Usage
-
-```swift
-let router = Router()
-
-router.get { context in
-
-    return ResponseContext(
-        status: .ok,
-        message: "Hello world!"
-    )
-}
-
-let server = try HTTPServer(port: 8080, responder: router)
-try server.start()
-```
-
-
-
 ## Credits
 
 Based off [Zewo](https://github.com/Zewo)
@@ -35,7 +16,7 @@ Based off [Zewo](https://github.com/Zewo)
 
 ## License
 
-Pin is released under the MIT license. See LICENSE for details.
+Sparrow is released under the MIT license. See LICENSE for details.
 
 ## About Formbound
 
