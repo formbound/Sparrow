@@ -104,11 +104,9 @@ extension Router {
     public func respond(to request: Request) -> Response {
         do {
             return try process(request: request)
-        }
-        catch let error as RouterError {
+        } catch let error as ResponseRepresentable {
             return error.response
-        }
-        catch {
+        } catch {
             return Response(status: .internalServerError)
         }
     }
