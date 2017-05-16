@@ -22,6 +22,6 @@ struct EchoRoute : Route {
 }
 
 let root = RootRoute()
-let router = Router(route: root)
+let router = Router(root: root)
 let server = Server(router: router)
 try server.start(port: 9090)

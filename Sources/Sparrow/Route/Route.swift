@@ -71,9 +71,9 @@ extension Route {
 }
 
 public extension Router {
-    convenience init(route: Route) {
+    convenience init(root: Route) {
         self.init()
-        route.build(router: self)
+        root.build(router: self)
     }
     
     func add<R : Route>(path: String, route: R) {
