@@ -1,5 +1,18 @@
 {
   "autoPin": true,
-  "pins": [],
+  "pins": [
+    {
+      "package": "Venice",
+      "reason": null,
+      "repositoryURL": "https://github.com/Zewo/Venice.git",
+      "version": "0.17.1"
+    },
+    {
+      "package": "Zewo",
+      "reason": null,
+      "repositoryURL": "https://github.com/Zewo/Zewo.git",
+      "version": "0.9.1"
+    }
+  ],
   "version": 1
 }

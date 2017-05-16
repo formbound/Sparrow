@@ -60,18 +60,18 @@ extension Route {
     fileprivate func build(router: Router) {
         configure(router: router)
         router.preprocess(body: preprocess(request:))
-        router.get(body: get(request:))
-        router.post(body: post(request:))
-        router.put(body: put(request:))
-        router.patch(body: patch(request:))
-        router.delete(body: delete(request:))
+        router.respond(method: .get, body: get(request:))
+        router.respond(method: .post, body: post(request:))
+        router.respond(method: .put, body: put(request:))
+        router.respond(method: .patch, body: patch(request:))
+        router.respond(method: .delete, body: delete(request:))
         router.postprocess(body: postprocess(response:for:))
         router.recover(body: recover(error:))
     }
 }
 
 public extension Router {
-    convenience init(route: Route, timeout: Duration = 10.seconds) {
+    convenience init(route: Route) {
         self.init()
         route.build(router: self)
     }

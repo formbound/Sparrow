@@ -12,7 +12,7 @@ extension Server {
         closeConnectionTimeout: Duration = 1.minute,
         logAppenders: [LogAppender] = [defaultAppender],
         router: Router
-        ) {
+    ) {
         self.init(
             parserBufferSize: parserBufferSize,
             serializerBufferSize: serializerBufferSize,
