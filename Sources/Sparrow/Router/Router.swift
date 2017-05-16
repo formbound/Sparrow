@@ -76,9 +76,6 @@ extension Router {
 
 extension Router {
 
-
-
-
     @inline(__always)
     private func matchingRouterChain(
         for pathComponents: [String],
@@ -153,31 +150,31 @@ extension Router {
             request.uri.parameters.set(value, for: key)
         }
 
-        // Preprocess the request for each router in the chain
-        for router in routerChain {
-            try router.preprocess(request)
+        do {
+            // Preprocess the request for each router in the chain
+            for router in routerChain {
+                try router.preprocess(request)
+            }
+
+            // Invoke the responder, returning the response
+            let response = try responder(request)
+
+
+            // Postprocess (in reverse order) for each router in the chain
+            for router in routerChain.reversed() {
+                try router.postprocess(response, request)
+            }
+
+            return response
         }
+        catch {
 
-        // Invoke the responder, returning the response
-        let response = try responder(request)
+            // Try to recover for each router in the chain, reversed
+            for router in routerChain.reversed() {
+                return try router.recover(error)
+            }
 
-
-        // Postprocess (in reverse order) for each router in the chain
-        for router in routerChain.reversed() {
-            try router.postprocess(response, request)
-        }
-
-        return response
-    }
-
-    
-    @inline(__always)
-    private func recover(from error: Error) -> Response {
-        switch error {
-        case let error as ResponseRepresentable:
-            return error.response
-        default:
-            return Response(status: .internalServerError)
+            throw error
         }
     }
 }
