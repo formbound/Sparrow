@@ -3,6 +3,8 @@
 
 </p>
 
+# Sparrow
+
 Sparrow is a lightweight framework for building modern RESTful APIs.
 
 ### Usage
