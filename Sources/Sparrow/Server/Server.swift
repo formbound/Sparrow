@@ -5,18 +5,22 @@ import HTTP
 extension Server {
     /// Creates a new HTTP server
     public convenience init(
-        bufferSize: Int = 4096,
+        parserBufferSize: Int = 4096,
+        serializerBufferSize: Int = 4096,
         parseTimeout: Duration = 5.minutes,
         serializeTimeout: Duration = 5.minutes,
+        closeConnectionTimeout: Duration = 1.minute,
         logAppenders: [LogAppender] = [defaultAppender],
         router: Router
         ) {
         self.init(
-            bufferSize: bufferSize,
+            parserBufferSize: parserBufferSize,
+            serializerBufferSize: serializerBufferSize,
             parseTimeout: parseTimeout,
             serializeTimeout: serializeTimeout,
+            closeConnectionTimeout: closeConnectionTimeout,
             logAppenders: logAppenders,
-            respond: router.respond
+            respond: router.respond(to:)
         )
     }
     
