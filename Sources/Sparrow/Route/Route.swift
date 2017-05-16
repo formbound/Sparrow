@@ -71,8 +71,8 @@ extension Route {
 }
 
 public extension Router {
-    convenience init(route: Route, contentNegotiator: ContentNegotiator = .init(), timeout: Duration = 10.seconds) {
-        self.init(contentNegotiator: contentNegotiator, timeout: timeout)
+    convenience init(route: Route, timeout: Duration = 10.seconds) {
+        self.init()
         route.build(router: self)
     }
     

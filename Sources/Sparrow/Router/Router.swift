@@ -15,28 +15,21 @@ public final class Router {
     fileprivate var postprocess: Postprocess = { _ in }
     fileprivate var recover: Recover = { error in throw error }
 
-    public let contentNegotiator: ContentNegotiator
-
-    public let timeout: Duration
+    init() {}
     
-    init(contentNegotiator: ContentNegotiator, timeout: Duration) {
-        self.contentNegotiator = contentNegotiator
-        self.timeout = timeout
-    }
-    
-    public convenience init(contentNegotiator: ContentNegotiator = .init(), timeout: Duration = 10.seconds, body: (Router) -> Void) {
-        self.init(contentNegotiator: contentNegotiator, timeout: timeout)
+    public convenience init(body: (Router) -> Void) {
+        self.init()
         body(self)
     }
     
     public func add(path: String, body: (Router) -> Void) {
-        let route = Router(contentNegotiator: contentNegotiator, timeout: timeout)
+        let route = Router()
         body(route)
         return subrouters[path] = route
     }
     
     public func add(parameter: String, body: (Router) -> Void) {
-        let route = Router(contentNegotiator: contentNegotiator, timeout: timeout)
+        let route = Router()
         body(route)
         pathParameterSubrouter = (parameter, route)
     }
@@ -80,87 +73,103 @@ extension Router {
     }
 }
 
+
 extension Router {
-    private struct Path {
-        private var path: String.CharacterView
-        
-        fileprivate init(_ path: String) {
-            self.path = path.characters.dropFirst()
+
+
+
+
+    @inline(__always)
+    private func matchingRouterChain(
+        for pathComponents: [String],
+        parameters: inout [String: String]
+        ) -> [Router] {
+
+        if pathComponents.isEmpty {
+            return [self]
         }
-        
-        fileprivate mutating func popPathComponent() -> String? {
-            if path.isEmpty {
-                return nil
-            }
-            
-            var pathComponent = String.CharacterView()
-            
-            while let character = path.popFirst() {
-                guard character != "/" else {
-                    break
-                }
-                
-                pathComponent.append(character)
-            }
-            
-            return String(pathComponent)
+
+        var pathComponents = pathComponents
+
+        let pathComponent = pathComponents.removeFirst()
+
+        if let subrouter = subrouters[pathComponent] {
+            return [self] + subrouter.matchingRouterChain(for: pathComponents, parameters: &parameters)
+        }
+        else if let (pathParameterKey, subrouter) = pathParameterSubrouter {
+            parameters[pathParameterKey] = pathComponent
+            return [self] + subrouter.matchingRouterChain(for: pathComponents, parameters: &parameters)
+        } else {
+            return []
         }
     }
-    
+
     public func respond(to request: Request) -> Response {
         do {
-            var path = Path(request.uri.path ?? "/")
-            return try respond(to: request, path: &path)
-        } catch {
-            return recover(from: error)
+            return try process(request: request)
+        }
+        catch let error as RouterError {
+            return error.response
+        }
+        catch {
+            return Response(status: .internalServerError)
         }
     }
-    
+
     @inline(__always)
-    private func respond(to request: Request, path: inout Path) throws -> Response {
-        do {
-            try preprocess(request)
-            let response = try process(request, path: &path)
-            try postprocess(response, request)
+    private func process(request: Request) throws -> Response {
 
-            try contentNegotiator.serialize(response, for: request, deadline: timeout.fromNow())
+        var pathComponents: [String]
 
-            return response
-        } catch {
-            return try recover(error)
+        // Extract path components from the path trimmed from forward slashes
+        if let path = request.uri.path?.trimmingCharacters(in: .init(charactersIn: "/")) {
+            pathComponents = path.components(separatedBy: "/")
         }
+        else {
+            pathComponents = []
+        }
+
+        // Path parameters will be extracted from the route chain
+        var pathParameters: [String: String] = [:]
+
+        // Find a matching route chain
+        let routerChain = matchingRouterChain(for: pathComponents, parameters: &pathParameters)
+
+        // If no route chain is found it's a 404 Not Found
+        if routerChain.isEmpty {
+            throw RouterError.notFound
+        }
+
+        let respondingRouter = routerChain[routerChain.endIndex - 1]
+
+        // Make sure there's a responder for the requested method, or it's a 405 Method Not Allowed
+        guard let responder = respondingRouter.responders[request.method] else {
+            throw RouterError.methodNotAllowed
+        }
+
+        // At this point, the request is ready to be handled by the responder
+
+        for (key, value) in pathParameters {
+            request.uri.parameters.set(value, for: key)
+        }
+
+        // Preprocess the request for each router in the chain
+        for router in routerChain {
+            try router.preprocess(request)
+        }
+
+        // Invoke the responder, returning the response
+        let response = try responder(request)
+
+
+        // Postprocess (in reverse order) for each router in the chain
+        for router in routerChain.reversed() {
+            try router.postprocess(response, request)
+        }
+
+        return response
     }
-    
-    @inline(__always)
-    private func process(_ request: Request, path: inout Path) throws -> Response {
-        if let pathComponent = path.popPathComponent() {
-            let subrouter = try getSubrouter(for: pathComponent, request: request)
-            return try subrouter.respond(to: request, path: &path)
-        }
-        
-        if let respond = responders[request.method] {
 
-            if let contentLength = request.contentLength, contentLength > 0 {
-                try contentNegotiator.parse(request, deadline: timeout.fromNow())
-            }
-
-            return try respond(request)
-        }
-
-        throw RouterError.methodNotAllowed
-    }
-    
-    @inline(__always)
-    private func getSubrouter(for pathComponent: String, request: Request) throws -> Router {
-        if let subrouter = subrouters[pathComponent] {
-            return subrouter
-        } else if let (pathParameterKey, subrouter) = pathParameterSubrouter {
-            request.uri.parameters.set(pathComponent, for: pathParameterKey)
-            return subrouter
-        }
-        
-        throw RouterError.notFound
-    }
     
     @inline(__always)
     private func recover(from error: Error) -> Response {
