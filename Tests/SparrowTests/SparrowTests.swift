@@ -1,97 +1,53 @@
 import XCTest
+import HTTP
 @testable import Sparrow
 
-public class SparrowTests: XCTestCase {
-
-    enum TestError: Error {
-        case test
-    }
-
-    func testServer() throws {
-
-        let router = Router()
-
-        router.add("error") { router in
-
-            router.respond(to: .get) { request in
-
-                if let shouldThrow: Bool = try request.queryParameters.get("throw") {
-                    if shouldThrow {
-                        throw TestError.test
+public class SparrowTests : XCTestCase {
+    func testEchoServer() throws {
+        let contentNegotiator = ContentNegotiator()
+        
+        let router = Router { root in
+            root.preprocess { request in
+                try contentNegotiator.parse(request, deadline: 1.minute.fromNow())
+            }
+            
+            root.get { request in
+                return Response(status: .ok)
+            }
+            
+            root.add(path: "echo") { echo in
+                echo.post { request in
+                    return Response(status: .ok, content: request.content ?? .null)
+                }
+            }
+            
+            root.add(path: "foo") { foo in
+                foo.get { request in
+                    return Response(status: .ok)
+                }
+                
+                foo.add(path: "bar") { bar in
+                    bar.get { request in
+                        return Response(status: .ok)
                     }
                 }
-                return Response(
-                    status: .ok,
-                    message: "Not throwing"
-                )
+            }
+            
+            root.postprocess { response, request in
+                try contentNegotiator.serialize(response, for: request, deadline: 1.minute.fromNow())
             }
         }
 
-        router.add("echo") { router in
-
-            router.post { request in
-                return Response(
-                    status: .ok,
-                    content: Content(dictionary: [
-                        "message": "Hello world!",
-                        "echo": request.content
-                    ])
-                )
-            }
-        }
-
-        let server = try HTTPServer(port: 8080, responder: router)
-        try server.start()
-    }
-
-    func testHelloWorld() throws {
-
-        let router = Router()
-
-        router.add(
-            TestCollection(),
-            to: "tests"
-        ).add(
-            TestEntity(),
-            to: .testId
-        )
-
-        router.add(UserCollection(), to: "users").add(UserEndpoint(), to: .userId)
-
-        let server = try HTTPServer(port: 8080, responder: router)
-        try server.start()
-    }
-
-    func testRouterPerformance() throws {
-        let router = Router()
-        router.add(UserCollection(), to: "users").add(UserEndpoint(), to: .userId)
-
-        let request = HTTPRequest(method: .get, url: URL(string: "/users")!, headers: ["Authentication": "bearer token"])
-
-        measure {
-            print(try? router.respond(to: request))
-        }
+        let server = Server(router: router)
+//        try server.start()
     }
 }
+
 
 extension SparrowTests {
     public static var allTests: [(String, (SparrowTests) -> () throws -> Void)] {
-        return []
-    }
-}
-
-extension PathParameter {
-    public static let userId = PathParameter(rawValue: "userId")
-    public static let testId = PathParameter(rawValue: "testId")
-}
-
-struct NameAndAgeParameters: ParametersInitializable {
-
-    let age: Int
-    let name: String
-
-    init(parameters: Parameters) throws {
-        age = try parameters.get("age")
-        name = try parameters.get("name")
+        return [
+            ("testEchoServer", testEchoServer)
+        ]
     }
 }

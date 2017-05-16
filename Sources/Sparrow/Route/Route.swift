@@ -1,72 +1,85 @@
+import Core
 import HTTP
 
-public protocol Route: RequestProcessor {
-
-    func delete(request: Request) throws -> Response
-
+public protocol Route {
+    static var key: String { get }
+    
+    func configure(router: Router)
+    
+    func preprocess(request: Request) throws
+    
     func get(request: Request) throws -> Response
-
-    func head(request: Request) throws -> Response
-
     func post(request: Request) throws -> Response
-
     func put(request: Request) throws -> Response
-
-    func connect(request: Request) throws -> Response
-
-    func options(request: Request) throws -> Response
-
-    func trace(request: Request) throws -> Response
-
     func patch(request: Request) throws -> Response
+    func delete(request: Request) throws -> Response
+    
+    func postprocess(response: Response, for request: Request) throws
+    
+    func recover(error: Error) throws -> Response
+}
+
+public extension Route {
+    static var key: String {
+        return String(describing: Self.self)
+    }
+    
+    func configure(router: Router) {}
+    
+    func preprocess(request: Request) throws {}
+    
+    func get(request: Request) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    func post(request: Request) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    func put(request: Request) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    func patch(request: Request) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    func delete(request: Request) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    func postprocess(response: Response, for request: Request) throws {}
+    
+    func recover(error: Error) throws -> Response {
+        throw error
+    }
 }
 
 extension Route {
-
-    public func delete(request: Request) throws -> Response {
-        throw HTTPError(error: .methodNotAllowed)
-    }
-
-    public func get(request: Request) throws -> Response {
-        throw HTTPError(error: .methodNotAllowed)
-    }
-
-    public func head(request: Request) throws -> Response {
-        throw HTTPError(error: .methodNotAllowed)
-    }
-
-    public func post(request: Request) throws -> Response {
-        throw HTTPError(error: .methodNotAllowed)
-    }
-
-    public func put(request: Request) throws -> Response {
-        throw HTTPError(error: .methodNotAllowed)
-    }
-
-    public func connect(request: Request) throws -> Response {
-        throw HTTPError(error: .methodNotAllowed)
-    }
-
-    public func options(request: Request) throws -> Response {
-        throw HTTPError(error: .methodNotAllowed)
-    }
-
-    public func trace(request: Request) throws -> Response {
-        throw HTTPError(error: .methodNotAllowed)
-    }
-
-    public func patch(request: Request) throws -> Response {
-        throw HTTPError(error: .methodNotAllowed)
+    fileprivate func build(router: Router) {
+        configure(router: router)
+        router.preprocess(body: preprocess(request:))
+        router.get(body: get(request:))
+        router.post(body: post(request:))
+        router.put(body: put(request:))
+        router.patch(body: patch(request:))
+        router.delete(body: delete(request:))
+        router.postprocess(body: postprocess(response:for:))
+        router.recover(body: recover(error:))
     }
 }
 
-extension Route {
-    public func preprocess(request: Request) throws {
-        return
+public extension Router {
+    convenience init(route: Route) {
+        self.init()
+        route.build(router: self)
     }
-
-    public func postprocess(response: Response) throws {
-        return
+    
+    func add<R : Route>(path: String, route: R) {
+        add(path: path, body: route.build(router:))
+    }
+    
+    func add<R : Route>(parameter: String, route: R) {
+        add(parameter: parameter, body: route.build(router:))
     }
 }
-
