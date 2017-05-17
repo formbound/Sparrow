@@ -4,10 +4,7 @@ import HTTP
 
 // TODO: Make error CustomStringConvertible and ResponseRepresentable
 public enum ContentNegotiationError : Error {
-    case noSuitableParser
     case noSuitableSerializer
-    case noReadableBody
-    case noRequestContentType
     case noContent
 }
 
@@ -31,50 +28,36 @@ public struct ContentNegotiation {
 
 public struct ContentNegotiator {
     public let contentTypes: [ContentType]
-    public let parseTimeout: Duration
     
     public var mediaTypes: [MediaType] {
         return contentTypes.map { $0.mediaType }
     }
 
-    public init(
-        contentTypes: ContentType...,
-        parseTimeout: Duration = 5.minutes
-    ) {
+    public init(contentTypes: ContentType...) {
         self.contentTypes = contentTypes
-        self.parseTimeout = parseTimeout
     }
 
-    public func negotiate(_ request: Request) throws -> ContentNegotiation {
+    public func negotiate(_ request: Request, deadline: Deadline = 5.minutes.fromNow()) throws -> ContentNegotiation {
         guard let acceptedType = acceptedType(for: request.accept) else {
             throw ContentNegotiationError.noSuitableSerializer
         }
     
         return ContentNegotiation(
-            content: try? parse(request),
+            content: parse(request, deadline: deadline),
             acceptedType: acceptedType
         )
     }
     
-    public func parse(_ request: Request) throws -> Content {
+    private func parse(_ request: Request, deadline: Deadline) -> Content? {
         guard let mediaType = request.contentType else {
-            throw ContentNegotiationError.noRequestContentType
-        }
-        
-        guard let stream = request.body.readable else {
-            throw ContentNegotiationError.noReadableBody
+            return nil
         }
         
         guard let contentType = contentType(for: mediaType) else {
-            throw ContentNegotiationError.noSuitableParser
+            return nil
         }
         
-        return try contentType.parser.parse(stream, deadline: parseTimeout.fromNow())
-    }
-    
-    public func parse<C : ContentInitializable>(_ request: Request) throws -> C {
-        let content = try parse(request)
-        return try C(content: content)
+        return try? request.getContent(contentType, deadline: deadline)
     }
 
     private func contentType(for mediaType: MediaType) -> ContentType? {
