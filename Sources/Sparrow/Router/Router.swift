@@ -20,7 +20,7 @@ extension RouterError : ResponseRepresentable {
 public final class Router {
     internal typealias Preprocess = (Request) throws -> Void
     internal typealias Postprocess = (Response, Request) throws -> Void
-    internal typealias Recover = (Error) throws -> Response
+    internal typealias Recover = (Error, Request) throws -> Response
     public typealias Respond = (_ request: Request) throws -> Response
     
     fileprivate var subrouters: [String: Router] = [:]
@@ -29,7 +29,7 @@ public final class Router {
     fileprivate var preprocess: Preprocess = { _ in }
     fileprivate var responders: [Request.Method: Respond] = [:]
     fileprivate var postprocess: Postprocess = { _ in }
-    fileprivate var recover: Recover = { error in throw error }
+    fileprivate var recover: Recover = { error, _ in throw error }
 
     internal func add(subpath: String, body: (Router) -> Void) {
         let route = Router()
@@ -106,7 +106,7 @@ public final class Router {
             
             while let router = chain.popLast() {
                 do {
-                    return try router.recover(lastError)
+                    return try router.recover(lastError, request)
                 } catch {
                     lastError = error
                 }

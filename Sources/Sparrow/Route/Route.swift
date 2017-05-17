@@ -42,7 +42,7 @@ public protocol Route {
     
     func postprocess(response: Response, for request: Request) throws
     
-    func recover(error: Error) throws -> Response
+    func recover(error: Error, for request: Request) throws -> Response
 }
 
 public extension Route {
@@ -92,7 +92,7 @@ public extension Route {
     
     func postprocess(response: Response, for request: Request) throws {}
     
-    func recover(error: Error) throws -> Response {
+    func recover(error: Error, for request: Request) throws -> Response {
         throw error
     }
 }
@@ -111,7 +111,7 @@ extension Route {
         router.respond(method: .trace, body: delete(request:))
         router.respond(method: .connect, body: connect(request:))
         router.postprocess(body: postprocess(response:for:))
-        router.recover(body: recover(error:))
+        router.recover(body: recover(error:for:))
     }
 }
 
