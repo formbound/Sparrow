@@ -2,143 +2,85 @@ import Core
 import Venice
 import HTTP
 
+// TODO: Make error CustomStringConvertible and ResponseRepresentable
 public enum ContentNegotiationError : Error {
-    case noSuitableParser
     case noSuitableSerializer
+    case noContent
 }
 
-extension ContentNegotiationError : ResponseRepresentable {
-    public var response: Response {
-        switch self {
-        case .noSuitableParser:
-            return Response(status: .unsupportedMediaType)
-        case .noSuitableSerializer:
-            return Response(status: .unsupportedMediaType)
+public struct ContentNegotiation {
+    public let content: Content?
+    public let acceptedType: ContentType
+    
+    public func getContent() throws -> Content {
+        guard let content = content else {
+            throw ContentNegotiationError.noContent
         }
+        
+        return content
+    }
+    
+    public func getContent<C : ContentInitializable>() throws -> C {
+        let content = try getContent()
+        return try C(content: content)
     }
 }
 
 public struct ContentNegotiator {
     public let contentTypes: [ContentType]
-    private let mediaTypes: [MediaType]
     
-    public init() {
-        self.init(contentTypes: .json)
+    public var mediaTypes: [MediaType] {
+        return contentTypes.map { $0.mediaType }
     }
-    
+
     public init(contentTypes: ContentType...) {
         self.contentTypes = contentTypes
-        self.mediaTypes = contentTypes.map({$0.mediaType})
     }
-    
-    public func parse(_ request: Request, deadline: Deadline) throws {
-        guard request.content == nil else {
-            return
-        }
-        
-        guard let contentType = request.contentType else {
-            return
-        }
-        
-        guard let stream = request.body.readable else {
-            return
-        }
-        
-        let content = try parse(
-            stream: stream,
-            deadline: deadline,
-            mediaType: contentType
-        )
 
-        request.content = content
-    }
+    public func negotiate(_ request: Request, deadline: Deadline = 5.minutes.fromNow()) throws -> ContentNegotiation {
+        guard let acceptedType = acceptedType(for: request.accept) else {
+            throw ContentNegotiationError.noSuitableSerializer
+        }
     
-    private func parse(stream: ReadableStream, deadline: Deadline, mediaType: MediaType) throws -> Content {
-        let parserType = try firstParserType(for: mediaType)
-        
-        do {
-            return try parserType.parse(stream, deadline: deadline)
-        } catch {
-            throw ContentNegotiationError.noSuitableParser
-        }
-    }
-    
-    private func parserTypes(for mediaType: MediaType) -> [ContentParser.Type] {
-        var parsers: [ContentParser.Type] = []
-        
-        for contentType in contentTypes where contentType.mediaType.matches(other: mediaType) {
-            parsers.append(contentType.parser)
-        }
-        
-        return parsers
-    }
-    
-    private func firstParserType(for mediaType: MediaType) throws -> ContentParser.Type {
-        guard let first = parserTypes(for: mediaType).first else {
-            throw ContentNegotiationError.noSuitableParser
-        }
-        
-        return first
-    }
-    
-    public func serialize(_ response: Response, for request: Request, deadline: Deadline) throws {
-        guard let content = response.content else {
-            return
-        }
-        
-        let mediaTypes: [MediaType]
-        
-        if let contentType = response.contentType {
-            mediaTypes = [contentType]
-        } else {
-            mediaTypes = request.accept.isEmpty ? self.mediaTypes : request.accept
-        }
-        
-        let (mediaType, write) = try serializeToStream(
-            from: content,
-            deadline: deadline,
-            mediaTypes: mediaTypes
+        return ContentNegotiation(
+            content: parse(request, deadline: deadline),
+            acceptedType: acceptedType
         )
-        
-        response.contentType = mediaType
-        response.contentLength = nil
-        response.transferEncoding = "chunked"
-        response.body = .writable(write)
     }
     
-    private func serializeToStream(
-        from content: Content,
-        deadline: Deadline,
-        mediaTypes: [MediaType]
-    ) throws -> (MediaType, Body.Write)  {
-        for acceptedType in mediaTypes {
-            for (mediaType, serializerType) in serializerTypes(for: acceptedType) {
-                return (mediaType, { stream in
-                    try serializerType.serialize(content, stream: stream, deadline: deadline)
-                })
+    private func parse(_ request: Request, deadline: Deadline) -> Content? {
+        guard let mediaType = request.contentType else {
+            return nil
+        }
+        
+        guard let contentType = contentType(for: mediaType) else {
+            return nil
+        }
+        
+        return try? request.getContent(contentType, deadline: deadline)
+    }
+
+    private func contentType(for mediaType: MediaType) -> ContentType? {
+        for contentType in contentTypes where contentType.mediaType.matches(other: mediaType) {
+            return contentType
+        }
+        
+        return nil
+    }
+    
+    private func acceptedType(for acceptableTypes: [MediaType]) -> ContentType? {
+        if acceptableTypes.isEmpty {
+            return contentTypes.first
+        }
+        
+        for acceptableType in acceptableTypes {
+            for contentType in contentTypes {
+                if contentType.mediaType.matches(other: acceptableType) {
+                    return contentType
+                }
             }
         }
         
-        throw ContentNegotiationError.noSuitableSerializer
-    }
-    
-    private func serializerTypes(for mediaType: MediaType) -> [(MediaType, ContentSerializer.Type)] {
-        var serializers: [(MediaType, ContentSerializer.Type)] = []
-        
-        for contentType in contentTypes where contentType.mediaType.matches(other: mediaType) {
-            serializers.append(contentType.mediaType, contentType.serializer)
-        }
-        
-        return serializers
-    }
-    
-    private func firstSerializerType(
-        for mediaType: MediaType
-    ) throws -> (MediaType, ContentSerializer.Type) {
-        guard let first = serializerTypes(for: mediaType).first else {
-            throw ContentNegotiationError.noSuitableSerializer
-        }
-        
-        return first
+        return nil
     }
 }

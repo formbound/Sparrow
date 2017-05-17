@@ -1,10 +1,31 @@
 import Core
 import HTTP
+import Venice
+
+public struct RouteConfiguration {
+    private let router: Router
+    
+    fileprivate init(_ router: Router) {
+        self.router = router
+    }
+    
+    public func add<R : Route>(_ route: R, subpath: String) {
+        router.add(subpath: subpath, body: route.build(router:))
+    }
+    
+    public func add<R : Route>(_ route: R, parameter: String) {
+        router.add(parameter: parameter, body: route.build(router:))
+    }
+    
+    public func respond(method: Request.Method, body: @escaping Router.Respond) {
+        router.respond(method: method, body: body)
+    }
+}
 
 public protocol Route {
     static var key: String { get }
     
-    func configure(router: Router)
+    func configure(route: RouteConfiguration)
     
     func preprocess(request: Request) throws
     
@@ -14,17 +35,32 @@ public protocol Route {
     func patch(request: Request) throws -> Response
     func delete(request: Request) throws -> Response
     
+    func head(request: Request) throws -> Response
+    func options(request: Request) throws -> Response
+    func trace(request: Request) throws -> Response
+    func connect(request: Request) throws -> Response
+    
     func postprocess(response: Response, for request: Request) throws
     
-    func recover(error: Error) throws -> Response
+    func recover(error: Error, for request: Request) throws -> Response
 }
 
 public extension Route {
     static var key: String {
-        return String(describing: Self.self)
+        var key: String = ""
+        
+        for (index, character) in String(describing: Self.self).characters.enumerated() {
+            if index != 0, "A"..."Z" ~= character {
+                key.append("-")
+            }
+            
+            key.append(character)
+        }
+        
+        return key.lowercased()
     }
     
-    func configure(router: Router) {}
+    func configure(route: RouteConfiguration) {}
     
     func preprocess(request: Request) throws {}
     
@@ -48,38 +84,54 @@ public extension Route {
         throw RouterError.methodNotAllowed
     }
     
+    func head(request: Request) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    func options(request: Request) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    func trace(request: Request) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    func connect(request: Request) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
     func postprocess(response: Response, for request: Request) throws {}
     
-    func recover(error: Error) throws -> Response {
+    func recover(error: Error, for request: Request) throws -> Response {
         throw error
     }
 }
 
 extension Route {
     fileprivate func build(router: Router) {
-        configure(router: router)
+        configure(route: RouteConfiguration(router))
         router.preprocess(body: preprocess(request:))
-        router.get(body: get(request:))
-        router.post(body: post(request:))
-        router.put(body: put(request:))
-        router.patch(body: patch(request:))
-        router.delete(body: delete(request:))
+        router.respond(method: .get, body: get(request:))
+        router.respond(method: .post, body: post(request:))
+        router.respond(method: .put, body: put(request:))
+        router.respond(method: .patch, body: patch(request:))
+        router.respond(method: .delete, body: delete(request:))
+        router.respond(method: .head, body: delete(request:))
+        router.respond(method: .options, body: delete(request:))
+        router.respond(method: .trace, body: delete(request:))
+        router.respond(method: .connect, body: connect(request:))
         router.postprocess(body: postprocess(response:for:))
-        router.recover(body: recover(error:))
+        router.recover(body: recover(error:for:))
     }
 }
 
 public extension Router {
-    convenience init(route: Route) {
-        self.init()
-        route.build(router: self)
+    convenience init(root: Route, logger: Logger = defaultLogger) {
+        self.init(logger: logger)
+        root.build(router: self)
     }
     
-    func add<R : Route>(path: String, route: R) {
-        add(path: path, body: route.build(router:))
-    }
-    
-    func add<R : Route>(parameter: String, route: R) {
-        add(parameter: parameter, body: route.build(router:))
+    private static var defaultLogger: Logger {
+        return Logger(name: "Router")
     }
 }
