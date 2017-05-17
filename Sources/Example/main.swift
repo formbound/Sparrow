@@ -7,8 +7,8 @@ var zenCounter = 0
 
 struct RootRoute : Route {
     func configure(route root: RouteConfiguration) {
-        root.add(path: "echo", route: EchoRoute())
-        root.add(path: "zen", route: ZenRoute())
+        root.add(route: EchoRoute(), subpath: "echo")
+        root.add(route: ZenRoute(), subpath: "zen")
     }
     
     func get(request: Request) throws -> Response {
@@ -25,7 +25,8 @@ struct EchoRoute : Route {
     
     func post(request: Request) throws -> Response {
         let negotiation = try negotiator.negotiate(request)
-        return try Response(status: .ok, content: negotiation.getContent(), contentType: negotiation.acceptedType)
+        let content = try negotiation.getContent()
+        return Response(status: .ok, content: content, contentType: negotiation.acceptedType)
     }
 }
 

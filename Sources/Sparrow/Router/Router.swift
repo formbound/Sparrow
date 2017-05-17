@@ -31,10 +31,10 @@ public final class Router {
     fileprivate var postprocess: Postprocess = { _ in }
     fileprivate var recover: Recover = { error in throw error }
 
-    internal func add(path: String, body: (Router) -> Void) {
+    internal func add(subpath: String, body: (Router) -> Void) {
         let route = Router()
         body(route)
-        return subrouters[path] = route
+        return subrouters[subpath] = route
     }
     
     internal func add(parameter: String, body: (Router) -> Void) {
