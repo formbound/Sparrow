@@ -7,8 +7,8 @@ var zenCounter = 0
 
 struct RootRoute : Route {
     func configure(route root: RouteConfiguration) {
-        root.add(route: EchoRoute(), subpath: "echo")
-        root.add(route: ZenRoute(), subpath: "zen")
+        root.add(EchoRoute(), subpath: "echo")
+        root.add(ZenRoute(), subpath: "zen")
     }
     
     func get(request: Request) throws -> Response {

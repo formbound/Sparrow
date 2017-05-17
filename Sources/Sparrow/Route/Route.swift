@@ -9,11 +9,11 @@ public struct RouteConfiguration {
         self.router = router
     }
     
-    public func add<R : Route>(route: R, subpath: String) {
+    public func add<R : Route>(_ route: R, subpath: String) {
         router.add(subpath: subpath, body: route.build(router:))
     }
     
-    public func add<R : Route>(route: R, parameter: String) {
+    public func add<R : Route>(_ route: R, parameter: String) {
         router.add(parameter: parameter, body: route.build(router:))
     }
     
