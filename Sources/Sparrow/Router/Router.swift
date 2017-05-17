@@ -149,6 +149,36 @@ public final class Router {
     }
 }
 
+extension Router : CustomStringConvertible {
+    /// :nodoc:
+    public var description: String {
+        var string = description(path: "")
+        string.characters.removeLast()
+        return string
+    }
+    
+    @inline(__always)
+    private func description(path: String) -> String {
+        var string = ""
+            
+        if path == "" {
+            string += "/"
+        }
+        
+        string += path + "\n"
+        
+        for (pathComponent, subrouter) in subrouters.sorted(by: { $0.0 < $1.0 }) {
+            string += subrouter.description(path: path + "/" + pathComponent)
+        }
+        
+        if let (parameterKey, subrouter) = pathParameterSubrouter {
+            string += subrouter.description(path: path + "/:" + parameterKey)
+        }
+        
+        return string
+    }
+}
+
 fileprivate struct PathComponents {
     private var path: String.CharacterView
     

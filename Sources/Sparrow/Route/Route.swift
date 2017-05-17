@@ -47,7 +47,17 @@ public protocol Route {
 
 public extension Route {
     static var key: String {
-        return String(describing: Self.self)
+        var key: String = ""
+        
+        for (index, character) in String(describing: Self.self).characters.enumerated() {
+            if index != 0, "A"..."Z" ~= character {
+                key.append("-")
+            }
+            
+            key.append(character)
+        }
+        
+        return key.lowercased()
     }
     
     func configure(route: RouteConfiguration) {}
