@@ -126,8 +126,12 @@ extension Route {
 }
 
 public extension Router {
-    convenience init(root: Route) {
-        self.init()
+    convenience init(root: Route, logger: Logger = defaultLogger) {
+        self.init(logger: logger)
         root.build(router: self)
+    }
+    
+    private static var defaultLogger: Logger {
+        return Logger(name: "Router")
     }
 }

@@ -1,3 +1,4 @@
+import Core
 import HTTP
 import Venice
 
@@ -30,15 +31,21 @@ public final class Router {
     fileprivate var responders: [Request.Method: Respond] = [:]
     fileprivate var postprocess: Postprocess = { _ in }
     fileprivate var recover: Recover = { error, _ in throw error }
+    
+    fileprivate let logger: Logger
+    
+    internal init(logger: Logger) {
+        self.logger = logger
+    }
 
     internal func add(subpath: String, body: (Router) -> Void) {
-        let route = Router()
+        let route = Router(logger: logger)
         body(route)
         return subrouters[subpath] = route
     }
     
     internal func add(parameter: String, body: (Router) -> Void) {
-        let route = Router()
+        let route = Router(logger: logger)
         body(route)
         pathParameterSubrouter = (parameter, route)
     }
@@ -65,6 +72,7 @@ public final class Router {
         } catch let error as ResponseRepresentable {
             return error.response
         } catch {
+            logger.error("Unrecovered error while processing request.", error: error)
             return Response(status: .internalServerError)
         }
     }
@@ -172,7 +180,7 @@ extension Router : CustomStringConvertible {
         }
         
         if let (parameterKey, subrouter) = pathParameterSubrouter {
-            string += subrouter.description(path: path + "/:" + parameterKey)
+            string += subrouter.description(path: path + "/{" + parameterKey + "}")
         }
         
         return string
