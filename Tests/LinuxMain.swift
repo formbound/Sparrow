@@ -1,5 +1,5 @@
 import XCTest
-import Tests
+import SparrowTests
 
 XCTMain([
     testCase(Tests.allTests),
