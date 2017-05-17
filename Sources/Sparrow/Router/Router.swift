@@ -47,7 +47,7 @@ public final class Router {
         preprocess = body
     }
     
-    public func respond(method: Method, body: @escaping Respond) {
+    internal func respond(method: Method, body: @escaping Respond) {
         responders[method] = body
     }
     
