@@ -17,7 +17,7 @@ public struct RouteConfiguration {
         router.add(parameter: parameter, body: route.build(router:))
     }
     
-    public func respond(method: Method, body: @escaping Router.Respond) {
+    public func respond(method: Request.Method, body: @escaping Router.Respond) {
         router.respond(method: method, body: body)
     }
 }

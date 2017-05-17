@@ -27,7 +27,7 @@ public final class Router {
     fileprivate var pathParameterSubrouter: (String, Router)?
     
     fileprivate var preprocess: Preprocess = { _ in }
-    fileprivate var responders: [Method: Respond] = [:]
+    fileprivate var responders: [Request.Method: Respond] = [:]
     fileprivate var postprocess: Postprocess = { _ in }
     fileprivate var recover: Recover = { error in throw error }
 
@@ -47,7 +47,7 @@ public final class Router {
         preprocess = body
     }
     
-    internal func respond(method: Method, body: @escaping Respond) {
+    internal func respond(method: Request.Method, body: @escaping Respond) {
         responders[method] = body
     }
     
