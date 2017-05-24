@@ -1,36 +1,61 @@
 import Foundation
 import Core
+import Content
 import HTTP
 import Sparrow
 
-var zenCounter = 0
-
-struct RootRoute : Route {
+final class RootRoute : Route {
     func configure(route root: RouteConfiguration) {
-        root.add(EchoRoute(), subpath: "echo")
-        root.add(ZenRoute(), subpath: "zen")
+        root.add("echo", subroute: EchoRoute())
+        root.add("zen", subroute: ZenRoute())
     }
     
     func get(request: Request) throws -> Response {
-        let content: Content = [
+        let content: JSON = [
             "uptime": ProcessInfo.processInfo.systemUptime
         ]
         
-        return Response(status: .ok, content: content, contentType: .json)
+        return Response(status: .ok, content: content)
     }
 }
 
-struct EchoRoute : Route {
-    let negotiator = ContentNegotiator(contentTypes: .json)
+struct Echo  {
+    let echo: String
+}
+
+extension Echo : JSONConvertible, PlainTextConvertible {
+    static var contentTypes: ContentTypes = [
+        ContentType(Echo.init(json:), Echo.json),
+        ContentType(Echo.init(plainText:), Echo.plainText),
+    ]
+
+    init(json: JSON) throws {
+        echo = try json.get("echo")
+    }
     
-    func post(request: Request) throws -> Response {
-        let negotiation = try negotiator.negotiate(request)
-        let content = try negotiation.getContent()
-        return Response(status: .ok, content: content, contentType: negotiation.acceptedType)
+    func json() -> JSON {
+        return ["echo": echo]
+    }
+
+    init(plainText: PlainText) throws {
+        echo = plainText.description
+    }
+    
+    func plainText() -> PlainText {
+        return PlainText(echo)
     }
 }
 
-struct ZenRoute : Route {
+final class EchoRoute : Route {
+    func post(request: Request) throws -> Response {
+        let content: Echo = try request.content()
+        return try Response(status: .ok, content: request.negotiate(content))
+    }
+}
+
+final class ZenRoute : Route {
+    var counter = 0
+    
     let zen = [
         "Non-blocking is better than blocking.",
         "Anything added dilutes everything else.",
@@ -49,13 +74,14 @@ struct ZenRoute : Route {
     ]
     
     func get(request: Request) throws -> Response {
-        zenCounter += 1
+        counter += 1
         
-        if zenCounter == zen.count {
-            zenCounter = 0
+        if counter == zen.count {
+            counter = 0
         }
         
-        return Response(status: .ok, content: zen[zenCounter], contentType: .plainText)
+        let content = PlainText(zen[counter])
+        return Response(status: .ok, content: content)
     }
 }
 

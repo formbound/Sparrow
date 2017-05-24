@@ -9,21 +9,19 @@ public struct RouteConfiguration {
         self.router = router
     }
     
-    public func add<R : Route>(_ route: R, subpath: String) {
-        router.add(subpath: subpath, body: route.build(router:))
+    public func add<R : Route>(_ pathComponent: PathComponent, subroute: R) {
+        let subrouter = router.add(pathComponent)
+        subroute.build(router: subrouter)
     }
     
-    public func add<R : Route>(_ route: R, parameter: String) {
-        router.add(parameter: parameter, body: route.build(router:))
-    }
-    
-    public func respond(method: Request.Method, body: @escaping Router.Respond) {
-        router.respond(method: method, body: body)
+    public func respond(to method: Request.Method, body: @escaping Router.Respond) {
+        router.respond(to: method, body: body)
     }
 }
 
 public protocol Route {
-    static var key: String { get }
+    static var parameter: PathComponent { get }
+    static var parameterKey: String { get }
     
     func configure(route: RouteConfiguration)
     
@@ -46,7 +44,11 @@ public protocol Route {
 }
 
 public extension Route {
-    static var key: String {
+    static var parameter: PathComponent {
+        return .parameter(Self.parameterKey)
+    }
+    
+    static var parameterKey: String {
         var key: String = ""
         
         for (index, character) in String(describing: Self.self).characters.enumerated() {
@@ -111,15 +113,15 @@ extension Route {
     fileprivate func build(router: Router) {
         configure(route: RouteConfiguration(router))
         router.preprocess(body: preprocess(request:))
-        router.respond(method: .get, body: get(request:))
-        router.respond(method: .post, body: post(request:))
-        router.respond(method: .put, body: put(request:))
-        router.respond(method: .patch, body: patch(request:))
-        router.respond(method: .delete, body: delete(request:))
-        router.respond(method: .head, body: delete(request:))
-        router.respond(method: .options, body: delete(request:))
-        router.respond(method: .trace, body: delete(request:))
-        router.respond(method: .connect, body: connect(request:))
+        router.respond(to: .get, body: get(request:))
+        router.respond(to: .post, body: post(request:))
+        router.respond(to: .put, body: put(request:))
+        router.respond(to: .patch, body: patch(request:))
+        router.respond(to: .delete, body: delete(request:))
+        router.respond(to: .head, body: delete(request:))
+        router.respond(to: .options, body: delete(request:))
+        router.respond(to: .trace, body: delete(request:))
+        router.respond(to: .connect, body: connect(request:))
         router.postprocess(body: postprocess(response:for:))
         router.recover(body: recover(error:for:))
     }
@@ -131,7 +133,11 @@ public extension Router {
         root.build(router: self)
     }
     
-    private static var defaultLogger: Logger {
-        return Logger(name: "Router")
+    public func add(_ path: PathComponent, _ components: PathComponent..., subroute: Route) {
+        let subrouter = Router()
+        var path = [path]
+        path.append(contentsOf: components)
+        add(path, subrouter: subrouter)
+        subroute.configure(route: RouteConfiguration(subrouter))
     }
 }
