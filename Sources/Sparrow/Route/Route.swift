@@ -9,13 +9,10 @@ public struct RouteConfiguration {
         self.router = router
     }
     
-    public func add<R : Route>(_ pathComponent: PathComponent, subroute: R) {
-        let subrouter = router.add(pathComponent)
+    public func add<R : Route>(_ path: PathComponent..., subroute: R) {
+        let subrouter = Router()
         subroute.build(router: subrouter)
-    }
-    
-    public func respond(to method: Request.Method, body: @escaping Router.Respond) {
-        router.respond(to: method, body: body)
+        router._add(path as [PathComponent], router: subrouter)
     }
 }
 
@@ -128,16 +125,14 @@ extension Route {
 }
 
 public extension Router {
-    convenience init(root: Route, logger: Logger = defaultLogger) {
-        self.init(logger: logger)
+    convenience init(root: Route) {
+        self.init()
         root.build(router: self)
     }
     
-    public func add(_ path: PathComponent, _ components: PathComponent..., subroute: Route) {
-        let subrouter = Router()
-        var path = [path]
-        path.append(contentsOf: components)
-        add(path, subrouter: subrouter)
-        subroute.configure(route: RouteConfiguration(subrouter))
+    public func add(_ path: PathComponent..., route: Route) {
+        let router = Router()
+        route.build(router: router)
+        _add(path as [PathComponent], router: router)
     }
 }

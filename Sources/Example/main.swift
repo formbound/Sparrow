@@ -12,7 +12,7 @@ final class RootRoute : Route {
     
     func get(request: Request) throws -> Response {
         let content: JSON = [
-            "uptime": ProcessInfo.processInfo.systemUptime
+            "uptime": ProcessInfo.processInfo.systemUptime.json()
         ]
         
         return Response(status: .ok, content: content)
@@ -23,7 +23,7 @@ struct Echo  {
     let echo: String
 }
 
-extension Echo : JSONConvertible, PlainTextConvertible {
+extension Echo : ContentConvertible, JSONConvertible, PlainTextConvertible {
     static var contentTypes: ContentTypes = [
         ContentType(Echo.init(json:), Echo.json),
         ContentType(Echo.init(plainText:), Echo.plainText),
@@ -34,7 +34,7 @@ extension Echo : JSONConvertible, PlainTextConvertible {
     }
     
     func json() -> JSON {
-        return ["echo": echo]
+        return ["echo": echo.json()]
     }
 
     init(plainText: PlainText) throws {

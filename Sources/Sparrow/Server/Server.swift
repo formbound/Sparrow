@@ -6,7 +6,6 @@ extension Server {
     /// Creates a new HTTP server
     public convenience init(
         router: Router,
-        logger: Logger = defaultLogger,
         header: String = defaultHeader,
         parserBufferSize: Int = 4096,
         serializerBufferSize: Int = 4096,
@@ -15,7 +14,6 @@ extension Server {
         closeConnectionTimeout: Duration = 1.minute
     ) {
         self.init(
-            logger: logger,
             header: header,
             parserBufferSize: parserBufferSize,
             serializerBufferSize: serializerBufferSize,
@@ -24,11 +22,6 @@ extension Server {
             closeConnectionTimeout: closeConnectionTimeout,
             respond: router.respond
         )
-    }
-    
-    private static var defaultLogger: Logger {
-        let appender = StandardOutputAppender(name: "HTTP server", levels: [.error, .info])
-        return Logger(name: "HTTP server", appenders: [appender])
     }
     
     private static var defaultHeader: String {

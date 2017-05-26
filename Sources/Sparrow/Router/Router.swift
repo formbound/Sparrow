@@ -35,76 +35,94 @@ open class Router {
     internal var postprocess: Postprocess = { _ in }
     internal var recover: Recover = { error, _ in throw error }
     
-    internal let logger: Logger
-    
-    public init(logger: Logger = defaultLogger) {
-        self.logger = logger
+    public init() {
         configure(router: self)
     }
     
     open func configure(router: Router) {}
     
-    internal func add(_ pathComponent: PathComponent) -> Router {
-        let subrouter = Router(logger: logger)
-        add(pathComponent, subrouter: subrouter)
-        return subrouter
+    internal func copy(_ router: Router) {
+        // TODO: issue warnings on overwites
+        subrouters = router.subrouters
+        pathParameterSubrouter = router.pathParameterSubrouter
+        preprocess = router.preprocess
+        responders = router.responders
+        postprocess = router.postprocess
+        recover = router.recover
     }
     
     public func respond(to request: Request) -> Response {
-        do {
-            return try process(request: request)
-        } catch let error as ResponseRepresentable {
-            return error.response
-        } catch {
-            logger.error("Unrecovered error while processing request.", error: error)
-            return Response(status: .internalServerError)
-        }
-    }
-
-    @inline(__always)
-    private func process(request: Request) throws -> Response {
         var chain: [Router] = []
+        var visited: [Router] = []
         var pathComponents = PathComponents(request.uri.path ?? "/")
         var pathParameters: [String: String] = [:]
         
-        let respondingRouter = try match(
-            chain: &chain,
-            pathComponents: &pathComponents,
-            parameters: &pathParameters
-        )
-
-        guard let responder = respondingRouter.responders[request.method] else {
-            throw RouterError.methodNotAllowed
-        }
-
-        for (key, parameter) in pathParameters {
-            request.uri.set(parameter: parameter, for: key)
-        }
-
-        do {
+        let response = recover(request, visited: &visited) { visited in
+            let respondingRouter = try match(
+                chain: &chain,
+                pathComponents: &pathComponents,
+                parameters: &pathParameters
+            )
+            
+            guard let responder = respondingRouter.responders[request.method] else {
+                throw RouterError.methodNotAllowed
+            }
+            
+            for (key, parameter) in pathParameters {
+                request.uri.set(parameter: parameter, key: key)
+            }
+            
             for router in chain {
+                visited.append(router)
                 try router.preprocess(request)
             }
-
-            let response = try responder(request)
-
-            for router in chain.reversed() {
+            
+            return try responder(request)
+        }
+        
+        return recover(request, visited: &visited) { visited in
+            while let router = visited.popLast() {
                 try router.postprocess(response, request)
             }
-
+            
             return response
+        }
+    }
+    
+    private func recover(
+        _ request: Request,
+        visited: inout [Router],
+        _ body: (inout [Router]) throws -> Response
+    ) -> Response {
+        do {
+            return try body(&visited)
         } catch {
+            Logger.error("Error while processing request. Trying to recover.", error: error)
             var lastError = error
             
-            while let router = chain.popLast() {
+            while let router = visited.popLast() {
                 do {
-                    return try router.recover(lastError, request)
+                    let response = try router.recover(lastError, request)
+                    Logger.error("Recovered error.", error: lastError)
+                    visited.append(router)
+                    return response
+                } catch let error as (Error & ResponseRepresentable) {
+                    Logger.error("Error can be represented as a response. Recovering.", error: error)
+                    visited.append(router)
+                    return error.response
                 } catch {
+                    Logger.error("Error while recovering.", error: error)
                     lastError = error
                 }
             }
-
-            throw error
+            
+            if let representable = lastError as? ResponseRepresentable {
+                Logger.error("Error can be represented as a response. Recovering.", error: lastError)
+                return representable.response
+            }
+            
+            Logger.error("Unrecovered error while processing request.")
+            return Response(status: .internalServerError)
         }
     }
     
@@ -138,10 +156,6 @@ open class Router {
         }
         
         throw RouterError.notFound
-    }
-    
-    internal static var defaultLogger: Logger {
-        return Logger(name: "Router")
     }
 }
 
@@ -232,37 +246,39 @@ extension String {
 }
 
 extension Router {    
-    public func add(_ path: PathComponent, _ components: PathComponent..., subrouter: Router) {
-        var path = [path]
-        path.append(contentsOf: components)
-        add(path, subrouter: subrouter)
+    public func add(_ path: PathComponent..., router: Router) {
+        _add(path, router: router)
     }
     
-    internal func add(_ path: [PathComponent], subrouter: Router) {
+    internal func _add(_ path: [PathComponent], router: Router) {
         var path = path
+        
+        guard !path.isEmpty else {
+            return copy(router)
+        }
         
         guard path.count > 1  else {
             switch path[0] {
             case let .subpath(subpath):
-                return subrouters[subpath] = subrouter
+                return subrouters[subpath] = router
             case let .parameter(parameter):
-                return pathParameterSubrouter = (parameter, subrouter)
+                return pathParameterSubrouter = (parameter, router)
             }
         }
         
         let pathComponent = path.removeFirst()
         let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter.add(path, subrouter: subrouter)
+        subrouter._add(path, router: router)
     }
 }
 
 
 extension Router {
     public func preprocess(_ path: PathComponent..., body: @escaping Preprocess) {
-        preprocess(path, body: body)
+        _preprocess(path as [PathComponent], body: body)
     }
     
-    private func preprocess(_ path: [PathComponent], body: @escaping Preprocess) {
+    private func _preprocess(_ path: [PathComponent], body: @escaping Preprocess) {
         var path = path
         
         guard !path.isEmpty else {
@@ -271,16 +287,16 @@ extension Router {
         
         let pathComponent = path.removeFirst()
         let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter.preprocess(path, body: body)
+        subrouter._preprocess(path, body: body)
     }
 }
 
 extension Router {
     public func postprocess(_ path: PathComponent..., body: @escaping Postprocess) {
-        postprocess(path, body: body)
+        _postprocess(path as [PathComponent], body: body)
     }
     
-    private func postprocess(_ path: [PathComponent], body: @escaping Postprocess) {
+    private func _postprocess(_ path: [PathComponent], body: @escaping Postprocess) {
         var path = path
         
         guard !path.isEmpty else {
@@ -289,16 +305,16 @@ extension Router {
         
         let pathComponent = path.removeFirst()
         let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter.postprocess(path, body: body)
+        subrouter._postprocess(path, body: body)
     }
 }
 
 extension Router {
     public func recover(_ path: PathComponent..., body: @escaping Recover) {
-        recover(path, body: body)
+        _recover(path as [PathComponent], body: body)
     }
     
-    private func recover(_ path: [PathComponent], body: @escaping Recover) {
+    private func _recover(_ path: [PathComponent], body: @escaping Recover) {
         var path = path
         
         guard !path.isEmpty else {
@@ -307,45 +323,45 @@ extension Router {
         
         let pathComponent = path.removeFirst()
         let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter.recover(path, body: body)
+        subrouter._recover(path, body: body)
     }
 }
 
 extension Router {
     public func get(_ path: PathComponent..., body: @escaping Respond) {
-        respond(to: .get, path: path, body: body)
+        _respond(to: .get, path: path as [PathComponent], body: body)
     }
     
     public func post(_ path: PathComponent..., body: @escaping Respond) {
-        respond(to: .post, path: path, body: body)
+        _respond(to: .post, path: path as [PathComponent], body: body)
     }
     
     public func put(_ path: PathComponent..., body: @escaping Respond) {
-        respond(to: .put, path: path, body: body)
+        _respond(to: .put, path: path as [PathComponent], body: body)
     }
     
     public func patch(_ path: PathComponent..., body: @escaping Respond) {
-        respond(to: .patch, path: path, body: body)
+        _respond(to: .patch, path: path as [PathComponent], body: body)
     }
     
     public func delete(_ path: PathComponent..., body: @escaping Respond) {
-        respond(to: .delete, path: path, body: body)
+        _respond(to: .delete, path: path as [PathComponent], body: body)
     }
     
     public func head(_ path: PathComponent..., body: @escaping Respond) {
-        respond(to: .head, path: path, body: body)
+        _respond(to: .head, path: path as [PathComponent], body: body)
     }
     
     public func options(_ path: PathComponent..., body: @escaping Respond) {
-        respond(to: .options, path: path, body: body)
+        _respond(to: .options, path: path as [PathComponent], body: body)
     }
     
     public func trace(_ path: PathComponent..., body: @escaping Respond) {
-        respond(to: .trace, path: path, body: body)
+        _respond(to: .trace, path: path as [PathComponent], body: body)
     }
     
     public func connect(_ path: PathComponent..., body: @escaping Respond) {
-        respond(to: .connect, path: path, body: body)
+        _respond(to: .connect, path: path as [PathComponent], body: body)
     }
     
     public func respond(
@@ -353,10 +369,10 @@ extension Router {
         path: PathComponent...,
         body: @escaping Respond
     ) {
-        respond(to: method, path: path, body: body)
+        _respond(to: method, path: path as [PathComponent], body: body)
     }
     
-    private func respond(
+    private func _respond(
         to method: Request.Method,
         path: [PathComponent],
         body: @escaping Respond
@@ -369,7 +385,7 @@ extension Router {
         
         let pathComponent = path.removeFirst()
         let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter.respond(to: method, path: path, body: body)
+        subrouter._respond(to: method, path: path, body: body)
     }
 }
 
@@ -401,17 +417,21 @@ extension Router {
         switch pathComponent {
         case let .subpath(subpath):
             guard let subouter = subrouters[subpath] else {
-                return add(pathComponent)
+                let router = Router()
+                add(pathComponent, router: router)
+                return router
             }
             
             subrouters[subpath] = subouter
             return subouter
         case let .parameter(parameter):
             guard let (subouterParameter, subouter) = pathParameterSubrouter else {
-                return add(pathComponent)
+                let router = Router()
+                add(pathComponent, router: router)
+                return router
             }
             
-            logger.warning("Overwriting parameter \(subouterParameter) with parameter \(parameter) in route \(path)")
+            Logger.warning("Overwriting parameter \(subouterParameter) with parameter \(parameter) in route \(path)")
             
             pathParameterSubrouter = (parameter, subouter)
             return subouter
