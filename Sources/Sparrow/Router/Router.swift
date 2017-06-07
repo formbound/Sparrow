@@ -43,8 +43,14 @@ open class Router {
     
     internal func copy(_ router: Router) {
         // TODO: issue warnings on overwites
-        subrouters = router.subrouters
-        pathParameterSubrouter = router.pathParameterSubrouter
+        for (pathComponent, subrouter) in router.subrouters {
+            subrouters[pathComponent] = subrouter
+        }
+        
+        if let (pathParameterKey, subrouter) = router.pathParameterSubrouter {
+            pathParameterSubrouter = (pathParameterKey, subrouter)
+        }
+        
         preprocess = router.preprocess
         responders = router.responders
         postprocess = router.postprocess
@@ -58,26 +64,31 @@ open class Router {
         var pathParameters: [String: String] = [:]
         
         let response = recover(request, visited: &visited) { visited in
-            let respondingRouter = try match(
-                chain: &chain,
-                pathComponents: &pathComponents,
-                parameters: &pathParameters
-            )
-            
-            guard let responder = respondingRouter.responders[request.method] else {
-                throw RouterError.methodNotAllowed
+            do {
+                let respondingRouter = try match(
+                    chain: &chain,
+                    pathComponents: &pathComponents,
+                    parameters: &pathParameters
+                )
+                
+                guard let responder = respondingRouter.responders[request.method] else {
+                    throw RouterError.methodNotAllowed
+                }
+                
+                for (key, parameter) in pathParameters {
+                    request.uri.set(parameter: parameter, key: key)
+                }
+                
+                for router in chain {
+                    visited.append(router)
+                    try router.preprocess(request)
+                }
+                
+                return try responder(request)
+            } catch {
+                visited.append(self)
+                throw error
             }
-            
-            for (key, parameter) in pathParameters {
-                request.uri.set(parameter: parameter, key: key)
-            }
-            
-            for router in chain {
-                visited.append(router)
-                try router.preprocess(request)
-            }
-            
-            return try responder(request)
         }
         
         return recover(request, visited: &visited) { visited in
@@ -99,8 +110,11 @@ open class Router {
         } catch {
             Logger.error("Error while processing request. Trying to recover.", error: error)
             var lastError = error
+            var lastRouter = visited.last
             
             while let router = visited.popLast() {
+                lastRouter = router
+                
                 do {
                     let response = try router.recover(lastError, request)
                     Logger.error("Recovered error.", error: lastError)
@@ -116,12 +130,12 @@ open class Router {
                 }
             }
             
-            if let representable = lastError as? ResponseRepresentable {
-                Logger.error("Error can be represented as a response. Recovering.", error: lastError)
-                return representable.response
+            Logger.error("Unrecovered error while processing request.")
+            
+            if let router = lastRouter {
+                visited.append(router)
             }
             
-            Logger.error("Unrecovered error while processing request.")
             return Response(status: .internalServerError)
         }
     }
@@ -257,18 +271,18 @@ extension Router {
             return copy(router)
         }
         
-        guard path.count > 1  else {
-            switch path[0] {
-            case let .subpath(subpath):
-                return subrouters[subpath] = router
-            case let .parameter(parameter):
-                return pathParameterSubrouter = (parameter, router)
-            }
-        }
-        
         let pathComponent = path.removeFirst()
         let subrouter = getSubrouter(pathComponent, path: path.string)
         subrouter._add(path, router: router)
+    }
+    
+    internal func add(_ path: PathComponent, router: Router) {
+        switch path {
+        case let .subpath(subpath):
+            return subrouters[subpath] = router
+        case let .parameter(parameter):
+            return pathParameterSubrouter = (parameter, router)
+        }
     }
 }
 
@@ -438,13 +452,3 @@ extension Router {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
