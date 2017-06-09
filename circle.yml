@@ -2,7 +2,7 @@ dependencies:
   pre:
     - echo "deb [trusted=yes] http://apt.zewo.io ./" | sudo tee --append /etc/apt/sources.list
     - sudo apt-get update
-    - sudo apt-get install clang-3.6 libicu-dev libdill
+    - sudo apt-get install clang-3.6 libicu-dev zewo
     - sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-3.6 100
     - sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-3.6 100
     - export LD_LIBRARY_PATH=/usr/local/lib
