@@ -15,5 +15,4 @@ test:
 
     - /home/ubuntu/.swiftenv/shims/swift build
     - /home/ubuntu/.swiftenv/shims/swift build --configuration release
-    - export LD_LIBRARY_PATH="/usr/local/lib:/usr/local/opt/libressl/lib" 
-    - /home/ubuntu/.swiftenv/shims/swift test
+    - env LD_LIBRARY_PATH='/usr/local/lib:/usr/local/opt/libressl/lib' /home/ubuntu/.swiftenv/shims/swift test
