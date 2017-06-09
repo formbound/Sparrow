@@ -6,6 +6,6 @@ let package = Package(
         Target(name: "Sparrow"),
     ],
     dependencies: [
-        .Package(url: "https://github.com/Zewo/Zewo.git", majorVersion: 0, minor: 14),
+        .Package(url: "https://github.com/Zewo/Zewo.git", majorVersion: 0, minor: 15),
     ]
 )
