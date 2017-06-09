@@ -5,7 +5,7 @@ dependencies:
     - sudo apt-get install clang-3.6 libicu-dev zewo
     - sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-3.6 100
     - sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-3.6 100
-    - export LD_LIBRARY_PATH=/usr/local/lib
+    - export LD_LIBRARY_PATH="/usr/local/lib:/usr/local/opt/libressl/lib" 
   override:
     - eval "$(curl -sL https://raw.githubusercontent.com/Zewo/Zewo/master/Scripts/Travis/install.sh)"
 
