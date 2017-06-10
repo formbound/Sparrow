@@ -1,6 +1,8 @@
 <p align="center">
 <img src="Images/header.png" width="250" />
-
+<br />
+<br />
+<a href="https://github.com/Zewo/Venice"><img src="https://github.com/Zewo/Venice/blob/master/Images/badge.png?raw=true" height="80" /></a>
 </p>
 
 # Sparrow
