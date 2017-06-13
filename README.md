@@ -13,7 +13,7 @@ Sparrow is a lightweight framework for building modern RESTful APIs.
 
 **IMPORTANT NOTICE**
 
-Powerline `1.0.0` will release with the public release of Swift 4 and Xcode 9. To get started ahead of time, build with Swift tools version `4.0` and specify Formbound dependencies as `.branch("swift-4")`.
+Sparrow `1.0.0` will release with the public release of Swift 4 and Xcode 9. To get started ahead of time, build with Swift tools version `4.0` and specify Formbound dependencies as `.branch("swift-4")`.
 
 To otherwise speed up the process, [get involved](mailto:contact@formbound.com).
 
