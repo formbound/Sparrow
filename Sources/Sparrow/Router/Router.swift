@@ -1,5 +1,5 @@
 import Core
-import HTTP
+@_exported import HTTP
 import Venice
 
 public enum RouterError : Error {
@@ -21,7 +21,7 @@ extension RouterError : ResponseRepresentable {
     }
 }
 
-open class Router {
+final public class Router {
     public typealias Preprocess = (Request) throws -> Void
     public typealias Postprocess = (Response, Request) throws -> Void
     public typealias Recover = (Error, Request) throws -> Response
@@ -34,35 +34,39 @@ open class Router {
     internal var responders: [Request.Method: Respond] = [:]
     internal var postprocess: Postprocess = { _, _ in }
     internal var recover: Recover = { error, _ in throw error }
+
+    public init() {}
     
-    public init() {
-        configure(router: self)
-    }
-    
-    open func configure(router: Router) {}
-    
-    internal func copy(_ router: Router) {
-        // TODO: issue warnings on overwites
-        for (pathComponent, subrouter) in router.subrouters {
-            subrouters[pathComponent] = subrouter
+    convenience public init(route: Route) {
+        self.init()
+
+        preprocess(body: route.preprocess)
+        respond(to: .get, body: route.get)
+        respond(to: .post, body: route.post)
+        respond(to: .put, body: route.put)
+        respond(to: .patch, body: route.patch)
+        respond(to: .delete, body: route.delete)
+        respond(to: .head, body: route.head)
+        respond(to: .options, body: route.options)
+        respond(to: .trace, body: route.trace)
+        respond(to: .connect, body: route.connect)
+        postprocess(body: route.postprocess)
+
+        for (pathComponent, route) in route.children {
+            add(pathComponent, route: route)
         }
-        
-        if let (pathParameterKey, subrouter) = router.pathParameterSubrouter {
-            pathParameterSubrouter = (pathParameterKey, subrouter)
-        }
-        
-        preprocess = router.preprocess
-        responders = router.responders
-        postprocess = router.postprocess
-        recover = router.recover
     }
-    
+
+    public func add(_ pathComponent: PathComponent, route: Route) {
+        add(pathComponent, router: Router(route: route))
+    }
+
     public func respond(to request: Request) -> Response {
         var chain: [Router] = []
         var visited: [Router] = []
         var pathComponents = PathComponents(request.uri.path ?? "/")
         var pathParameters: [String: String] = [:]
-        
+
         let response = recover(request, visited: &visited) { visited in
             do {
                 let respondingRouter = try match(
@@ -234,6 +238,23 @@ public enum PathComponent {
     case parameter(String)
 }
 
+extension PathComponent: Hashable {
+    public var hashValue: Int {
+        switch self {
+        case .subpath(let string):
+            return string.hashValue
+        case .parameter(let string):
+            return "%\(string)".hashValue
+        }
+    }
+}
+
+extension PathComponent: Equatable {
+    public static func == (lhs: PathComponent, rhs: PathComponent) -> Bool {
+        return lhs.hashValue == rhs.hashValue
+    }
+}
+
 extension PathComponent : ExpressibleByStringLiteral {
     /// :nodoc:
     public init(unicodeScalarLiteral value: String) {
@@ -260,22 +281,6 @@ extension String {
 }
 
 extension Router {    
-    public func add(_ path: PathComponent..., router: Router) {
-        _add(path, router: router)
-    }
-    
-    internal func _add(_ path: [PathComponent], router: Router) {
-        var path = path
-        
-        guard !path.isEmpty else {
-            return copy(router)
-        }
-        
-        let pathComponent = path.removeFirst()
-        let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter._add(path, router: router)
-    }
-    
     internal func add(_ path: PathComponent, router: Router) {
         switch path {
         case let .subpath(subpath):
@@ -288,118 +293,65 @@ extension Router {
 
 
 extension Router {
-    public func preprocess(_ path: PathComponent..., body: @escaping Preprocess) {
-        _preprocess(path as [PathComponent], body: body)
-    }
-    
-    private func _preprocess(_ path: [PathComponent], body: @escaping Preprocess) {
-        var path = path
-        
-        guard !path.isEmpty else {
-            return preprocess = body
-        }
-        
-        let pathComponent = path.removeFirst()
-        let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter._preprocess(path, body: body)
+    public func preprocess(body: @escaping Preprocess) {
+        preprocess = body
     }
 }
 
 extension Router {
-    public func postprocess(_ path: PathComponent..., body: @escaping Postprocess) {
-        _postprocess(path as [PathComponent], body: body)
-    }
-    
-    private func _postprocess(_ path: [PathComponent], body: @escaping Postprocess) {
-        var path = path
-        
-        guard !path.isEmpty else {
-            return postprocess = body
-        }
-        
-        let pathComponent = path.removeFirst()
-        let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter._postprocess(path, body: body)
+    public func postprocess(body: @escaping Postprocess) {
+        postprocess = body
     }
 }
 
 extension Router {
-    public func recover(_ path: PathComponent..., body: @escaping Recover) {
-        _recover(path as [PathComponent], body: body)
-    }
-    
-    private func _recover(_ path: [PathComponent], body: @escaping Recover) {
-        var path = path
-        
-        guard !path.isEmpty else {
-            return recover = body
-        }
-        
-        let pathComponent = path.removeFirst()
-        let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter._recover(path, body: body)
+    public func recover(body: @escaping Recover) {
+        recover = body
     }
 }
 
 extension Router {
-    public func get(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .get, path: path as [PathComponent], body: body)
+    public func get(body: @escaping Respond) {
+        respond(to: .get, body: body)
     }
     
-    public func post(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .post, path: path as [PathComponent], body: body)
+    public func post(body: @escaping Respond) {
+        respond(to: .post, body: body)
     }
     
-    public func put(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .put, path: path as [PathComponent], body: body)
+    public func put(body: @escaping Respond) {
+        respond(to: .put, body: body)
     }
     
-    public func patch(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .patch, path: path as [PathComponent], body: body)
+    public func patch(body: @escaping Respond) {
+        respond(to: .patch, body: body)
     }
     
-    public func delete(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .delete, path: path as [PathComponent], body: body)
+    public func delete(body: @escaping Respond) {
+        respond(to: .delete, body: body)
     }
     
-    public func head(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .head, path: path as [PathComponent], body: body)
+    public func head(body: @escaping Respond) {
+        respond(to: .head, body: body)
     }
     
-    public func options(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .options, path: path as [PathComponent], body: body)
+    public func options(body: @escaping Respond) {
+        respond(to: .options, body: body)
     }
     
-    public func trace(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .trace, path: path as [PathComponent], body: body)
+    public func trace(body: @escaping Respond) {
+        respond(to: .trace, body: body)
     }
     
-    public func connect(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .connect, path: path as [PathComponent], body: body)
+    public func connect(body: @escaping Respond) {
+        respond(to: .connect, body: body)
     }
     
     public func respond(
         to method: Request.Method,
-        path: PathComponent...,
         body: @escaping Respond
     ) {
-        _respond(to: method, path: path as [PathComponent], body: body)
-    }
-    
-    private func _respond(
-        to method: Request.Method,
-        path: [PathComponent],
-        body: @escaping Respond
-    ) {
-        var path = path
-        
-        guard !path.isEmpty else {
-            return responders[method] = body
-        }
-        
-        let pathComponent = path.removeFirst()
-        let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter._respond(to: method, path: path, body: body)
+        responders[method] = body
     }
 }
 
@@ -423,32 +375,5 @@ extension Array where Element == PathComponent {
         }
         
         return string
-    }
-}
-
-extension Router {
-    fileprivate func getSubrouter(_ pathComponent: PathComponent, path: String) -> Router {
-        switch pathComponent {
-        case let .subpath(subpath):
-            guard let subouter = subrouters[subpath] else {
-                let router = Router()
-                add(pathComponent, router: router)
-                return router
-            }
-            
-            subrouters[subpath] = subouter
-            return subouter
-        case let .parameter(parameter):
-            guard let (subouterParameter, subouter) = pathParameterSubrouter else {
-                let router = Router()
-                add(pathComponent, router: router)
-                return router
-            }
-            
-            Logger.warning("Overwriting parameter \(subouterParameter) with parameter \(parameter) in route \(path)")
-            
-            pathParameterSubrouter = (parameter, subouter)
-            return subouter
-        }
     }
 }
