@@ -1,13 +1,23 @@
-// swift-tools-version:3.1
+// swift-tools-version:4.0
 
 import PackageDescription
 
 let package = Package(
     name: "Sparrow",
-    targets: [
-        Target(name: "Sparrow"),
+    products: [
+        .library(
+            name: "Sparrow",
+            type: .dynamic,
+            targets: [
+               "Sparrow"
+            ]
+        )
     ],
     dependencies: [
-        .Package(url: "https://github.com/Zewo/Zewo.git", majorVersion: 0, minor: 15),
+        .package(url: "https://github.com/Zewo/Zewo.git", .branch("swift-4"))
+    ],
+    targets: [
+        .target(name: "Sparrow", dependencies: ["Zewo"]),
+        .testTarget(name: "SparrowTests", dependencies: ["Sparrow"]),
     ]
 )

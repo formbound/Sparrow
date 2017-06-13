@@ -6,7 +6,7 @@ extension Server {
     /// Creates a new HTTP server
     public convenience init(
         router: Router,
-        header: String = defaultHeader,
+        header: String? = nil,
         parserBufferSize: Int = 4096,
         serializerBufferSize: Int = 4096,
         parseTimeout: Duration = 5.minutes,
@@ -14,7 +14,7 @@ extension Server {
         closeConnectionTimeout: Duration = 1.minute
     ) {
         self.init(
-            header: header,
+            header: header ?? Server.defaultHeader,
             parserBufferSize: parserBufferSize,
             serializerBufferSize: serializerBufferSize,
             parseTimeout: parseTimeout,

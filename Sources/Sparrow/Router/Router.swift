@@ -32,7 +32,7 @@ open class Router {
     
     internal var preprocess: Preprocess = { _ in }
     internal var responders: [Request.Method: Respond] = [:]
-    internal var postprocess: Postprocess = { _ in }
+    internal var postprocess: Postprocess = { _, _ in }
     internal var recover: Recover = { error, _ in throw error }
     
     public init() {
