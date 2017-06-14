@@ -1,7 +1,7 @@
 import XCTest
 import Sparrow
 
-struct User : Content {
+struct User : Renderable {
     let id: UUID
     let firstName: String
     let lastName: String
@@ -63,11 +63,11 @@ final class Application {
     }
 }
 
-struct Root : RouteNode {
+struct Root : RouteComponent {
     let app: Application
-    let users: RouteNode
+    let users: RouteComponent
     
-    var children: [String: RouteNode] {
+    var children: [String: RouteComponent] {
         return ["users": users]
     }
     
@@ -81,11 +81,11 @@ struct Root : RouteNode {
     }
 }
 
-struct UsersNode : RouteNode {
+struct UsersNode : RouteComponent {
     let app: Application
-    let user: RouteNode
+    let user: RouteComponent
     
-    var pathParameterChild: RouteNode {
+    var pathParameterChild: RouteComponent {
         return user
     }
     
@@ -94,7 +94,7 @@ struct UsersNode : RouteNode {
         self.user = UserNode(app: app)
     }
     
-    struct UsersResponse : Content {
+    struct UsersResponse : Renderable {
         let users: [User]
     }
     
@@ -103,7 +103,7 @@ struct UsersNode : RouteNode {
         return try Response(status: .ok, content: users)
     }
     
-    struct CreateUserRequest : Content {
+    struct CreateUserRequest : Renderable {
         let firstName: String
         let lastName: String
     }
@@ -115,7 +115,7 @@ struct UsersNode : RouteNode {
     }
 }
 
-struct UserNode : RouteNode {
+struct UserNode : RouteComponent {
     let app: Application
     
     func get(request: Request) throws -> Response {

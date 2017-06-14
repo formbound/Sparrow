@@ -30,11 +30,11 @@ final public class Router {
     private var postprocess: Postprocess = { _, _ in }
     private var recover: Recover = { error, _ in throw error }
     
-    public convenience init(root: RouteNode) {
+    public convenience init(root: RouteComponent) {
         self.init(route: root)
     }
     
-    private init(route: RouteNode) {
+    private init(route: RouteComponent) {
         preprocess = route.preprocess
         responders[.get] = route.get
         responders[.post] = route.post
