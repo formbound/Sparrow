@@ -13,7 +13,6 @@ final class Database {
     
     init(url: String) {
         self.url = url
-        saveUser(user: User(id: UUID(), firstName: "David", lastName: "Ask"))
     }
     
     func getUsers() -> [User] {
@@ -38,6 +37,8 @@ final class Application {
     
     init(database: Database) {
         self.database = database
+        let david = User(id: UUID(), firstName: "David", lastName: "Ask")
+        database.saveUser(user: david)
     }
     
     func getUsers() -> [User] {
