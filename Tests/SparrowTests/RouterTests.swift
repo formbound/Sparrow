@@ -9,14 +9,11 @@ struct User : Content {
 
 final class Database {
     let url: String
-    
-    var users: [UUID: User] = {
-        let id = UUID()
-        return [id: User(id: id, firstName: "David", lastName: "Ask")]
-    }()
+    var users: [UUID: User] = [:]
     
     init(url: String) {
         self.url = url
+        saveUser(user: User(id: UUID(), firstName: "David", lastName: "Ask"))
     }
     
     func getUsers() -> [User] {
