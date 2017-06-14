@@ -15,6 +15,11 @@ final class Database {
         self.url = url
     }
     
+    func seed() {
+        let david = User(id: UUID(), firstName: "David", lastName: "Ask")
+        saveUser(user: david)
+    }
+    
     func getUsers() -> [User] {
         return Array(users.values.sorted(by: { $0.lastName < $1.lastName }))
     }
@@ -37,8 +42,6 @@ final class Application {
     
     init(database: Database) {
         self.database = database
-        let david = User(id: UUID(), firstName: "David", lastName: "Ask")
-        database.saveUser(user: david)
     }
     
     func getUsers() -> [User] {
@@ -134,6 +137,7 @@ struct UserNode : RouteNode {
 public class RouterTests : XCTestCase {
     let router: Router = {
         let database = Database(url: "psql://localhost/database")
+        database.seed()
         let app = Application(database: database)
         let root = Root(app: app)
         return Router(root: root)
