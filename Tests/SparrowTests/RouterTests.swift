@@ -77,7 +77,7 @@ struct Root : RouteNode {
     }
     
     func get(request: Request) throws -> Response {
-        return Response(status: .ok)
+        return Response(status: .ok, body: "welcome")
     }
 }
 
