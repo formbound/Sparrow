@@ -1,11 +1,8 @@
-import Core
-@_exported import HTTP
-import Venice
+import Zewo
 
 public enum RouterError : Error {
     case notFound
     case methodNotAllowed
-    case parameterRedeclaration
 }
 
 extension RouterError : ResponseRepresentable {
@@ -15,52 +12,54 @@ extension RouterError : ResponseRepresentable {
             return Response(status: .notFound)
         case .methodNotAllowed:
             return Response(status: .methodNotAllowed)
-        case .parameterRedeclaration:
-            return Response(status: .internalServerError)
         }
     }
 }
 
 final public class Router {
-    public typealias Preprocess = (Request) throws -> Void
-    public typealias Postprocess = (Response, Request) throws -> Void
-    public typealias Recover = (Error, Request) throws -> Response
-    public typealias Respond = (_ request: Request) throws -> Response
+    private typealias Preprocess = (_ request: Request) throws -> Void
+    private typealias Postprocess = (_ response: Response, _ request: Request) throws -> Void
+    private typealias Recover = (_ error: Error, _ request: Request) throws -> Response
+    private typealias Respond = (_ request: Request) throws -> Response
     
-    internal var subrouters: [String: Router] = [:]
-    internal var pathParameterSubrouter: (String, Router)?
+    fileprivate var subrouters: [String: Router] = [:]
+    fileprivate var pathParameterSubrouter: (String, Router)?
     
-    internal var preprocess: Preprocess = { _ in }
-    internal var responders: [Request.Method: Respond] = [:]
-    internal var postprocess: Postprocess = { _, _ in }
-    internal var recover: Recover = { error, _ in throw error }
-
-    public init() {}
+    private var preprocess: Preprocess = { _ in }
+    private var responders: [Request.Method: Respond] = [:]
+    private var postprocess: Postprocess = { _, _ in }
+    private var recover: Recover = { error, _ in throw error }
     
-    convenience public init(route: Route) {
-        self.init()
+    public convenience init(root: RouteNode) {
+        self.init(route: root)
+    }
+    
+    private init(route: RouteNode) {
+        preprocess = route.preprocess
+        responders[.get] = route.get
+        responders[.post] = route.post
+        responders[.put] = route.put
+        responders[.patch] = route.patch
+        responders[.delete] = route.delete
+        responders[.head] = route.head
+        responders[.options] = route.options
+        responders[.trace] = route.trace
+        responders[.connect] = route.connect
+        postprocess = route.postprocess
+        recover = route.recover
 
-        preprocess(body: route.preprocess)
-        respond(to: .get, body: route.get)
-        respond(to: .post, body: route.post)
-        respond(to: .put, body: route.put)
-        respond(to: .patch, body: route.patch)
-        respond(to: .delete, body: route.delete)
-        respond(to: .head, body: route.head)
-        respond(to: .options, body: route.options)
-        respond(to: .trace, body: route.trace)
-        respond(to: .connect, body: route.connect)
-        postprocess(body: route.postprocess)
-
-        for (pathComponent, route) in route.children {
-            add(pathComponent, route: route)
+        for (subpath, route) in route.children {
+            subrouters[subpath] = Router(route: route)
+        }
+        
+        if !(route.pathParameterChild is NoPathParameterChild) {
+            pathParameterSubrouter = (
+                type(of: route.pathParameterChild).pathParameterKey,
+                Router(route: route.pathParameterChild)
+            )
         }
     }
-
-    public func add(_ pathComponent: PathComponent, route: Route) {
-        add(pathComponent, router: Router(route: route))
-    }
-
+    
     public func respond(to request: Request) -> Response {
         var chain: [Router] = []
         var visited: [Router] = []
@@ -144,7 +143,6 @@ final public class Router {
         }
     }
     
-    @inline(__always)
     private func match(
         chain: inout [Router],
         pathComponents: inout PathComponents,
@@ -185,7 +183,6 @@ extension Router : CustomStringConvertible {
         return string
     }
     
-    @inline(__always)
     private func description(path: String) -> String {
         var string = ""
             
@@ -230,150 +227,5 @@ fileprivate struct PathComponents {
         }
         
         return String(pathComponent)
-    }
-}
-
-public enum PathComponent {
-    case subpath(String)
-    case parameter(String)
-}
-
-extension PathComponent: Hashable {
-    public var hashValue: Int {
-        switch self {
-        case .subpath(let string):
-            return string.hashValue
-        case .parameter(let string):
-            return "%\(string)".hashValue
-        }
-    }
-}
-
-extension PathComponent: Equatable {
-    public static func == (lhs: PathComponent, rhs: PathComponent) -> Bool {
-        return lhs.hashValue == rhs.hashValue
-    }
-}
-
-extension PathComponent : ExpressibleByStringLiteral {
-    /// :nodoc:
-    public init(unicodeScalarLiteral value: String) {
-        self = .subpath(value)
-    }
-    
-    /// :nodoc:
-    public init(extendedGraphemeClusterLiteral value: String) {
-        self = .subpath(value)
-    }
-    
-    /// :nodoc:
-    public init(stringLiteral value: StringLiteralType) {
-        self = .subpath(value)
-    }
-}
-
-prefix operator %
-
-extension String {
-    public static prefix func % (parameter: String) -> PathComponent {
-        return .parameter(parameter)
-    }
-}
-
-extension Router {    
-    internal func add(_ path: PathComponent, router: Router) {
-        switch path {
-        case let .subpath(subpath):
-            return subrouters[subpath] = router
-        case let .parameter(parameter):
-            return pathParameterSubrouter = (parameter, router)
-        }
-    }
-}
-
-
-extension Router {
-    public func preprocess(body: @escaping Preprocess) {
-        preprocess = body
-    }
-}
-
-extension Router {
-    public func postprocess(body: @escaping Postprocess) {
-        postprocess = body
-    }
-}
-
-extension Router {
-    public func recover(body: @escaping Recover) {
-        recover = body
-    }
-}
-
-extension Router {
-    public func get(body: @escaping Respond) {
-        respond(to: .get, body: body)
-    }
-    
-    public func post(body: @escaping Respond) {
-        respond(to: .post, body: body)
-    }
-    
-    public func put(body: @escaping Respond) {
-        respond(to: .put, body: body)
-    }
-    
-    public func patch(body: @escaping Respond) {
-        respond(to: .patch, body: body)
-    }
-    
-    public func delete(body: @escaping Respond) {
-        respond(to: .delete, body: body)
-    }
-    
-    public func head(body: @escaping Respond) {
-        respond(to: .head, body: body)
-    }
-    
-    public func options(body: @escaping Respond) {
-        respond(to: .options, body: body)
-    }
-    
-    public func trace(body: @escaping Respond) {
-        respond(to: .trace, body: body)
-    }
-    
-    public func connect(body: @escaping Respond) {
-        respond(to: .connect, body: body)
-    }
-    
-    public func respond(
-        to method: Request.Method,
-        body: @escaping Respond
-    ) {
-        responders[method] = body
-    }
-}
-
-extension Array where Element == PathComponent {
-    var string: String {
-        var string = ""
-        
-        if self.isEmpty {
-            string += "/"
-        }
-        
-        for component in self {
-            string += "/"
-            
-            switch component {
-            case let .subpath(subpath):
-                string += subpath
-            case let .parameter(parameter):
-                string += parameter
-            }
-        }
-        
-        return string
     }
 }

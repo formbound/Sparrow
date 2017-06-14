@@ -1,5 +1,4 @@
-import Core
-import HTTP
+import Zewo
 
 public struct MessageLogger {
     public static func log(

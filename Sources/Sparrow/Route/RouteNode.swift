@@ -1,41 +1,45 @@
-import Core
-@_exported import HTTP
-import Venice
+import Zewo
 
-public protocol Route {
+public protocol RouteNode {
+    var pathParameterChild: RouteNode { get }
+    static var pathParameterKey: String { get }
     
-    var children: [PathComponent: Route] { get }
+    var children: [String: RouteNode] { get }
     
     func preprocess(request: Request) throws
-    
     func get(request: Request) throws -> Response
-
     func post(request: Request) throws -> Response
-
     func put(request: Request) throws -> Response
-
     func patch(request: Request) throws -> Response
-
     func delete(request: Request) throws -> Response
-    
     func head(request: Request) throws -> Response
-
     func options(request: Request) throws -> Response
-
     func trace(request: Request) throws -> Response
-
     func connect(request: Request) throws -> Response
-    
     func postprocess(response: Response, for request: Request) throws
-    
     func recover(error: Error, for request: Request) throws -> Response
 }
 
-public extension Route {
+struct NoPathParameterChild : RouteNode {
+    var pathParameterChild: RouteNode {
+        return self
+    }
+}
 
+public extension RouteNode {
+    public var pathParameterChild: RouteNode {
+        return NoPathParameterChild()
+    }
+    
+    public static var pathParameterKey: String {
+        return String(describing: Self.self).camelCaseSplit().map { word in
+            word.lowercased()
+        }.joined(separator: "-")
+    }
+    
     public func preprocess(request: Request) throws {}
 
-    public var children: [PathComponent: Route] {
+    public var children: [String: RouteNode] {
         return [:]
     }
     
