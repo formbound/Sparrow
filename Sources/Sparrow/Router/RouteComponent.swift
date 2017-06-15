@@ -91,17 +91,44 @@ public protocol RouteComponent {
     var children: [PathComponent: RouteComponent] { get }
     
     func preprocess(request: Request, context: Context) throws
-    func get(request: Request, context: Context) throws -> Response
-    func post(request: Request, context: Context) throws -> Response
-    func put(request: Request, context: Context) throws -> Response
-    func patch(request: Request, context: Context) throws -> Response
-    func delete(request: Request, context: Context) throws -> Response
-    func head(request: Request, context: Context) throws -> Response
-    func options(request: Request, context: Context) throws -> Response
-    func trace(request: Request, context: Context) throws -> Response
-    func connect(request: Request, context: Context) throws -> Response
     func postprocess(response: Response, for request: Request, context: Context) throws
     func recover(error: Error, for request: Request, context: Context) throws -> Response
+}
+
+public protocol GetResponder {
+    func get(request: Request, context: Context) throws -> Response
+}
+
+public protocol PostResponder {
+    func post(request: Request, context: Context) throws -> Response
+}
+
+public protocol PutResponder {
+    func put(request: Request, context: Context) throws -> Response
+}
+
+public protocol PatchResponder {
+    func patch(request: Request, context: Context) throws -> Response
+}
+
+public protocol DeleteResponder {
+    func delete(request: Request, context: Context) throws -> Response
+}
+
+public protocol HeadResponder {
+    func head(request: Request, context: Context) throws -> Response
+}
+
+public protocol OptionsResponder {
+    func options(request: Request, context: Context) throws -> Response
+}
+
+public protocol TraceResponder {
+    func trace(request: Request, context: Context) throws -> Response
+}
+
+public protocol ConnectResponder {
+    func connect(request: Request, context: Context) throws -> Response
 }
 
 extension RouteComponent {
@@ -117,42 +144,6 @@ public extension RouteComponent {
 
     public var children: [PathComponent: RouteComponent] {
         return [:]
-    }
-    
-    public func get(request: Request, context: Context) throws -> Response {
-        throw RouterError.methodNotAllowed
-    }
-    
-    public func post(request: Request, context: Context) throws -> Response {
-        throw RouterError.methodNotAllowed
-    }
-    
-    public func put(request: Request, context: Context) throws -> Response {
-        throw RouterError.methodNotAllowed
-    }
-    
-    public func patch(request: Request, context: Context) throws -> Response {
-        throw RouterError.methodNotAllowed
-    }
-    
-    public func delete(request: Request, context: Context) throws -> Response {
-        throw RouterError.methodNotAllowed
-    }
-    
-    public func head(request: Request, context: Context) throws -> Response {
-        throw RouterError.methodNotAllowed
-    }
-    
-    public func options(request: Request, context: Context) throws -> Response {
-        throw RouterError.methodNotAllowed
-    }
-    
-    public func trace(request: Request, context: Context) throws -> Response {
-        throw RouterError.methodNotAllowed
-    }
-    
-    public func connect(request: Request, context: Context) throws -> Response {
-        throw RouterError.methodNotAllowed
     }
     
     public func postprocess(response: Response, for request: Request, context: Context) throws {}
@@ -190,15 +181,60 @@ extension RouteComponent {
     
     internal func responder(for request: Request) throws -> (Request, Context) throws -> Response {
         switch request.method {
-        case .get: return get
-        case .post: return post
-        case .put: return put
-        case .patch: return patch
-        case .delete: return delete
-        case .head: return head
-        case .options: return options
-        case .trace: return trace
-        case .connect: return connect
+        case .get:
+            guard let responder = self as? GetResponder else {
+                fallthrough
+            }
+            
+            return responder.get
+        case .post:
+            guard let responder = self as? PostResponder else {
+                fallthrough
+            }
+            
+            return responder.post
+        case .put:
+            guard let responder = self as? PutResponder else {
+                fallthrough
+            }
+            
+            return responder.put
+        case .patch:
+            guard let responder = self as? PatchResponder else {
+                fallthrough
+            }
+            
+            return responder.patch
+        case .delete:
+            guard let responder = self as? DeleteResponder else {
+                fallthrough
+            }
+            
+            return responder.delete
+        case .head:
+            guard let responder = self as? HeadResponder else {
+                fallthrough
+            }
+            
+            return responder.head
+        case .options:
+            guard let responder = self as? OptionsResponder else {
+                fallthrough
+            }
+            
+            return responder.options
+        case .trace:
+            guard let responder = self as? TraceResponder else {
+                fallthrough
+            }
+            
+            return responder.trace
+        case .connect:
+            guard let responder = self as? ConnectResponder else {
+                fallthrough
+            }
+            
+            return responder.connect
         default: throw RouterError.methodNotAllowed
         }
     }

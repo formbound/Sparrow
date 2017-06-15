@@ -73,15 +73,17 @@ struct Root : RouteComponent {
     
     init(app: Application) {
         self.app = app
-        self.users = UsersNode(app: app)
+        self.users = UsersComponent(app: app)
     }
-    
+}
+
+extension Root : GetResponder {
     func get(request: Request, context: Context) throws -> Response {
         return Response(status: .ok, body: "welcome")
     }
 }
 
-struct UsersNode : RouteComponent {
+struct UsersComponent : RouteComponent {
     let app: Application
     let user: RouteComponent
     
@@ -91,9 +93,11 @@ struct UsersNode : RouteComponent {
     
     init(app: Application) {
         self.app = app
-        self.user = UserNode(app: app)
+        self.user = UserComponent(app: app)
     }
-    
+}
+
+extension UsersComponent : GetResponder {
     struct UsersResponse : Renderable {
         let users: [User]
     }
@@ -102,7 +106,9 @@ struct UsersNode : RouteComponent {
         let users = UsersResponse(users: app.getUsers())
         return try Response(status: .ok, content: users)
     }
-    
+}
+
+extension UsersComponent : PostResponder {
     struct CreateUserRequest : Renderable {
         let firstName: String
         let lastName: String
@@ -115,14 +121,8 @@ struct UsersNode : RouteComponent {
     }
 }
 
-struct UserNode : RouteComponent {
+struct UserComponent : RouteComponent {
     let app: Application
-    
-    func get(request: Request, context: Context) throws -> Response {
-        let id: UUID = try context.pathComponent(for: UserNode.self)
-        let user = try app.getUser(id: id)
-        return try Response(status: .ok, content: user)
-    }
     
     func recover(error: Error, for request: Request, context: Context) throws -> Response {
         switch error {
@@ -131,6 +131,14 @@ struct UserNode : RouteComponent {
         default:
             throw error
         }
+    }
+}
+
+extension UserComponent : GetResponder {
+    func get(request: Request, context: Context) throws -> Response {
+        let id: UUID = try context.pathComponent(for: UserComponent.self)
+        let user = try app.getUser(id: id)
+        return try Response(status: .ok, content: user)
     }
 }
 
@@ -161,7 +169,7 @@ public class RouterTests : XCTestCase {
         
         request = try Request(method: .get, uri: "/users")
         response = router.respond(to: request)
-        var usersResponse: UsersNode.UsersResponse = try response.content()
+        var usersResponse: UsersComponent.UsersResponse = try response.content()
         XCTAssertEqual(response.status, .ok)
         XCTAssertEqual(usersResponse.users.count, 1)
         var id = usersResponse.users[0].id
@@ -180,7 +188,7 @@ public class RouterTests : XCTestCase {
         response = router.respond(to: request)
         XCTAssertEqual(response.status, .notFound)
         
-        let createUserRequest = UsersNode.CreateUserRequest(firstName: "Paulo", lastName: "Faria")
+        let createUserRequest = UsersComponent.CreateUserRequest(firstName: "Paulo", lastName: "Faria")
         request = try Request(method: .post, uri: "/users", content: createUserRequest)
         response = router.respond(to: request)
         var paulo: User = try response.content()
