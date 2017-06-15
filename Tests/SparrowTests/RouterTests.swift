@@ -76,7 +76,7 @@ struct Root : RouteComponent {
         self.users = UsersNode(app: app)
     }
     
-    func get(request: Request) throws -> Response {
+    func get(request: Request, context: Context) throws -> Response {
         return Response(status: .ok, body: "welcome")
     }
 }
@@ -98,7 +98,7 @@ struct UsersNode : RouteComponent {
         let users: [User]
     }
     
-    func get(request: Request) throws -> Response {
+    func get(request: Request, context: Context) throws -> Response {
         let users = UsersResponse(users: app.getUsers())
         return try Response(status: .ok, content: users)
     }
@@ -108,7 +108,7 @@ struct UsersNode : RouteComponent {
         let lastName: String
     }
     
-    func post(request: Request) throws -> Response {
+    func post(request: Request, context: Context) throws -> Response {
         let createUser: CreateUserRequest = try request.content()
         let user = app.createUser(firstName: createUser.firstName, lastName: createUser.lastName)
         return try Response(status: .ok, content: user)
@@ -118,13 +118,13 @@ struct UsersNode : RouteComponent {
 struct UserNode : RouteComponent {
     let app: Application
     
-    func get(request: Request) throws -> Response {
-        let id: UUID = try request.uri.parameter(UserNode.pathParameterKey)
+    func get(request: Request, context: Context) throws -> Response {
+        let id: UUID = try context.pathComponent(for: UserNode.self)
         let user = try app.getUser(id: id)
         return try Response(status: .ok, content: user)
     }
     
-    func recover(error: Error, for request: Request) throws -> Response {
+    func recover(error: Error, for request: Request, context: Context) throws -> Response {
         switch error {
         case ApplicationError.userNotFound:
             return Response(status: .notFound)

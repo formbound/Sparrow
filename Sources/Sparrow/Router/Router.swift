@@ -17,190 +17,109 @@ extension RouterError : ResponseRepresentable {
 }
 
 final public class Router {
-    private typealias Preprocess = (_ request: Request) throws -> Void
-    private typealias Postprocess = (_ response: Response, _ request: Request) throws -> Void
-    private typealias Recover = (_ error: Error, _ request: Request) throws -> Response
-    private typealias Respond = (_ request: Request) throws -> Response
+    private let root: RouteComponent
     
-    fileprivate var subrouters: [String: Router] = [:]
-    fileprivate var pathParameterSubrouter: (String, Router)?
-    
-    private var preprocess: Preprocess = { _ in }
-    private var responders: [Request.Method: Respond] = [:]
-    private var postprocess: Postprocess = { _, _ in }
-    private var recover: Recover = { error, _ in throw error }
-    
-    public convenience init(root: RouteComponent) {
-        self.init(route: root)
-    }
-    
-    private init(route: RouteComponent) {
-        preprocess = route.preprocess
-        responders[.get] = route.get
-        responders[.post] = route.post
-        responders[.put] = route.put
-        responders[.patch] = route.patch
-        responders[.delete] = route.delete
-        responders[.head] = route.head
-        responders[.options] = route.options
-        responders[.trace] = route.trace
-        responders[.connect] = route.connect
-        postprocess = route.postprocess
-        recover = route.recover
-
-        for (subpath, route) in route.children {
-            subrouters[subpath] = Router(route: route)
-        }
-        
-        if !(route.pathParameterChild is NoPathParameterChild) {
-            pathParameterSubrouter = (
-                type(of: route.pathParameterChild).pathParameterKey,
-                Router(route: route.pathParameterChild)
-            )
-        }
+    public init(root: RouteComponent) {
+        self.root = root
     }
     
     public func respond(to request: Request) -> Response {
-        var chain: [Router] = []
-        var visited: [Router] = []
-        var pathComponents = PathComponents(request.uri.path ?? "/")
-        var pathParameters: [String: String] = [:]
-
-        let response = recover(request, visited: &visited) { visited in
-            do {
-                let respondingRouter = try match(
-                    chain: &chain,
-                    pathComponents: &pathComponents,
-                    parameters: &pathParameters
-                )
-                
-                guard let responder = respondingRouter.responders[request.method] else {
-                    throw RouterError.methodNotAllowed
-                }
-                
-                for (key, parameter) in pathParameters {
-                    request.uri.set(parameter: parameter, key: key)
-                }
-                
-                for router in chain {
-                    visited.append(router)
-                    try router.preprocess(request)
-                }
-                
-                return try responder(request)
-            } catch {
-                visited.append(self)
-                throw error
-            }
+        var visited: [RouteComponent] = [root]
+        let route: [RouteComponent]
+        let responder: (Request, Context) throws -> Response
+        let context = Context()
+        
+        do {
+            let (matchedRoute, parameters, component) = try match(request: request)
+            route = matchedRoute
+            responder = try component.responder(for: request)
+            context.parameters = parameters
+        } catch {
+            return recover(error: error, for: request, context: context, visited: &visited)
         }
         
-        return recover(request, visited: &visited) { visited in
-            while let router = visited.popLast() {
-                try router.postprocess(response, request)
+        do {
+            for component in route {
+                visited.append(component)
+                try component.preprocess(request: request, context: context)
+            }
+            
+            let response = try responder(request, context)
+            
+            while let component = visited.popLast() {
+                try component.postprocess(response: response, for: request, context: context)
             }
             
             return response
+        } catch {
+            return recover(error: error, for: request, context: context, visited: &visited)
         }
+    }
+    
+    private func match(request: Request) throws -> ([RouteComponent], [String: String], RouteComponent) {
+        var pathComponents = PathComponents(request.uri.path ?? "/")
+        var route: [RouteComponent] = [root]
+        var parameters: [String: String] = [:]
+        var current = root
+        
+        while let pathComponent = pathComponents.popPathComponent() {
+            if let routeComponent = current.children[pathComponent] {
+                route.append(routeComponent)
+                parameters[type(of: routeComponent).pathParameterKey] = pathComponent
+                current = routeComponent
+                continue
+            }
+            
+            let routeComponent = current.pathParameterChild
+            
+            if !(routeComponent is NoPathParameterChild)  {
+                route.append(routeComponent)
+                parameters[type(of: routeComponent).pathParameterKey] = pathComponent
+                current = routeComponent
+                continue
+            }
+            
+            throw RouterError.notFound
+        }
+        
+        return (route, parameters, current)
     }
     
     private func recover(
-        _ request: Request,
-        visited: inout [Router],
-        _ body: (inout [Router]) throws -> Response
+        error: Error,
+        for request: Request,
+        context: Context,
+        visited: inout [RouteComponent]
     ) -> Response {
-        do {
-            return try body(&visited)
-        } catch {
-            Logger.error("Error while processing request. Trying to recover.", error: error)
-            var lastError = error
-            var lastRouter = visited.last
+        Logger.error("Error while processing request. Trying to recover.", error: error)
+        var lastError = error
+        var lastComponent = visited.last
+        
+        while let component = visited.popLast() {
+            lastComponent = component
             
-            while let router = visited.popLast() {
-                lastRouter = router
-                
-                do {
-                    let response = try router.recover(lastError, request)
-                    Logger.error("Recovered error.", error: lastError)
-                    visited.append(router)
-                    return response
-                } catch let error as (Error & ResponseRepresentable) {
-                    Logger.error("Error can be represented as a response. Recovering.", error: error)
-                    visited.append(router)
-                    return error.response
-                } catch {
-                    Logger.error("Error while recovering.", error: error)
-                    lastError = error
-                }
+            do {
+                let response = try component.recover(error: lastError, for: request, context: context)
+                Logger.error("Recovered error.", error: lastError)
+                visited.append(component)
+                return response
+            } catch let error as (Error & ResponseRepresentable) {
+                Logger.error("Error can be represented as a response. Recovering.", error: error)
+                visited.append(component)
+                return error.response
+            } catch {
+                Logger.error("Error while recovering.", error: error)
+                lastError = error
             }
-            
-            Logger.error("Unrecovered error while processing request.")
-            
-            if let router = lastRouter {
-                visited.append(router)
-            }
-            
-            return Response(status: .internalServerError)
-        }
-    }
-    
-    private func match(
-        chain: inout [Router],
-        pathComponents: inout PathComponents,
-        parameters: inout [String: String]
-    ) throws -> Router {
-        chain.append(self)
-        
-        guard let pathComponent = pathComponents.popPathComponent() else {
-            return self
         }
         
-        if let subrouter = subrouters[pathComponent] {
-            return try subrouter.match(
-                chain: &chain,
-                pathComponents: &pathComponents,
-                parameters: &parameters
-            )
+        Logger.error("Unrecovered error while processing request.")
+        
+        if let component = lastComponent {
+            visited.append(component)
         }
         
-        if let (pathParameterKey, subrouter) = pathParameterSubrouter {
-            parameters[pathParameterKey] = pathComponent
-            return try subrouter.match(
-                chain: &chain,
-                pathComponents: &pathComponents,
-                parameters: &parameters
-            )
-        }
-        
-        throw RouterError.notFound
-    }
-}
-
-extension Router : CustomStringConvertible {
-    /// :nodoc:
-    public var description: String {
-        var string = description(path: "")
-        string.characters.removeLast()
-        return string
-    }
-    
-    private func description(path: String) -> String {
-        var string = ""
-            
-        if path == "" {
-            string += "/"
-        }
-        
-        string += path + "\n"
-        
-        for (pathComponent, subrouter) in subrouters.sorted(by: { $0.0 < $1.0 }) {
-            string += subrouter.description(path: path + "/" + pathComponent)
-        }
-        
-        if let (parameterKey, subrouter) = pathParameterSubrouter {
-            string += subrouter.description(path: path + "/{" + parameterKey + "}")
-        }
-        
-        return string
+        return Response(status: .internalServerError)
     }
 }
 
