@@ -2,8 +2,8 @@
 
 extension Server {
     /// Creates a new HTTP server
-    public convenience init(
-        router: Router,
+    public convenience init<C>(
+        router: Router<C>,
         header: String? = nil,
         parserBufferSize: Int = 4096,
         serializerBufferSize: Int = 4096,

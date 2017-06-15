@@ -1,133 +1,22 @@
 import Zewo
 
-public enum ContextError : Error {
-    case pathComponentNotFound(component: RouteComponent.Type)
-    case cannotInitializePathComponent(string: String)
-    case valueNotFound(key: String)
-    case incompatibleType(requestedType: Any.Type, actualType: Any.Type)
-}
-
-open class Context {
-    var pathComponents: [String: String] = [:]
-    var storage: [String: Any] = [:]
-    
-    public init() {}
-    
-    public func pathComponent<Component :  RouteComponent>(for component: Component.Type) throws -> String {
-        guard let pathComponent = pathComponents[component.pathComponentKey] else {
-            throw ContextError.pathComponentNotFound(component: component)
-        }
-        
-        return pathComponent
-    }
-    
-    public func pathComponent<Component :  RouteComponent, P : LosslessStringConvertible>(
-        for component: Component.Type
-    ) throws -> P {
-        let string = try pathComponent(for: component)
-        
-        guard let pathComponent = P(string) else {
-            throw ContextError.cannotInitializePathComponent(string: string)
-        }
-        
-        return pathComponent
-    }
-    
-    public func set(_ value: Any?, key: String) {
-        storage[key] = value
-    }
-    
-    public func get<T>(_ key: String) throws -> T {
-        guard let value = storage[key] else  {
-            throw ContextError.valueNotFound(key: key)
-        }
-        
-        guard let castedValue = value as? T else {
-            throw ContextError.incompatibleType(requestedType: T.self, actualType: type(of: value))
-        }
-        
-        return castedValue
-    }
-}
-
-public enum PathComponent {
-    case path(String)
-    case wildcard
-}
-
-extension PathComponent : Hashable {
-    public var hashValue: Int {
-        switch self {
-        case .wildcard:
-            return "".hashValue
-        case .path(let string):
-            return string.hashValue
-        }
-    }
-    
-    public static func ==(lhs: PathComponent, rhs: PathComponent) -> Bool {
-        return lhs.hashValue == rhs.hashValue
-    }
-}
-
-extension PathComponent : ExpressibleByStringLiteral {
-    /// :nodoc:
-    public init(unicodeScalarLiteral value: String) {
-        self = .path(value)
-    }
-    
-    /// :nodoc:
-    public init(extendedGraphemeClusterLiteral value: String) {
-        self = .path(value)
-    }
-    
-    /// :nodoc:
-    public init(stringLiteral value: StringLiteralType) {
-        self = .path(value)
-    }
-}
-
 public protocol RouteComponent {
-    var children: [PathComponent: RouteComponent] { get }
+    associatedtype Context : RoutingContext
+    
+    var children: [PathComponent: AnyRouteComponent<Context>] { get }
     
     func preprocess(request: Request, context: Context) throws
     func postprocess(response: Response, for request: Request, context: Context) throws
     func recover(error: Error, for request: Request, context: Context) throws -> Response
-}
-
-public protocol GetResponder {
+    
     func get(request: Request, context: Context) throws -> Response
-}
-
-public protocol PostResponder {
     func post(request: Request, context: Context) throws -> Response
-}
-
-public protocol PutResponder {
     func put(request: Request, context: Context) throws -> Response
-}
-
-public protocol PatchResponder {
     func patch(request: Request, context: Context) throws -> Response
-}
-
-public protocol DeleteResponder {
     func delete(request: Request, context: Context) throws -> Response
-}
-
-public protocol HeadResponder {
     func head(request: Request, context: Context) throws -> Response
-}
-
-public protocol OptionsResponder {
     func options(request: Request, context: Context) throws -> Response
-}
-
-public protocol TraceResponder {
     func trace(request: Request, context: Context) throws -> Response
-}
-
-public protocol ConnectResponder {
     func connect(request: Request, context: Context) throws -> Response
 }
 
@@ -140,22 +29,148 @@ extension RouteComponent {
 }
 
 public extension RouteComponent {
-    public func preprocess(request: Request, context: Context) throws {}
-
-    public var children: [PathComponent: RouteComponent] {
+    public var children: [PathComponent: AnyRouteComponent<Context>] {
         return [:]
     }
+    
+    public func preprocess(request: Request, context: Context) throws {}
     
     public func postprocess(response: Response, for request: Request, context: Context) throws {}
     
     public func recover(error: Error, for request: Request, context: Context) throws -> Response {
         throw error
     }
+    
+    public func get(request: Request, context: Context) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    public func post(request: Request, context: Context) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    public func put(request: Request, context: Context) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    public func patch(request: Request, context: Context) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    public func delete(request: Request, context: Context) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    public func head(request: Request, context: Context) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    public func options(request: Request, context: Context) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    public func trace(request: Request, context: Context) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
+    
+    public func connect(request: Request, context: Context) throws -> Response {
+        throw RouterError.methodNotAllowed
+    }
 }
 
-extension RouteComponent {
-    internal func child(for pathComponent: String) -> RouteComponent? {
-        let named: [String: RouteComponent] = children.reduce([:]) {
+public final class AnyRouteComponent<C : RoutingContext> {
+    public typealias Context = C
+    
+    public var children: [PathComponent : AnyRouteComponent<C>]
+    
+    let preprocess: (Request, C) throws -> Void
+    let postprocess: (Response, Request, C) throws -> Void
+    let recover: (Error, Request, C) throws -> Response
+    
+    let get: (Request, C) throws -> Response
+    let post: (Request, C) throws -> Response
+    let put: (Request, C) throws -> Response
+    let patch: (Request, C) throws -> Response
+    let delete: (Request, C) throws -> Response
+    let head: (Request, C) throws -> Response
+    let options: (Request, C) throws -> Response
+    let trace: (Request, C) throws -> Response
+    let connect: (Request, C) throws -> Response
+    
+    let pathComponentKey: String
+    
+    public init<R : RouteComponent>(_ component: R) where R.Context == C {
+        self.children = component.children
+        
+        self.preprocess = component.preprocess
+        self.postprocess = component.postprocess
+        self.recover = component.recover
+        
+        self.get = component.get
+        self.post = component.post
+        self.put = component.put
+        self.patch = component.patch
+        self.delete = component.delete
+        self.head = component.head
+        self.options = component.options
+        self.trace = component.trace
+        self.connect = component.connect
+        
+        self.pathComponentKey = R.pathComponentKey
+    }
+    
+    public func preprocess(request: Request, context: C) throws {
+        return try preprocess(request, context)
+    }
+    
+    public func postprocess(response: Response, for request: Request, context: C) throws {
+        return try postprocess(response, request, context)
+    }
+    
+    public func recover(error: Error, for request: Request, context: C) throws -> Response {
+        return try recover(error, request, context)
+    }
+    
+    public func get(request: Request, context: C) throws -> Response {
+        return try get(request, context)
+    }
+    
+    public func post(request: Request, context: C) throws -> Response {
+        return try post(request, context)
+    }
+    
+    public func put(request: Request, context: C) throws -> Response {
+        return try put(request, context)
+    }
+    
+    public func patch(request: Request, context: C) throws -> Response {
+        return try patch(request, context)
+    }
+    
+    public func delete(request: Request, context: C) throws -> Response {
+        return try delete(request, context)
+    }
+    
+    public func head(request: Request, context: C) throws -> Response {
+        return try head(request, context)
+    }
+    
+    public func options(request: Request, context: C) throws -> Response {
+        return try options(request, context)
+    }
+    
+    public func trace(request: Request, context: C) throws -> Response {
+        return try trace(request, context)
+    }
+    
+    public func connect(request: Request, context: C) throws -> Response {
+        return try connect(request, context)
+    }
+}
+
+extension AnyRouteComponent {
+    internal func child(for pathComponent: String) -> AnyRouteComponent<Context>? {
+        let named: [String: AnyRouteComponent<Context>] = children.reduce([:]) {
             var dictionary = $0
             
             guard case let .path(path) = $1.key else {
@@ -181,60 +196,15 @@ extension RouteComponent {
     
     internal func responder(for request: Request) throws -> (Request, Context) throws -> Response {
         switch request.method {
-        case .get:
-            guard let responder = self as? GetResponder else {
-                fallthrough
-            }
-            
-            return responder.get
-        case .post:
-            guard let responder = self as? PostResponder else {
-                fallthrough
-            }
-            
-            return responder.post
-        case .put:
-            guard let responder = self as? PutResponder else {
-                fallthrough
-            }
-            
-            return responder.put
-        case .patch:
-            guard let responder = self as? PatchResponder else {
-                fallthrough
-            }
-            
-            return responder.patch
-        case .delete:
-            guard let responder = self as? DeleteResponder else {
-                fallthrough
-            }
-            
-            return responder.delete
-        case .head:
-            guard let responder = self as? HeadResponder else {
-                fallthrough
-            }
-            
-            return responder.head
-        case .options:
-            guard let responder = self as? OptionsResponder else {
-                fallthrough
-            }
-            
-            return responder.options
-        case .trace:
-            guard let responder = self as? TraceResponder else {
-                fallthrough
-            }
-            
-            return responder.trace
-        case .connect:
-            guard let responder = self as? ConnectResponder else {
-                fallthrough
-            }
-            
-            return responder.connect
+        case .get: return get
+        case .post: return post
+        case .put: return put
+        case .patch: return patch
+        case .delete: return delete
+        case .head: return head
+        case .options: return options
+        case .trace: return trace
+        case .connect: return connect
         default: throw RouterError.methodNotAllowed
         }
     }

@@ -63,21 +63,21 @@ final class Application {
     }
 }
 
+final class Context : RoutingContext {}
+
 struct Root : RouteComponent {
     let app: Application
-    let users: RouteComponent
+    let users: AnyRouteComponent<Context>
     
-    var children: [PathComponent: RouteComponent] {
+    var children: [PathComponent: AnyRouteComponent<Context>] {
         return ["users": users]
     }
     
     init(app: Application) {
         self.app = app
-        self.users = UsersComponent(app: app)
+        self.users = AnyRouteComponent(UsersComponent(app: app))
     }
-}
-
-extension Root : GetResponder {
+    
     func get(request: Request, context: Context) throws -> Response {
         return Response(status: .ok, body: "welcome")
     }
@@ -85,19 +85,17 @@ extension Root : GetResponder {
 
 struct UsersComponent : RouteComponent {
     let app: Application
-    let user: RouteComponent
+    let user: AnyRouteComponent<Context>
     
-    var children: [PathComponent: RouteComponent] {
+    var children: [PathComponent: AnyRouteComponent<Context>] {
         return [.wildcard: user]
     }
     
     init(app: Application) {
         self.app = app
-        self.user = UserComponent(app: app)
+        self.user = AnyRouteComponent(UserComponent(app: app))
     }
-}
-
-extension UsersComponent : GetResponder {
+    
     struct UsersResponse : Renderable {
         let users: [User]
     }
@@ -106,9 +104,7 @@ extension UsersComponent : GetResponder {
         let users = UsersResponse(users: app.getUsers())
         return try Response(status: .ok, content: users)
     }
-}
-
-extension UsersComponent : PostResponder {
+    
     struct CreateUserRequest : Renderable {
         let firstName: String
         let lastName: String
@@ -132,9 +128,7 @@ struct UserComponent : RouteComponent {
             throw error
         }
     }
-}
 
-extension UserComponent : GetResponder {
     func get(request: Request, context: Context) throws -> Response {
         let id: UUID = try context.pathComponent(for: UserComponent.self)
         let user = try app.getUser(id: id)
@@ -143,7 +137,7 @@ extension UserComponent : GetResponder {
 }
 
 public class RouterTests : XCTestCase {
-    let router: Router = {
+    let router: Router<Context> = {
         let database = Database(url: "psql://localhost/database")
         database.seed()
         let app = Application(database: database)

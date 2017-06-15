@@ -16,18 +16,18 @@ extension RouterError : ResponseRepresentable {
     }
 }
 
-final public class Router {
-    private let root: RouteComponent
+final public class Router<C : RoutingContext> {
+    private let root: AnyRouteComponent<C>
     
-    public init(root: RouteComponent) {
-        self.root = root
+    public init<R : RouteComponent>(root: R) where R.Context == C {
+        self.root = AnyRouteComponent(root)
     }
     
     public func respond(to request: Request) -> Response {
-        var visited: [RouteComponent] = [root]
-        let route: [RouteComponent]
-        let responder: (Request, Context) throws -> Response
-        let context = Context()
+        var visited: [AnyRouteComponent<C>] = [root]
+        let route: [AnyRouteComponent<C>]
+        let responder: (Request, C) throws -> Response
+        let context = C()
         
         do {
             let (matchedRoute, pathComponents, component) = try match(request: request)
@@ -56,16 +56,20 @@ final public class Router {
         }
     }
     
-    private func match(request: Request) throws -> ([RouteComponent], [String: String], RouteComponent) {
+    private func match(request: Request) throws -> (
+        [AnyRouteComponent<C>],
+        [String: String],
+        AnyRouteComponent<C>
+    ) {
         var components = PathComponents(request.uri.path ?? "/")
-        var route: [RouteComponent] = [root]
+        var route: [AnyRouteComponent<C>] = [root]
         var pathComponents: [String: String] = [:]
         var current = root
         
         while let pathComponent = components.popPathComponent() {
-            if let routeComponent: RouteComponent = current.child(for: pathComponent) {
+            if let routeComponent = current.child(for: pathComponent) {
                 route.append(routeComponent)
-                pathComponents[type(of: routeComponent).pathComponentKey] = pathComponent
+                pathComponents[routeComponent.pathComponentKey] = pathComponent
                 current = routeComponent
                 continue
             }
@@ -79,8 +83,8 @@ final public class Router {
     private func recover(
         error: Error,
         for request: Request,
-        context: Context,
-        visited: inout [RouteComponent]
+        context: C,
+        visited: inout [AnyRouteComponent<C>]
     ) -> Response {
         Logger.error("Error while processing request. Trying to recover.", error: error)
         var lastError = error
