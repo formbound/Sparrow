@@ -1,9 +1,11 @@
 import Zewo
 
+
+
 public protocol RouteComponent {
     associatedtype Context : RoutingContext
     
-    var children: [PathComponent: AnyRouteComponent<Context>] { get }
+    func configure(subroutes: SubrouteComponents<Context>)
     
     func preprocess(request: Request, context: Context) throws
     func postprocess(response: Response, for request: Request, context: Context) throws
@@ -20,6 +22,18 @@ public protocol RouteComponent {
     func connect(request: Request, context: Context) throws -> Response
 }
 
+public class SubrouteComponents<C: RoutingContext> {
+    fileprivate var subrouteComponents: [PathComponent: AnyRouteComponent<C>]
+
+    fileprivate init() {
+        subrouteComponents = [:]
+    }
+
+    public func add<T: RouteComponent>(_ pathComponent: PathComponent, routeComponent: T) where T.Context == C {
+        subrouteComponents[pathComponent] = AnyRouteComponent(routeComponent)
+    }
+}
+
 extension RouteComponent {
     static var pathComponentKey: String {
         return String(describing: Self.self).camelCaseSplit().map { word in
@@ -29,9 +43,8 @@ extension RouteComponent {
 }
 
 public extension RouteComponent {
-    public var children: [PathComponent: AnyRouteComponent<Context>] {
-        return [:]
-    }
+
+    func configure(subroutes: SubrouteComponents<Context>) {}
     
     public func preprocess(request: Request, context: Context) throws {}
     
@@ -78,10 +91,10 @@ public extension RouteComponent {
     }
 }
 
-public final class AnyRouteComponent<C : RoutingContext> {
-    public typealias Context = C
+internal final class AnyRouteComponent<C : RoutingContext> {
+    typealias Context = C
     
-    public var children: [PathComponent : AnyRouteComponent<C>]
+    var children: [PathComponent : AnyRouteComponent<C>]
     
     let preprocess: (Request, C) throws -> Void
     let postprocess: (Response, Request, C) throws -> Void
@@ -99,8 +112,11 @@ public final class AnyRouteComponent<C : RoutingContext> {
     
     let pathComponentKey: String
     
-    public init<R : RouteComponent>(_ component: R) where R.Context == C {
-        self.children = component.children
+    init<R : RouteComponent>(_ component: R) where R.Context == C {
+
+        let subroutes = SubrouteComponents<C>()
+        component.configure(subroutes: subroutes)
+        self.children = subroutes.subrouteComponents
         
         self.preprocess = component.preprocess
         self.postprocess = component.postprocess
@@ -119,57 +135,57 @@ public final class AnyRouteComponent<C : RoutingContext> {
         self.pathComponentKey = R.pathComponentKey
     }
     
-    public func preprocess(request: Request, context: C) throws {
+    func preprocess(request: Request, context: C) throws {
         return try preprocess(request, context)
     }
     
-    public func postprocess(response: Response, for request: Request, context: C) throws {
+    func postprocess(response: Response, for request: Request, context: C) throws {
         return try postprocess(response, request, context)
     }
     
-    public func recover(error: Error, for request: Request, context: C) throws -> Response {
+    func recover(error: Error, for request: Request, context: C) throws -> Response {
         return try recover(error, request, context)
     }
     
-    public func get(request: Request, context: C) throws -> Response {
+    func get(request: Request, context: C) throws -> Response {
         return try get(request, context)
     }
     
-    public func post(request: Request, context: C) throws -> Response {
+    func post(request: Request, context: C) throws -> Response {
         return try post(request, context)
     }
     
-    public func put(request: Request, context: C) throws -> Response {
+    func put(request: Request, context: C) throws -> Response {
         return try put(request, context)
     }
     
-    public func patch(request: Request, context: C) throws -> Response {
+    func patch(request: Request, context: C) throws -> Response {
         return try patch(request, context)
     }
     
-    public func delete(request: Request, context: C) throws -> Response {
+    func delete(request: Request, context: C) throws -> Response {
         return try delete(request, context)
     }
     
-    public func head(request: Request, context: C) throws -> Response {
+    func head(request: Request, context: C) throws -> Response {
         return try head(request, context)
     }
     
-    public func options(request: Request, context: C) throws -> Response {
+    func options(request: Request, context: C) throws -> Response {
         return try options(request, context)
     }
     
-    public func trace(request: Request, context: C) throws -> Response {
+    func trace(request: Request, context: C) throws -> Response {
         return try trace(request, context)
     }
     
-    public func connect(request: Request, context: C) throws -> Response {
+    func connect(request: Request, context: C) throws -> Response {
         return try connect(request, context)
     }
 }
 
 extension AnyRouteComponent {
-    internal func child(for pathComponent: String) -> AnyRouteComponent<Context>? {
+    func child(for pathComponent: String) -> AnyRouteComponent<Context>? {
         let named: [String: AnyRouteComponent<Context>] = children.reduce([:]) {
             var dictionary = $0
             
@@ -194,7 +210,7 @@ extension AnyRouteComponent {
         return nil
     }
     
-    internal func responder(for request: Request) throws -> (Request, Context) throws -> Response {
+    func responder(for request: Request) throws -> (Request, Context) throws -> Response {
         switch request.method {
         case .get: return get
         case .post: return post

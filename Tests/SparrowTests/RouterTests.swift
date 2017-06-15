@@ -67,15 +67,15 @@ final class Context : RoutingContext {}
 
 struct Root : RouteComponent {
     let app: Application
-    let users: AnyRouteComponent<Context>
-    
-    var children: [PathComponent: AnyRouteComponent<Context>] {
-        return ["users": users]
+    let users: UsersComponent
+
+    func configure(subroutes: SubrouteComponents<Context>) {
+        subroutes.add("users", routeComponent: users)
     }
-    
+
     init(app: Application) {
         self.app = app
-        self.users = AnyRouteComponent(UsersComponent(app: app))
+        self.users = UsersComponent(app: app)
     }
     
     func get(request: Request, context: Context) throws -> Response {
@@ -85,15 +85,15 @@ struct Root : RouteComponent {
 
 struct UsersComponent : RouteComponent {
     let app: Application
-    let user: AnyRouteComponent<Context>
+    let user: UserComponent
     
-    var children: [PathComponent: AnyRouteComponent<Context>] {
-        return [.wildcard: user]
+    func configure(subroutes: SubrouteComponents<Context>) {
+        subroutes.add(.wildcard, routeComponent: user)
     }
     
     init(app: Application) {
         self.app = app
-        self.user = AnyRouteComponent(UserComponent(app: app))
+        self.user = UserComponent(app: app)
     }
     
     struct UsersResponse : Renderable {
