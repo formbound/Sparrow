@@ -30,10 +30,10 @@ final public class Router {
         let context = Context()
         
         do {
-            let (matchedRoute, parameters, component) = try match(request: request)
+            let (matchedRoute, pathComponents, component) = try match(request: request)
             route = matchedRoute
             responder = try component.responder(for: request)
-            context.parameters = parameters
+            context.pathComponents = pathComponents
         } catch {
             return recover(error: error, for: request, context: context, visited: &visited)
         }
@@ -57,24 +57,15 @@ final public class Router {
     }
     
     private func match(request: Request) throws -> ([RouteComponent], [String: String], RouteComponent) {
-        var pathComponents = PathComponents(request.uri.path ?? "/")
+        var components = PathComponents(request.uri.path ?? "/")
         var route: [RouteComponent] = [root]
-        var parameters: [String: String] = [:]
+        var pathComponents: [String: String] = [:]
         var current = root
         
-        while let pathComponent = pathComponents.popPathComponent() {
-            if let routeComponent = current.children[pathComponent] {
+        while let pathComponent = components.popPathComponent() {
+            if let routeComponent: RouteComponent = current.child(for: pathComponent) {
                 route.append(routeComponent)
-                parameters[type(of: routeComponent).pathParameterKey] = pathComponent
-                current = routeComponent
-                continue
-            }
-            
-            let routeComponent = current.pathParameterChild
-            
-            if !(routeComponent is NoPathParameterChild)  {
-                route.append(routeComponent)
-                parameters[type(of: routeComponent).pathParameterKey] = pathComponent
+                pathComponents[type(of: routeComponent).pathComponentKey] = pathComponent
                 current = routeComponent
                 continue
             }
@@ -82,7 +73,7 @@ final public class Router {
             throw RouterError.notFound
         }
         
-        return (route, parameters, current)
+        return (route, pathComponents, current)
     }
     
     private func recover(

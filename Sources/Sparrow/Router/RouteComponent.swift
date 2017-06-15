@@ -6,12 +6,12 @@ public enum ContextError : Error {
 }
 
 open class Context {
-    public var parameters: [String: String] = [:]
+    public var pathComponents: [String: String] = [:]
     
     public init() {}
     
     public func pathComponent<Component :  RouteComponent>(for component: Component.Type) throws -> String {
-        guard let pathComponent = parameters[component.pathParameterKey] else {
+        guard let pathComponent = pathComponents[component.pathComponentKey] else {
             throw ContextError.pathComponentNotFound(component: component)
         }
         
@@ -31,11 +31,45 @@ open class Context {
     }
 }
 
-public protocol RouteComponent {
-    var pathParameterChild: RouteComponent { get }
-    static var pathParameterKey: String { get }
+public enum PathComponent {
+    case path(String)
+    case wildcard
+}
+
+extension PathComponent : Hashable {
+    public var hashValue: Int {
+        switch self {
+        case .wildcard:
+            return "".hashValue
+        case .path(let string):
+            return string.hashValue
+        }
+    }
     
-    var children: [String: RouteComponent] { get }
+    public static func ==(lhs: PathComponent, rhs: PathComponent) -> Bool {
+        return lhs.hashValue == rhs.hashValue
+    }
+}
+
+extension PathComponent : ExpressibleByStringLiteral {
+    /// :nodoc:
+    public init(unicodeScalarLiteral value: String) {
+        self = .path(value)
+    }
+    
+    /// :nodoc:
+    public init(extendedGraphemeClusterLiteral value: String) {
+        self = .path(value)
+    }
+    
+    /// :nodoc:
+    public init(stringLiteral value: StringLiteralType) {
+        self = .path(value)
+    }
+}
+
+public protocol RouteComponent {
+    var children: [PathComponent: RouteComponent] { get }
     
     func preprocess(request: Request, context: Context) throws
     func get(request: Request, context: Context) throws -> Response
@@ -51,26 +85,18 @@ public protocol RouteComponent {
     func recover(error: Error, for request: Request, context: Context) throws -> Response
 }
 
-struct NoPathParameterChild : RouteComponent {
-    var pathParameterChild: RouteComponent {
-        return self
-    }
-}
-
-public extension RouteComponent {
-    public var pathParameterChild: RouteComponent {
-        return NoPathParameterChild()
-    }
-    
-    public static var pathParameterKey: String {
+extension RouteComponent {
+    static var pathComponentKey: String {
         return String(describing: Self.self).camelCaseSplit().map { word in
             word.lowercased()
         }.joined(separator: "-")
     }
-    
+}
+
+public extension RouteComponent {
     public func preprocess(request: Request, context: Context) throws {}
 
-    public var children: [String: RouteComponent] {
+    public var children: [PathComponent: RouteComponent] {
         return [:]
     }
     
@@ -118,6 +144,31 @@ public extension RouteComponent {
 }
 
 extension RouteComponent {
+    internal func child(for pathComponent: String) -> RouteComponent? {
+        let named: [String: RouteComponent] = children.reduce([:]) {
+            var dictionary = $0
+            
+            guard case let .path(path) = $1.key else {
+                return dictionary
+            }
+            
+            dictionary[path] = $1.value
+            return dictionary
+        }
+        
+        if let component = named[pathComponent] {
+            return component
+        }
+        
+        for (pathComponent, component) in children {
+            if case .wildcard = pathComponent {
+                return component
+            }
+        }
+        
+        return nil
+    }
+    
     internal func responder(for request: Request) throws -> (Request, Context) throws -> Response {
         switch request.method {
         case .get: return get

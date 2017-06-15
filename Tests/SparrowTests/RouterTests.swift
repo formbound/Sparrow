@@ -67,7 +67,7 @@ struct Root : RouteComponent {
     let app: Application
     let users: RouteComponent
     
-    var children: [String: RouteComponent] {
+    var children: [PathComponent: RouteComponent] {
         return ["users": users]
     }
     
@@ -85,8 +85,8 @@ struct UsersNode : RouteComponent {
     let app: Application
     let user: RouteComponent
     
-    var pathParameterChild: RouteComponent {
-        return user
+    var children: [PathComponent: RouteComponent] {
+        return [.wildcard: user]
     }
     
     init(app: Application) {
