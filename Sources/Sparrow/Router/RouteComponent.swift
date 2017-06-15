@@ -3,10 +3,13 @@ import Zewo
 public enum ContextError : Error {
     case pathComponentNotFound(component: RouteComponent.Type)
     case cannotInitializePathComponent(string: String)
+    case valueNotFound(key: String)
+    case incompatibleType(requestedType: Any.Type, actualType: Any.Type)
 }
 
 open class Context {
-    public var pathComponents: [String: String] = [:]
+    var pathComponents: [String: String] = [:]
+    var storage: [String: Any] = [:]
     
     public init() {}
     
@@ -28,6 +31,22 @@ open class Context {
         }
         
         return pathComponent
+    }
+    
+    public func set(_ value: Any?, key: String) {
+        storage[key] = value
+    }
+    
+    public func get<T>(_ key: String) throws -> T {
+        guard let value = storage[key] else  {
+            throw ContextError.valueNotFound(key: key)
+        }
+        
+        guard let castedValue = value as? T else {
+            throw ContextError.incompatibleType(requestedType: T.self, actualType: type(of: value))
+        }
+        
+        return castedValue
     }
 }
 
