@@ -31,17 +31,23 @@ final class Database {
     func getUser(id: UUID) -> User? {
         return users[id]
     }
+
+    static let shared: Database = {
+        let database = Database(url: "psql://localhost/database")
+        database.seed()
+        return database
+    }()
 }
 
 enum ApplicationError : Error {
     case userNotFound
 }
 
-final class Application {
+final class Context: RoutingContext {
     let database: Database
     
-    init(database: Database) {
-        self.database = database
+    required init() {
+        self.database = Database.shared
     }
     
     func getUsers() -> [User] {
@@ -63,45 +69,31 @@ final class Application {
     }
 }
 
-final class Context : RoutingContext {}
+
 
 struct Root : RouteComponent {
-    let app: Application
-    let users: UsersComponent
 
     func configure(subroutes: SubrouteComponents<Context>) {
-        subroutes.add("users", routeComponent: users)
+        subroutes.add("users", routeComponent: UsersComponent())
     }
 
-    init(app: Application) {
-        self.app = app
-        self.users = UsersComponent(app: app)
-    }
-    
     func get(request: Request, context: Context) throws -> Response {
         return Response(status: .ok, body: "welcome")
     }
 }
 
 struct UsersComponent : RouteComponent {
-    let app: Application
-    let user: UserComponent
-    
+
     func configure(subroutes: SubrouteComponents<Context>) {
-        subroutes.add(.wildcard, routeComponent: user)
+        subroutes.add(.wildcard, routeComponent: UserComponent())
     }
-    
-    init(app: Application) {
-        self.app = app
-        self.user = UserComponent(app: app)
-    }
-    
+
     struct UsersResponse : Renderable {
         let users: [User]
     }
     
     func get(request: Request, context: Context) throws -> Response {
-        let users = UsersResponse(users: app.getUsers())
+        let users = UsersResponse(users: context.getUsers())
         return try Response(status: .ok, content: users)
     }
     
@@ -112,13 +104,12 @@ struct UsersComponent : RouteComponent {
     
     func post(request: Request, context: Context) throws -> Response {
         let createUser: CreateUserRequest = try request.content()
-        let user = app.createUser(firstName: createUser.firstName, lastName: createUser.lastName)
+        let user = context.createUser(firstName: createUser.firstName, lastName: createUser.lastName)
         return try Response(status: .ok, content: user)
     }
 }
 
 struct UserComponent : RouteComponent {
-    let app: Application
     
     func recover(error: Error, for request: Request, context: Context) throws -> Response {
         switch error {
@@ -131,17 +122,14 @@ struct UserComponent : RouteComponent {
 
     func get(request: Request, context: Context) throws -> Response {
         let id: UUID = try context.pathComponent(for: UserComponent.self)
-        let user = try app.getUser(id: id)
+        let user = try context.getUser(id: id)
         return try Response(status: .ok, content: user)
     }
 }
 
 public class RouterTests : XCTestCase {
     let router: Router<Context> = {
-        let database = Database(url: "psql://localhost/database")
-        database.seed()
-        let app = Application(database: database)
-        let root = Root(app: app)
+        let root = Root()
         return Router(root: root)
     }()
     
