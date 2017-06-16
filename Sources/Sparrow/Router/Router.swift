@@ -18,22 +18,24 @@ extension RouterError : ResponseRepresentable {
 
 final public class Router<C : RoutingContext> {
     private let root: AnyRouteComponent<C>
+    private let application: C.Application
     
-    public init<R : RouteComponent>(root: R) where R.Context == C {
+    public init<R : RouteComponent>(root: R, application: C.Application) where R.Context == C {
         self.root = AnyRouteComponent(root)
+        self.application = application
     }
     
     public func respond(to request: Request) -> Response {
         var visited: [AnyRouteComponent<C>] = [root]
         let route: [AnyRouteComponent<C>]
         let responder: (Request, C) throws -> Response
-        let context = C()
+        let context = C(application: application)
         
         do {
             let (matchedRoute, pathComponents, component) = try match(request: request)
             route = matchedRoute
             responder = try component.responder(for: request)
-            context.pathComponents = pathComponents
+            context.storage.pathComponents = pathComponents
         } catch {
             return recover(error: error, for: request, context: context, visited: &visited)
         }

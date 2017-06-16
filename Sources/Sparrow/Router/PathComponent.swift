@@ -34,4 +34,3 @@ extension PathComponent : ExpressibleByStringLiteral {
         self = .path(value)
     }
 }
-

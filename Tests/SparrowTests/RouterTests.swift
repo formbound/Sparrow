@@ -32,36 +32,43 @@ final class Database {
         return users[id]
     }
 
-    static let shared: Database = {
-        let database = Database(url: "psql://localhost/database")
-        database.seed()
-        return database
-    }()
 }
 
 enum ApplicationError : Error {
     case userNotFound
 }
 
-final class Context: RoutingContext {
+final class Application {
     let database: Database
+
+    init() {
+        database = Database(url: "psql://localhost/database")
+        database.seed()
+    }
+}
+
+final class Context: RoutingContext {
+
+    let application: Application
+
+    let storage = ContextStorage()
     
-    required init() {
-        self.database = Database.shared
+    init(application: Application) {
+        self.application = application
     }
     
     func getUsers() -> [User] {
-        return database.getUsers()
+        return application.database.getUsers()
     }
     
     func createUser(firstName: String, lastName: String) -> User {
         let user = User(id: UUID(), firstName: firstName, lastName: lastName)
-        database.saveUser(user: user)
+        application.database.saveUser(user: user)
         return user
     }
     
     func getUser(id: UUID) throws -> User {
-        guard let user = database.getUser(id: id) else {
+        guard let user = application.database.getUser(id: id) else {
             throw ApplicationError.userNotFound
         }
         
@@ -130,7 +137,7 @@ struct UserComponent : RouteComponent {
 public class RouterTests : XCTestCase {
     let router: Router<Context> = {
         let root = Root()
-        return Router(root: root)
+        return Router(root: root, application: Application())
     }()
     
     func testRouter() throws {
