@@ -3,7 +3,8 @@ public struct RouteComponentKey {
 
     public enum MatchingStrategy {
         case exactly(String)
-        case wildcard
+        case parameter(LosslessStringConvertible.Type)
+        case any
     }
 
     public let name: String
@@ -20,14 +21,12 @@ extension RouteComponentKey {
         switch matchingStrategy {
         case .exactly(let exactString):
             return string == exactString
-        case .wildcard:
+        case .any:
             return true
+        case .parameter(let type):
+            return type.init(string) != nil
         }
     }
-}
-
-extension RouteComponentKey {
-    static let userId = RouteComponentKey(name: "userId", matchingStrategy: .wildcard)
 }
 
 extension RouteComponentKey : Hashable {

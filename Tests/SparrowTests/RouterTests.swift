@@ -90,12 +90,13 @@ struct Root : RouteComponent {
 }
 
 extension RouteComponentKey {
-    static let userId = RouteComponentKey(name: "userId", matchingStrategy: .wildcard)
+    static let userId = RouteComponentKey(name: "userId", matchingStrategy: .parameter(UUID.self))
 }
 
 struct UsersComponent : RouteComponent {
 
     func configure(subroutes: SubrouteComponents<Context>) {
+
         subroutes.add(.userId, routeComponent: UserComponent())
     }
 
