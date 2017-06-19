@@ -6,12 +6,40 @@ public enum RoutingContextError : Error {
 }
 
 public class ContextStorage {
-    var pathComponents: [String: String]
+    var pathComponents: [RouteComponentKey: String]
     var values: [String: Any]
 
     public init() {
         pathComponents = [:]
         values = [:]
+    }
+
+    public func set(value: Any?, for key: String) {
+        values[key] = value
+    }
+
+    public func value<T>(for key: String) throws ->T? {
+        guard let value = values[key] else {
+            return nil
+        }
+
+        guard let cast = value as? T else {
+            throw RoutingContextError.incompatibleType(requestedType: T.self, actualType: type(of: value))
+        }
+
+        return cast
+    }
+
+    public func value<T>(for key: String) throws -> T {
+        guard let value = values[key] else {
+            throw RoutingContextError.valueNotFound(key: key)
+        }
+
+        guard let cast = value as? T else {
+            throw RoutingContextError.incompatibleType(requestedType: T.self, actualType: type(of: value))
+        }
+
+        return cast
     }
 }
 
@@ -24,34 +52,18 @@ public protocol RoutingContext: class {
 
 extension RoutingContext {
 
-    public func set(_ value: Any?, key: String) {
-        storage.values[key] = value
-    }
-
-    public func get<T>(_ key: String) throws -> T {
-        guard let value = storage.values[key] else  {
-            throw RoutingContextError.valueNotFound(key: key)
-        }
-
-        guard let castedValue = value as? T else {
-            throw RoutingContextError.incompatibleType(requestedType: T.self, actualType: type(of: value))
-        }
-
-        return castedValue
-    }
-
-    public func pathComponent<Component :  RouteComponent>(for component: Component.Type) throws -> String {
-        guard let pathComponent = storage.pathComponents[component.pathComponentKey] else {
+    public func value(for key: RouteComponentKey) throws -> String {
+        guard let pathComponent = storage.pathComponents[key] else {
             throw RoutingContextError.pathComponentNotFound
         }
 
         return pathComponent
     }
 
-    public func pathComponent<Component :  RouteComponent, P : LosslessStringConvertible>(
-        for component: Component.Type
+    public func value<P : LosslessStringConvertible>(
+        for component: RouteComponentKey
         ) throws -> P {
-        let string = try pathComponent(for: component)
+        let string = try value(for: component)
 
         guard let pathComponent = P(string) else {
             throw RoutingContextError.cannotInitializePathComponent(string: string)

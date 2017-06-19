@@ -1,7 +1,5 @@
 import Zewo
 
-
-
 public protocol RouteComponent {
     associatedtype Context : RoutingContext
     
@@ -23,14 +21,14 @@ public protocol RouteComponent {
 }
 
 public class SubrouteComponents<C: RoutingContext> {
-    fileprivate var subrouteComponents: [PathComponent: AnyRouteComponent<C>]
+    fileprivate var subrouteComponents: [RouteComponentKey: AnyRouteComponent<C>]
 
     fileprivate init() {
         subrouteComponents = [:]
     }
 
-    public func add<T: RouteComponent>(_ pathComponent: PathComponent, routeComponent: T) where T.Context == C {
-        subrouteComponents[pathComponent] = AnyRouteComponent(routeComponent)
+    public func add<T: RouteComponent>(_ key: RouteComponentKey, routeComponent: T) where T.Context == C {
+        subrouteComponents[key] = AnyRouteComponent(routeComponent)
     }
 }
 
@@ -94,7 +92,7 @@ public extension RouteComponent {
 internal final class AnyRouteComponent<C : RoutingContext> {
     typealias Context = C
     
-    var children: [PathComponent : AnyRouteComponent<C>]
+    var children: [RouteComponentKey : AnyRouteComponent<C>]
     
     let preprocess: (Request, C) throws -> Void
     let postprocess: (Response, Request, C) throws -> Void
@@ -185,26 +183,14 @@ internal final class AnyRouteComponent<C : RoutingContext> {
 }
 
 extension AnyRouteComponent {
-    func child(for pathComponent: String) -> AnyRouteComponent<Context>? {
-        let named: [String: AnyRouteComponent<Context>] = children.reduce([:]) {
-            var dictionary = $0
-            
-            guard case let .path(path) = $1.key else {
-                return dictionary
+    func child(for pathComponent: String) -> (RouteComponentKey, AnyRouteComponent<Context>)? {
+
+        for (component, child) in children {
+            guard component.matches(string: pathComponent) else {
+                continue
             }
-            
-            dictionary[path] = $1.value
-            return dictionary
-        }
-        
-        if let component = named[pathComponent] {
-            return component
-        }
-        
-        for (pathComponent, component) in children {
-            if case .wildcard = pathComponent {
-                return component
-            }
+
+            return (component, child)
         }
         
         return nil

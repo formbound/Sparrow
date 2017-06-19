@@ -60,18 +60,18 @@ final public class Router<C : RoutingContext> {
     
     private func match(request: Request) throws -> (
         [AnyRouteComponent<C>],
-        [String: String],
+        [RouteComponentKey: String],
         AnyRouteComponent<C>
     ) {
         var components = PathComponents(request.uri.path ?? "/")
         var route: [AnyRouteComponent<C>] = [root]
-        var pathComponents: [String: String] = [:]
+        var pathComponents: [RouteComponentKey: String] = [:]
         var current = root
         
         while let pathComponent = components.popPathComponent() {
-            if let routeComponent = current.child(for: pathComponent) {
+            if let (key, routeComponent) = current.child(for: pathComponent) {
                 route.append(routeComponent)
-                pathComponents[routeComponent.pathComponentKey] = pathComponent
+                pathComponents[key] = pathComponent
                 current = routeComponent
                 continue
             }

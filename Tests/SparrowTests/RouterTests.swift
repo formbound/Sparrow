@@ -77,10 +77,10 @@ final class Context: RoutingContext {
 }
 
 
-
 struct Root : RouteComponent {
 
     func configure(subroutes: SubrouteComponents<Context>) {
+        
         subroutes.add("users", routeComponent: UsersComponent())
     }
 
@@ -89,10 +89,14 @@ struct Root : RouteComponent {
     }
 }
 
+extension RouteComponentKey {
+    static let userId = RouteComponentKey(name: "userId", matchingStrategy: .wildcard)
+}
+
 struct UsersComponent : RouteComponent {
 
     func configure(subroutes: SubrouteComponents<Context>) {
-        subroutes.add(.wildcard, routeComponent: UserComponent())
+        subroutes.add(.userId, routeComponent: UserComponent())
     }
 
     struct UsersResponse : Renderable {
@@ -128,7 +132,7 @@ struct UserComponent : RouteComponent {
     }
 
     func get(request: Request, context: Context) throws -> Response {
-        let id: UUID = try context.pathComponent(for: UserComponent.self)
+        let id: UUID = try context.value(for: .userId)
         let user = try context.getUser(id: id)
         return try Response(status: .ok, content: user)
     }
