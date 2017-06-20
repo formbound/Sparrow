@@ -3,6 +3,13 @@ import Zewo
 public enum RouterError : Error {
     case notFound
     case methodNotAllowed
+    
+    case parameterNotFound
+    case cannotInitializeParameter(pathComponent: String)
+    case invalidParameter
+    
+    case valueNotFound(key: String)
+    case incompatibleType(requestedType: Any.Type, actualType: Any.Type)
 }
 
 extension RouterError : ResponseRepresentable {
@@ -12,31 +19,45 @@ extension RouterError : ResponseRepresentable {
             return Response(status: .notFound)
         case .methodNotAllowed:
             return Response(status: .methodNotAllowed)
+        case .parameterNotFound:
+            return Response(status: .internalServerError)
+        case .cannotInitializeParameter:
+            return Response(status: .internalServerError)
+        case .invalidParameter:
+            return Response(status: .badRequest)
+        case .valueNotFound:
+            return Response(status: .internalServerError)
+        case .incompatibleType:
+            return Response(status: .internalServerError)
         }
     }
 }
 
-final public class Router<C : RoutingContext> {
-    private let root: AnyRouteComponent<C>
-    private let application: C.Application
+final public class Router<Context : RoutingContext> {
+    private let root: AnyRouteComponent<Context>
+    private let application: Context.Application
     
-    public init<R : RouteComponent>(root: R, application: C.Application) where R.Context == C {
+    public init<Component : RouteComponent>(
+        root: Component,
+        application: Context.Application
+    ) where Component.ComponentContext == Context {
         self.root = AnyRouteComponent(root)
         self.application = application
     }
     
     public func respond(to request: Request) -> Response {
-        var visited: [AnyRouteComponent<C>] = [root]
-        let route: [AnyRouteComponent<C>]
-        let responder: (Request, C) throws -> Response
-        let context = C(application: application)
+        var visited: [AnyRouteComponent<Context>] = []
+        let route: [AnyRouteComponent<Context>]
+        let responder: (Request, Context) throws -> Response
+        let context = Context(application: application)
         
         do {
             let (matchedRoute, pathComponents, component) = try match(request: request)
             route = matchedRoute
             responder = try component.responder(for: request)
-            context.storage.pathComponents = pathComponents
+            context.storage.parameters = pathComponents
         } catch {
+            visited.append(root)
             return recover(error: error, for: request, context: context, visited: &visited)
         }
         
@@ -59,17 +80,17 @@ final public class Router<C : RoutingContext> {
     }
     
     private func match(request: Request) throws -> (
-        [AnyRouteComponent<C>],
+        [AnyRouteComponent<Context>],
         [RouteComponentKey: String],
-        AnyRouteComponent<C>
+        AnyRouteComponent<Context>
     ) {
         var components = PathComponents(request.uri.path ?? "/")
-        var route: [AnyRouteComponent<C>] = [root]
+        var route: [AnyRouteComponent<Context>] = [root]
         var pathComponents: [RouteComponentKey: String] = [:]
         var current = root
         
         while let pathComponent = components.popPathComponent() {
-            if let (key, routeComponent) = current.child(for: pathComponent) {
+            if let (key, routeComponent) = try current.child(for: pathComponent) {
                 route.append(routeComponent)
                 pathComponents[key] = pathComponent
                 current = routeComponent
@@ -85,8 +106,8 @@ final public class Router<C : RoutingContext> {
     private func recover(
         error: Error,
         for request: Request,
-        context: C,
-        visited: inout [AnyRouteComponent<C>]
+        context: Context,
+        visited: inout [AnyRouteComponent<Context>]
     ) -> Response {
         Logger.error("Error while processing request. Trying to recover.", error: error)
         var lastError = error
@@ -143,5 +164,13 @@ fileprivate struct PathComponents {
         }
         
         return String(pathComponent)
+    }
+}
+
+extension Router where Context.Application == Void {
+    public convenience init<Component : RouteComponent>(
+        root: Component
+    ) where Component.ComponentContext == Context {
+        self.init(root: root, application: ())
     }
 }
