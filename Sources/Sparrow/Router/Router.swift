@@ -1,11 +1,15 @@
-import Core
-import HTTP
-import Venice
+import Zewo
 
 public enum RouterError : Error {
     case notFound
     case methodNotAllowed
-    case parameterRedeclaration
+    
+    case parameterNotFound
+    case cannotInitializeParameter(pathComponent: String)
+    case invalidParameter
+    
+    case valueNotFound(key: String)
+    case incompatibleType(requestedType: Any.Type, actualType: Any.Type)
 }
 
 extension RouterError : ResponseRepresentable {
@@ -15,191 +19,125 @@ extension RouterError : ResponseRepresentable {
             return Response(status: .notFound)
         case .methodNotAllowed:
             return Response(status: .methodNotAllowed)
-        case .parameterRedeclaration:
+        case .parameterNotFound:
+            return Response(status: .internalServerError)
+        case .cannotInitializeParameter:
+            return Response(status: .internalServerError)
+        case .invalidParameter:
+            return Response(status: .badRequest)
+        case .valueNotFound:
+            return Response(status: .internalServerError)
+        case .incompatibleType:
             return Response(status: .internalServerError)
         }
     }
 }
 
-open class Router {
-    public typealias Preprocess = (Request) throws -> Void
-    public typealias Postprocess = (Response, Request) throws -> Void
-    public typealias Recover = (Error, Request) throws -> Response
-    public typealias Respond = (_ request: Request) throws -> Response
+final public class Router<Context : RoutingContext> {
+    private let root: AnyRouteComponent<Context>
+    private let application: Context.Application
     
-    internal var subrouters: [String: Router] = [:]
-    internal var pathParameterSubrouter: (String, Router)?
-    
-    internal var preprocess: Preprocess = { _ in }
-    internal var responders: [Request.Method: Respond] = [:]
-    internal var postprocess: Postprocess = { _, _ in }
-    internal var recover: Recover = { error, _ in throw error }
-    
-    public init() {
-        configure(router: self)
-    }
-    
-    open func configure(router: Router) {}
-    
-    internal func copy(_ router: Router) {
-        // TODO: issue warnings on overwites
-        for (pathComponent, subrouter) in router.subrouters {
-            subrouters[pathComponent] = subrouter
-        }
-        
-        if let (pathParameterKey, subrouter) = router.pathParameterSubrouter {
-            pathParameterSubrouter = (pathParameterKey, subrouter)
-        }
-        
-        preprocess = router.preprocess
-        responders = router.responders
-        postprocess = router.postprocess
-        recover = router.recover
+    public init<Component : RouteComponent>(
+        root: Component,
+        application: Context.Application
+    ) where Component.ComponentContext == Context {
+        self.root = AnyRouteComponent(root)
+        self.application = application
     }
     
     public func respond(to request: Request) -> Response {
-        var chain: [Router] = []
-        var visited: [Router] = []
-        var pathComponents = PathComponents(request.uri.path ?? "/")
-        var pathParameters: [String: String] = [:]
+        var visited: [AnyRouteComponent<Context>] = []
+        let route: [AnyRouteComponent<Context>]
+        let responder: (Request, Context) throws -> Response
+        let context = Context(application: application)
         
-        let response = recover(request, visited: &visited) { visited in
-            do {
-                let respondingRouter = try match(
-                    chain: &chain,
-                    pathComponents: &pathComponents,
-                    parameters: &pathParameters
-                )
-                
-                guard let responder = respondingRouter.responders[request.method] else {
-                    throw RouterError.methodNotAllowed
-                }
-                
-                for (key, parameter) in pathParameters {
-                    request.uri.set(parameter: parameter, key: key)
-                }
-                
-                for router in chain {
-                    visited.append(router)
-                    try router.preprocess(request)
-                }
-                
-                return try responder(request)
-            } catch {
-                visited.append(self)
-                throw error
-            }
+        do {
+            let (matchedRoute, pathComponents, component) = try match(request: request)
+            route = matchedRoute
+            responder = try component.responder(for: request)
+            context.storage.parameters = pathComponents
+        } catch {
+            visited.append(root)
+            return recover(error: error, for: request, context: context, visited: &visited)
         }
         
-        return recover(request, visited: &visited) { visited in
-            while let router = visited.popLast() {
-                try router.postprocess(response, request)
+        do {
+            for component in route {
+                visited.append(component)
+                try component.preprocess(request: request, context: context)
+            }
+            
+            let response = try responder(request, context)
+            
+            while let component = visited.popLast() {
+                try component.postprocess(response: response, for: request, context: context)
             }
             
             return response
+        } catch {
+            return recover(error: error, for: request, context: context, visited: &visited)
         }
+    }
+    
+    private func match(request: Request) throws -> (
+        [AnyRouteComponent<Context>],
+        [RouteComponentKey: String],
+        AnyRouteComponent<Context>
+    ) {
+        var components = PathComponents(request.uri.path ?? "/")
+        var route: [AnyRouteComponent<Context>] = [root]
+        var pathComponents: [RouteComponentKey: String] = [:]
+        var current = root
+        
+        while let pathComponent = components.popPathComponent() {
+            if let (key, routeComponent) = try current.child(for: pathComponent) {
+                route.append(routeComponent)
+                pathComponents[key] = pathComponent
+                current = routeComponent
+                continue
+            }
+            
+            throw RouterError.notFound
+        }
+        
+        return (route, pathComponents, current)
     }
     
     private func recover(
-        _ request: Request,
-        visited: inout [Router],
-        _ body: (inout [Router]) throws -> Response
+        error: Error,
+        for request: Request,
+        context: Context,
+        visited: inout [AnyRouteComponent<Context>]
     ) -> Response {
-        do {
-            return try body(&visited)
-        } catch {
-            Logger.error("Error while processing request. Trying to recover.", error: error)
-            var lastError = error
-            var lastRouter = visited.last
+        Logger.error("Error while processing request. Trying to recover.", error: error)
+        var lastError = error
+        var lastComponent = visited.last
+        
+        while let component = visited.popLast() {
+            lastComponent = component
             
-            while let router = visited.popLast() {
-                lastRouter = router
-                
-                do {
-                    let response = try router.recover(lastError, request)
-                    Logger.error("Recovered error.", error: lastError)
-                    visited.append(router)
-                    return response
-                } catch let error as (Error & ResponseRepresentable) {
-                    Logger.error("Error can be represented as a response. Recovering.", error: error)
-                    visited.append(router)
-                    return error.response
-                } catch {
-                    Logger.error("Error while recovering.", error: error)
-                    lastError = error
-                }
+            do {
+                let response = try component.recover(error: lastError, for: request, context: context)
+                Logger.error("Recovered error.", error: lastError)
+                visited.append(component)
+                return response
+            } catch let error as (Error & ResponseRepresentable) {
+                Logger.error("Error can be represented as a response. Recovering.", error: error)
+                visited.append(component)
+                return error.response
+            } catch {
+                Logger.error("Error while recovering.", error: error)
+                lastError = error
             }
-            
-            Logger.error("Unrecovered error while processing request.")
-            
-            if let router = lastRouter {
-                visited.append(router)
-            }
-            
-            return Response(status: .internalServerError)
-        }
-    }
-    
-    @inline(__always)
-    private func match(
-        chain: inout [Router],
-        pathComponents: inout PathComponents,
-        parameters: inout [String: String]
-    ) throws -> Router {
-        chain.append(self)
-        
-        guard let pathComponent = pathComponents.popPathComponent() else {
-            return self
         }
         
-        if let subrouter = subrouters[pathComponent] {
-            return try subrouter.match(
-                chain: &chain,
-                pathComponents: &pathComponents,
-                parameters: &parameters
-            )
+        Logger.error("Unrecovered error while processing request.")
+        
+        if let component = lastComponent {
+            visited.append(component)
         }
         
-        if let (pathParameterKey, subrouter) = pathParameterSubrouter {
-            parameters[pathParameterKey] = pathComponent
-            return try subrouter.match(
-                chain: &chain,
-                pathComponents: &pathComponents,
-                parameters: &parameters
-            )
-        }
-        
-        throw RouterError.notFound
-    }
-}
-
-extension Router : CustomStringConvertible {
-    /// :nodoc:
-    public var description: String {
-        var string = description(path: "")
-        string.characters.removeLast()
-        return string
-    }
-    
-    @inline(__always)
-    private func description(path: String) -> String {
-        var string = ""
-            
-        if path == "" {
-            string += "/"
-        }
-        
-        string += path + "\n"
-        
-        for (pathComponent, subrouter) in subrouters.sorted(by: { $0.0 < $1.0 }) {
-            string += subrouter.description(path: path + "/" + pathComponent)
-        }
-        
-        if let (parameterKey, subrouter) = pathParameterSubrouter {
-            string += subrouter.description(path: path + "/{" + parameterKey + "}")
-        }
-        
-        return string
+        return Response(status: .internalServerError)
     }
 }
 
@@ -229,226 +167,10 @@ fileprivate struct PathComponents {
     }
 }
 
-public enum PathComponent {
-    case subpath(String)
-    case parameter(String)
-}
-
-extension PathComponent : ExpressibleByStringLiteral {
-    /// :nodoc:
-    public init(unicodeScalarLiteral value: String) {
-        self = .subpath(value)
-    }
-    
-    /// :nodoc:
-    public init(extendedGraphemeClusterLiteral value: String) {
-        self = .subpath(value)
-    }
-    
-    /// :nodoc:
-    public init(stringLiteral value: StringLiteralType) {
-        self = .subpath(value)
-    }
-}
-
-prefix operator %
-
-extension String {
-    public static prefix func % (parameter: String) -> PathComponent {
-        return .parameter(parameter)
-    }
-}
-
-extension Router {    
-    public func add(_ path: PathComponent..., router: Router) {
-        _add(path, router: router)
-    }
-    
-    internal func _add(_ path: [PathComponent], router: Router) {
-        var path = path
-        
-        guard !path.isEmpty else {
-            return copy(router)
-        }
-        
-        let pathComponent = path.removeFirst()
-        let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter._add(path, router: router)
-    }
-    
-    internal func add(_ path: PathComponent, router: Router) {
-        switch path {
-        case let .subpath(subpath):
-            return subrouters[subpath] = router
-        case let .parameter(parameter):
-            return pathParameterSubrouter = (parameter, router)
-        }
-    }
-}
-
-
-extension Router {
-    public func preprocess(_ path: PathComponent..., body: @escaping Preprocess) {
-        _preprocess(path as [PathComponent], body: body)
-    }
-    
-    private func _preprocess(_ path: [PathComponent], body: @escaping Preprocess) {
-        var path = path
-        
-        guard !path.isEmpty else {
-            return preprocess = body
-        }
-        
-        let pathComponent = path.removeFirst()
-        let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter._preprocess(path, body: body)
-    }
-}
-
-extension Router {
-    public func postprocess(_ path: PathComponent..., body: @escaping Postprocess) {
-        _postprocess(path as [PathComponent], body: body)
-    }
-    
-    private func _postprocess(_ path: [PathComponent], body: @escaping Postprocess) {
-        var path = path
-        
-        guard !path.isEmpty else {
-            return postprocess = body
-        }
-        
-        let pathComponent = path.removeFirst()
-        let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter._postprocess(path, body: body)
-    }
-}
-
-extension Router {
-    public func recover(_ path: PathComponent..., body: @escaping Recover) {
-        _recover(path as [PathComponent], body: body)
-    }
-    
-    private func _recover(_ path: [PathComponent], body: @escaping Recover) {
-        var path = path
-        
-        guard !path.isEmpty else {
-            return recover = body
-        }
-        
-        let pathComponent = path.removeFirst()
-        let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter._recover(path, body: body)
-    }
-}
-
-extension Router {
-    public func get(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .get, path: path as [PathComponent], body: body)
-    }
-    
-    public func post(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .post, path: path as [PathComponent], body: body)
-    }
-    
-    public func put(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .put, path: path as [PathComponent], body: body)
-    }
-    
-    public func patch(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .patch, path: path as [PathComponent], body: body)
-    }
-    
-    public func delete(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .delete, path: path as [PathComponent], body: body)
-    }
-    
-    public func head(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .head, path: path as [PathComponent], body: body)
-    }
-    
-    public func options(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .options, path: path as [PathComponent], body: body)
-    }
-    
-    public func trace(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .trace, path: path as [PathComponent], body: body)
-    }
-    
-    public func connect(_ path: PathComponent..., body: @escaping Respond) {
-        _respond(to: .connect, path: path as [PathComponent], body: body)
-    }
-    
-    public func respond(
-        to method: Request.Method,
-        path: PathComponent...,
-        body: @escaping Respond
-    ) {
-        _respond(to: method, path: path as [PathComponent], body: body)
-    }
-    
-    private func _respond(
-        to method: Request.Method,
-        path: [PathComponent],
-        body: @escaping Respond
-    ) {
-        var path = path
-        
-        guard !path.isEmpty else {
-            return responders[method] = body
-        }
-        
-        let pathComponent = path.removeFirst()
-        let subrouter = getSubrouter(pathComponent, path: path.string)
-        subrouter._respond(to: method, path: path, body: body)
-    }
-}
-
-extension Array where Element == PathComponent {
-    var string: String {
-        var string = ""
-        
-        if self.isEmpty {
-            string += "/"
-        }
-        
-        for component in self {
-            string += "/"
-            
-            switch component {
-            case let .subpath(subpath):
-                string += subpath
-            case let .parameter(parameter):
-                string += parameter
-            }
-        }
-        
-        return string
-    }
-}
-
-extension Router {
-    fileprivate func getSubrouter(_ pathComponent: PathComponent, path: String) -> Router {
-        switch pathComponent {
-        case let .subpath(subpath):
-            guard let subouter = subrouters[subpath] else {
-                let router = Router()
-                add(pathComponent, router: router)
-                return router
-            }
-            
-            subrouters[subpath] = subouter
-            return subouter
-        case let .parameter(parameter):
-            guard let (subouterParameter, subouter) = pathParameterSubrouter else {
-                let router = Router()
-                add(pathComponent, router: router)
-                return router
-            }
-            
-            Logger.warning("Overwriting parameter \(subouterParameter) with parameter \(parameter) in route \(path)")
-            
-            pathParameterSubrouter = (parameter, subouter)
-            return subouter
-        }
+extension Router where Context.Application == Void {
+    public convenience init<Component : RouteComponent>(
+        root: Component
+    ) where Component.ComponentContext == Context {
+        self.init(root: root, application: ())
     }
 }
