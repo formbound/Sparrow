@@ -20,7 +20,7 @@ internal final class AnyRouteComponent<Context : RoutingContext> {
     
     init<Component : RouteComponent>(
         _ component: Component
-        ) where Component.ComponentContext == Context {
+    ) where Component.ComponentContext == Context {
         let children = ChildComponents<Context>()
         component.configure(children: children)
         

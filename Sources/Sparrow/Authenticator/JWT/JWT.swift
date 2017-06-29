@@ -78,7 +78,7 @@ public struct JWT {
         }
         
         self.jsonHeader = try decodedHeader.withBuffer {
-            try JSON.parse(from: $0, deadline: .never)
+            try JSON(from: $0, deadline: .never)
         }
 
         guard let decodedPayload = components[1].base64URLDecoded() else {
@@ -86,7 +86,7 @@ public struct JWT {
         }
         
         self.jsonPayload = try decodedPayload.withBuffer {
-            try JSON.parse(from: $0, deadline: .never)
+            try JSON(from: $0, deadline: .never)
         }
         
         guard let decodedSignature = components[2].base64URLDecoded() else {
@@ -120,7 +120,7 @@ public struct JWT {
     }
     
     public func verify(using algorithm: Algorithm) throws {
-        guard try algorithm.name == jsonHeader.get("alg") else {
+        guard try algorithm.name == jsonHeader.decode(String.self, forKey: "alg") else {
             throw JWTError.algorithmDoesNotMatch
         }
         
@@ -136,16 +136,16 @@ public struct JWT {
         return jsonHeader
     }
     
-    public func header<I : JSONInitializable>() throws -> I {
-        return try I(json: jsonHeader)
+    public func header<D : Decodable>() throws -> D {
+        return try D(from: jsonHeader)
     }
     
     public func payload() -> JSON {
         return jsonPayload
     }
     
-    public func payload<I : JSONInitializable>() throws -> I {
-        return try I(json: jsonPayload)
+    public func payload<D : Decodable>() throws -> D {
+        return try D(from: jsonPayload)
     }
 }
 
